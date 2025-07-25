@@ -37,6 +37,9 @@ struct StabilizerFilter {
     // Configuration methods
     void update_settings(obs_data_t* settings);
     void set_default_settings(obs_data_t* settings);
+    
+    // Preset configuration management
+    void apply_preset_configuration(StabilizerConfig::PresetMode preset);
 };
 
 // OBS Integration Class

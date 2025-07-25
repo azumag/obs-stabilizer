@@ -31,26 +31,111 @@ StabilizerFilter::~StabilizerFilter() {
 }
 
 void StabilizerFilter::update_settings(obs_data_t* settings) {
-    enabled = obs_data_get_bool(settings, "enabled");
+    enabled = obs_data_get_bool(settings, "enable_stabilization");
     
-    // Validate and clamp settings to safe ranges
+    // Core stabilization parameters
     config.smoothing_radius = std::max(10, std::min(100, (int)obs_data_get_int(settings, "smoothing_radius")));
     config.max_features = std::max(100, std::min(1000, (int)obs_data_get_int(settings, "max_features")));
+    config.error_threshold = std::max(10.0f, std::min(100.0f, (float)obs_data_get_double(settings, "error_threshold")));
     config.enable_stabilization = enabled;
+    
+    // Preset system
+    int preset_value = (int)obs_data_get_int(settings, "preset_mode");
+    if (preset_value >= 0 && preset_value <= 3) {
+        auto preset_mode = static_cast<StabilizerConfig::PresetMode>(preset_value);
+        if (preset_mode != StabilizerConfig::PresetMode::CUSTOM) {
+            apply_preset_configuration(preset_mode);
+        }
+    }
+    
+    // Output mode configuration
+    int output_value = (int)obs_data_get_int(settings, "output_mode");
+    if (output_value >= 0 && output_value <= 2) {
+        config.output_mode = static_cast<StabilizerConfig::OutputMode>(output_value);
+    }
+    
+    // Advanced parameters
+    config.min_feature_quality = std::max(0.001f, std::min(0.1f, (float)obs_data_get_double(settings, "min_feature_quality")));
+    config.refresh_threshold = std::max(10, std::min(50, (int)obs_data_get_int(settings, "refresh_threshold")));
+    config.adaptive_refresh = obs_data_get_bool(settings, "adaptive_refresh");
+    
+    // Performance settings
+    config.enable_gpu_acceleration = obs_data_get_bool(settings, "enable_gpu_acceleration");
+    config.processing_threads = std::max(1, std::min(8, (int)obs_data_get_int(settings, "processing_threads")));
     
     // Update core with new configuration
     if (stabilizer_core) {
         stabilizer_core->update_configuration(config);
     }
     
-    obs_log(LOG_INFO, "Stabilizer settings updated: enabled=%s, smoothing=%d, features=%d",
-            enabled ? "true" : "false", config.smoothing_radius, config.max_features);
+    obs_log(LOG_INFO, "Stabilizer settings updated: enabled=%s, smoothing=%d, features=%d, threshold=%.1f",
+            enabled ? "true" : "false", config.smoothing_radius, config.max_features, config.error_threshold);
+}
+
+void StabilizerFilter::apply_preset_configuration(StabilizerConfig::PresetMode preset) {
+    switch (preset) {
+        case StabilizerConfig::PresetMode::GAMING:
+            // Gaming preset: Fast response, lower quality
+            config.smoothing_radius = 15;
+            config.max_features = 150;
+            config.error_threshold = 40.0f;
+            config.output_mode = StabilizerConfig::OutputMode::CROP;
+            config.min_feature_quality = 0.02f;
+            config.refresh_threshold = 20;
+            break;
+            
+        case StabilizerConfig::PresetMode::STREAMING:
+            // Streaming preset: Balanced performance and quality
+            config.smoothing_radius = 30;
+            config.max_features = 200;
+            config.error_threshold = 30.0f;
+            config.output_mode = StabilizerConfig::OutputMode::PAD;
+            config.min_feature_quality = 0.01f;
+            config.refresh_threshold = 25;
+            break;
+            
+        case StabilizerConfig::PresetMode::RECORDING:
+            // Recording preset: High quality, slower response
+            config.smoothing_radius = 50;
+            config.max_features = 400;
+            config.error_threshold = 20.0f;
+            config.output_mode = StabilizerConfig::OutputMode::SCALE_FIT;
+            config.min_feature_quality = 0.005f;
+            config.refresh_threshold = 30;
+            break;
+            
+        case StabilizerConfig::PresetMode::CUSTOM:
+        default:
+            // Custom mode: Don't change settings
+            break;
+    }
+    
+    config.preset = preset;
 }
 
 void StabilizerFilter::set_default_settings(obs_data_t* settings) {
-    obs_data_set_default_bool(settings, "enabled", true);
+    // Main toggle
+    obs_data_set_default_bool(settings, "enable_stabilization", true);
+    
+    // Preset system (default to Streaming)
+    obs_data_set_default_int(settings, "preset_mode", (int)StabilizerConfig::PresetMode::STREAMING);
+    
+    // Core parameters (Streaming preset defaults)
     obs_data_set_default_int(settings, "smoothing_radius", 30);
     obs_data_set_default_int(settings, "max_features", 200);
+    obs_data_set_default_double(settings, "error_threshold", 30.0);
+    
+    // Output mode
+    obs_data_set_default_int(settings, "output_mode", (int)StabilizerConfig::OutputMode::PAD);
+    
+    // Advanced parameters
+    obs_data_set_default_double(settings, "min_feature_quality", 0.01);
+    obs_data_set_default_int(settings, "refresh_threshold", 25);
+    obs_data_set_default_bool(settings, "adaptive_refresh", true);
+    
+    // Performance settings
+    obs_data_set_default_bool(settings, "enable_gpu_acceleration", false);
+    obs_data_set_default_int(settings, "processing_threads", 1);
 }
 
 // OBSIntegration Implementation
@@ -146,20 +231,87 @@ obs_properties_t* OBSIntegration::filter_properties(void* data) {
     
     obs_properties_t* props = obs_properties_create();
     
-    // Enable/disable stabilization
-    obs_properties_add_bool(props, "enabled", obs_module_text("Enable Stabilization"));
+    // Main enable/disable toggle (top-level)
+    obs_properties_add_bool(props, "enable_stabilization", obs_module_text("Enable Video Stabilization"));
     
-    // Smoothing radius (10-100)
+    // Preset selection (primary control)
+    obs_property_t* preset_list = obs_properties_add_list(props, "preset_mode",
+                                                         obs_module_text("Stabilization Preset"), 
+                                                         OBS_COMBO_TYPE_LIST, 
+                                                         OBS_COMBO_FORMAT_INT);
+    obs_property_list_add_int(preset_list, obs_module_text("Custom"), (int)StabilizerConfig::PresetMode::CUSTOM);
+    obs_property_list_add_int(preset_list, obs_module_text("Gaming (Fast Response)"), (int)StabilizerConfig::PresetMode::GAMING);
+    obs_property_list_add_int(preset_list, obs_module_text("Streaming (Balanced)"), (int)StabilizerConfig::PresetMode::STREAMING);
+    obs_property_list_add_int(preset_list, obs_module_text("Recording (High Quality)"), (int)StabilizerConfig::PresetMode::RECORDING);
+    obs_property_set_long_description(preset_list,
+        obs_module_text("Choose a preset optimized for your use case, or select Custom for manual configuration."));
+    
+    // Core parameter group (visible when Custom selected or for reference)
+    obs_property_t* core_group = obs_properties_create_group(props, "core_params", 
+                                                            obs_module_text("Stabilization Parameters"), 
+                                                            OBS_GROUP_NORMAL);
+    
+    // Smoothing strength slider (10-100)
     obs_property_t* smoothing_prop = obs_properties_add_int_slider(
-        props, "smoothing_radius", obs_module_text("Smoothing Radius"), 10, 100, 5);
+        core_group, "smoothing_radius", obs_module_text("Smoothing Strength"), 10, 100, 5);
     obs_property_set_long_description(smoothing_prop, 
         obs_module_text("Number of frames used for transform smoothing. Higher values = smoother but more latency."));
     
-    // Maximum feature points (100-1000)
+    // Feature points slider (100-1000)
     obs_property_t* features_prop = obs_properties_add_int_slider(
-        props, "max_features", obs_module_text("Max Feature Points"), 100, 1000, 50);
+        core_group, "max_features", obs_module_text("Feature Points"), 100, 1000, 50);
     obs_property_set_long_description(features_prop,
         obs_module_text("Maximum number of feature points to track. Higher values = more accurate but slower."));
+    
+    // Stability threshold slider (10.0-100.0)
+    obs_property_t* threshold_prop = obs_properties_add_float_slider(
+        core_group, "error_threshold", obs_module_text("Stability Threshold"), 10.0, 100.0, 5.0);
+    obs_property_set_long_description(threshold_prop,
+        obs_module_text("Error threshold for tracking quality. Lower values = stricter quality requirements."));
+    
+    // Output mode selection
+    obs_property_t* output_mode = obs_properties_add_list(core_group, "output_mode",
+                                                         obs_module_text("Edge Handling"), 
+                                                         OBS_COMBO_TYPE_LIST, 
+                                                         OBS_COMBO_FORMAT_INT);
+    obs_property_list_add_int(output_mode, obs_module_text("Crop Borders"), (int)StabilizerConfig::OutputMode::CROP);
+    obs_property_list_add_int(output_mode, obs_module_text("Black Padding"), (int)StabilizerConfig::OutputMode::PAD);
+    obs_property_list_add_int(output_mode, obs_module_text("Scale to Fit"), (int)StabilizerConfig::OutputMode::SCALE_FIT);
+    obs_property_set_long_description(output_mode,
+        obs_module_text("How to handle stabilization borders: Crop removes edges, Padding adds black borders, Scale stretches to fit."));
+    
+    // Advanced settings (collapsible group)
+    obs_property_t* advanced_group = obs_properties_create_group(props, "advanced_params",
+                                                                obs_module_text("Advanced Settings"),
+                                                                OBS_GROUP_CHECKABLE);
+    
+    // Feature quality threshold
+    obs_property_t* quality_prop = obs_properties_add_float_slider(
+        advanced_group, "min_feature_quality", obs_module_text("Feature Quality"), 0.001, 0.1, 0.001);
+    obs_property_set_long_description(quality_prop,
+        obs_module_text("Minimum quality threshold for feature detection. Lower values detect more features but may be less stable."));
+    
+    // Refresh threshold
+    obs_property_t* refresh_prop = obs_properties_add_int_slider(
+        advanced_group, "refresh_threshold", obs_module_text("Refresh Threshold"), 10, 50, 5);
+    obs_property_set_long_description(refresh_prop,
+        obs_module_text("Number of frames before refreshing feature detection. Lower values = more responsive but higher CPU usage."));
+    
+    // Adaptive refresh toggle
+    obs_property_t* adaptive_prop = obs_properties_add_bool(advanced_group, "adaptive_refresh", obs_module_text("Adaptive Refresh"));
+    obs_property_set_long_description(adaptive_prop,
+        obs_module_text("Automatically adjust refresh rate based on tracking quality."));
+    
+    // GPU acceleration toggle (experimental)
+    obs_property_t* gpu_prop = obs_properties_add_bool(advanced_group, "enable_gpu_acceleration", obs_module_text("GPU Acceleration (Experimental)"));
+    obs_property_set_long_description(gpu_prop,
+        obs_module_text("Enable GPU acceleration for stabilization processing. May not be available on all systems."));
+    
+    // Processing threads
+    obs_property_t* threads_prop = obs_properties_add_int_slider(
+        advanced_group, "processing_threads", obs_module_text("Processing Threads"), 1, 8, 1);
+    obs_property_set_long_description(threads_prop,
+        obs_module_text("Number of threads to use for stabilization processing. Higher values may improve performance on multi-core systems."));
     
     return props;
 }

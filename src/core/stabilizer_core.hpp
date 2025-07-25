@@ -28,18 +28,39 @@ namespace obs_stabilizer {
 
 // Configuration structure for stabilizer parameters
 struct StabilizerConfig {
-    // Core parameters
-    int smoothing_radius = 30;        // Range: 10-100
-    int max_features = 200;           // Range: 100-1000  
-    float error_threshold = 30.0f;    // Range: 10.0-100.0
+    // Core stabilization parameters
+    int smoothing_radius = 30;        // Range: 10-100, UI: Slider
+    int max_features = 200;           // Range: 100-1000, UI: Number input  
+    float error_threshold = 30.0f;    // Range: 10.0-100.0, UI: Slider
     
-    // Processing options
-    bool enable_stabilization = true;
+    // User-facing toggles
+    bool enable_stabilization = true; // UI: Checkbox
     
-    // Advanced parameters
-    float min_feature_quality = 0.01f;
-    int refresh_threshold = 25;
-    bool adaptive_refresh = true;
+    // Advanced parameters (collapsible section)
+    float min_feature_quality = 0.01f;  // Range: 0.001-0.1, UI: Advanced slider
+    int refresh_threshold = 25;         // Range: 10-50, UI: Advanced number
+    bool adaptive_refresh = true;       // UI: Advanced checkbox
+    
+    // Output options
+    enum class OutputMode {
+        CROP,           // Crop to remove black borders (default)
+        PAD,            // Pad with black borders to maintain size
+        SCALE_FIT       // Scale to fit, may cause slight distortion
+    };
+    OutputMode output_mode = OutputMode::CROP; // UI: Radio buttons
+    
+    // Preset system
+    enum class PresetMode {
+        CUSTOM,         // User-defined settings
+        GAMING,         // Optimized for gaming captures (fast response)
+        STREAMING,      // Balanced for live streaming (medium quality)
+        RECORDING       // High quality for post-production (slow response)
+    };
+    PresetMode preset = PresetMode::STREAMING; // UI: Dropdown
+    
+    // Performance settings
+    bool enable_gpu_acceleration = false;  // UI: Advanced checkbox
+    int processing_threads = 1;            // Range: 1-8, UI: Advanced slider
 };
 
 // Status enumeration for stabilizer state
