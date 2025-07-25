@@ -40,6 +40,11 @@ if(NOT OpenCV_FOUND)
     message(WARNING "OpenCV not found. Building without stabilization features.")
     set(ENABLE_STABILIZATION OFF)
 else()
+    # Check OpenCV version compatibility
+    if(OpenCV_VERSION VERSION_GREATER_EQUAL "5.0.0")
+        message(WARNING "OpenCV ${OpenCV_VERSION} may have compatibility issues. Tested with 4.5-4.x")
+    endif()
+    
     message(STATUS "Found OpenCV ${OpenCV_VERSION}")
     set(ENABLE_STABILIZATION ON)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_LIBS})

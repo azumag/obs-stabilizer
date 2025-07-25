@@ -44,6 +44,8 @@ struct stabilizer_data {
 #ifdef ENABLE_STABILIZATION
 	// OpenCV context
 	cv::Mat prev_frame;
+	cv::Mat working_frame;  // Pre-allocated for efficiency
+	cv::Mat working_gray;   // Pre-allocated for efficiency
 	std::vector<cv::Point2f> prev_points;
 	bool first_frame;
 	int smoothing_radius;
@@ -98,20 +100,45 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 #ifdef ENABLE_STABILIZATION
 	// OpenCV-based stabilization processing
 	try {
-		// Convert OBS frame to OpenCV Mat
-		cv::Mat current_frame;
+		// Input validation
+		if (!frame || !frame->data[0] || frame->width == 0 || frame->height == 0) {
+			obs_log(LOG_ERROR, "Invalid frame data for stabilization");
+			return frame;
+		}
 		
-		// Handle different OBS pixel formats
+		// Handle different OBS pixel formats with proper bounds checking
 		if (frame->format == VIDEO_FORMAT_NV12) {
-			// Convert NV12 to BGR for processing
-			cv::Mat nv12_mat(frame->height + frame->height/2, frame->width, CV_8UC1, frame->data[0]);
-			cv::cvtColor(nv12_mat, current_frame, cv::COLOR_YUV2BGR_NV12);
+			// Validate NV12 format requirements
+			if (!frame->data[0] || frame->linesize[0] < frame->width) {
+				obs_log(LOG_ERROR, "Invalid NV12 frame data or linesize");
+				return frame;
+			}
+			
+			// Create Mat with proper stride handling
+			cv::Mat nv12_y(frame->height, frame->width, CV_8UC1, 
+						   frame->data[0], frame->linesize[0]);
+			cv::Mat nv12_uv(frame->height/2, frame->width/2, CV_8UC2,
+							frame->data[0] + frame->linesize[0] * frame->height,
+							frame->linesize[0]);
+			
+			// Convert directly to grayscale for efficiency
+			nv12_y.copyTo(filter->working_gray);
+			
 		} else if (frame->format == VIDEO_FORMAT_I420) {
-			// Convert I420 to BGR for processing
-			cv::Mat y_plane(frame->height, frame->width, CV_8UC1, frame->data[0]);
-			cv::Mat u_plane(frame->height/2, frame->width/2, CV_8UC1, frame->data[1]);
-			cv::Mat v_plane(frame->height/2, frame->width/2, CV_8UC1, frame->data[2]);
-			cv::cvtColor(y_plane, current_frame, cv::COLOR_GRAY2BGR); // Simplified conversion
+			// Validate I420 format requirements  
+			if (!frame->data[0] || !frame->data[1] || !frame->data[2] ||
+				frame->linesize[0] < frame->width ||
+				frame->linesize[1] < frame->width/2 ||
+				frame->linesize[2] < frame->width/2) {
+				obs_log(LOG_ERROR, "Invalid I420 frame data or linesize");
+				return frame;
+			}
+			
+			// Use Y plane directly for grayscale processing (more efficient)
+			cv::Mat y_plane(frame->height, frame->width, CV_8UC1, 
+						   frame->data[0], frame->linesize[0]);
+			y_plane.copyTo(filter->working_gray);
+			
 		} else {
 			// Unsupported format, pass through
 			obs_log(LOG_WARNING, "Unsupported video format for stabilization: %d", frame->format);
@@ -120,20 +147,28 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 		
 		// First frame initialization
 		if (filter->first_frame) {
-			cv::cvtColor(current_frame, filter->prev_frame, cv::COLOR_BGR2GRAY);
+			filter->working_gray.copyTo(filter->prev_frame);
 			
-			// Detect initial feature points
-			cv::goodFeaturesToTrack(filter->prev_frame, filter->prev_points, 
-									filter->max_features, 0.01, 10);
+			// Validate frame dimensions for feature detection
+			if (filter->working_gray.rows < 50 || filter->working_gray.cols < 50) {
+				obs_log(LOG_WARNING, "Frame too small for reliable feature detection: %dx%d", 
+						filter->working_gray.cols, filter->working_gray.rows);
+				return frame;
+			}
+			
+			// Detect initial feature points with bounds checking
+			try {
+				cv::goodFeaturesToTrack(filter->prev_frame, filter->prev_points, 
+										std::max(50, std::min(filter->max_features, 1000)), 0.01, 10);
+			} catch (const cv::Exception& e) {
+				obs_log(LOG_ERROR, "Feature detection failed: %s", e.what());
+				return frame;
+			}
 			
 			filter->first_frame = false;
 			obs_log(LOG_INFO, "Stabilization initialized with %zu feature points", filter->prev_points.size());
 			return frame; // Pass through first frame
 		}
-		
-		// Convert current frame to grayscale for processing
-		cv::Mat current_gray;
-		cv::cvtColor(current_frame, current_gray, cv::COLOR_BGR2GRAY);
 		
 		// Track feature points using Lucas-Kanade optical flow
 		std::vector<cv::Point2f> current_points;
@@ -141,46 +176,89 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 		std::vector<float> errors;
 		
 		if (!filter->prev_points.empty()) {
-			cv::calcOpticalFlowLK(filter->prev_frame, current_gray, 
-								  filter->prev_points, current_points, 
-								  status, errors);
+			try {
+				cv::calcOpticalFlowLK(filter->prev_frame, filter->working_gray, 
+									  filter->prev_points, current_points, 
+									  status, errors);
+			} catch (const cv::Exception& e) {
+				obs_log(LOG_ERROR, "Optical flow calculation failed: %s", e.what());
+				// Reset state for recovery
+				filter->first_frame = true;
+				filter->prev_points.clear();
+				return frame;
+			}
 			
-			// Filter out bad tracking points
+			// Filter out bad tracking points with improved thresholds
 			std::vector<cv::Point2f> good_prev, good_current;
-			for (size_t i = 0; i < status.size(); i++) {
-				if (status[i] && errors[i] < 50) {
-					good_prev.push_back(filter->prev_points[i]);
-					good_current.push_back(current_points[i]);
+			const float max_error = 30.0f; // Reduced from 50 for better quality
+			
+			for (size_t i = 0; i < status.size() && i < errors.size(); i++) {
+				if (status[i] && errors[i] < max_error) {
+					// Additional bounds checking for points
+					if (current_points[i].x >= 0 && current_points[i].x < filter->working_gray.cols &&
+						current_points[i].y >= 0 && current_points[i].y < filter->working_gray.rows) {
+						good_prev.push_back(filter->prev_points[i]);
+						good_current.push_back(current_points[i]);
+					}
 				}
 			}
 			
 			// Estimate transformation if we have enough points
-			if (good_prev.size() >= 4) {
-				cv::Mat transform = cv::estimateAffinePartial2D(good_current, good_prev);
-				
-				if (!transform.empty()) {
-					// Apply stabilization transform (simplified)
-					// In a full implementation, this would include smoothing and cropping
-					obs_log(LOG_DEBUG, "Stabilization applied with %zu points", good_prev.size());
+			const size_t min_points = 6; // Increased from 4 for stability
+			if (good_prev.size() >= min_points) {
+				try {
+					cv::Mat transform = cv::estimateAffinePartial2D(good_current, good_prev, 
+																	cv::noArray(), cv::RANSAC, 3.0);
+					
+					if (!transform.empty()) {
+						// TODO: Apply stabilization transform to actual frame
+						// For now, just log successful calculation
+						obs_log(LOG_DEBUG, "Transform calculated with %zu points", good_prev.size());
+					}
+				} catch (const cv::Exception& e) {
+					obs_log(LOG_WARNING, "Transform estimation failed: %s", e.what());
 				}
+			} else {
+				obs_log(LOG_DEBUG, "Insufficient tracking points: %zu (need %zu)", good_prev.size(), min_points);
 			}
 			
-			// Update previous frame and points for next iteration
+			// Update previous points with validated good points
 			filter->prev_points = good_current;
 		}
 		
 		// Update previous frame
-		current_gray.copyTo(filter->prev_frame);
+		filter->working_gray.copyTo(filter->prev_frame);
 		
-		// Refresh feature points if we lost too many
-		if (filter->prev_points.size() < filter->max_features / 2) {
-			cv::goodFeaturesToTrack(current_gray, filter->prev_points, 
-									filter->max_features, 0.01, 10);
-			obs_log(LOG_DEBUG, "Refreshed feature points: %zu", filter->prev_points.size());
+		// Refresh feature points if we lost too many (with bounds checking)
+		const size_t refresh_threshold = std::max(static_cast<size_t>(25), 
+												  static_cast<size_t>(filter->max_features / 3));
+		if (filter->prev_points.size() < refresh_threshold) {
+			try {
+				std::vector<cv::Point2f> new_points;
+				cv::goodFeaturesToTrack(filter->working_gray, new_points, 
+										std::max(50, std::min(filter->max_features, 1000)), 0.01, 10);
+				
+				// Merge with existing points if any remain
+				filter->prev_points.insert(filter->prev_points.end(), new_points.begin(), new_points.end());
+				obs_log(LOG_DEBUG, "Refreshed feature points: total %zu", filter->prev_points.size());
+			} catch (const cv::Exception& e) {
+				obs_log(LOG_ERROR, "Feature refresh failed: %s", e.what());
+			}
 		}
 		
 	} catch (const cv::Exception& e) {
 		obs_log(LOG_ERROR, "OpenCV error in stabilization: %s", e.what());
+		// Reset filter state for recovery
+		filter->first_frame = true;
+		filter->prev_points.clear();
+	} catch (const std::exception& e) {
+		obs_log(LOG_ERROR, "Standard exception in stabilization: %s", e.what());
+		filter->first_frame = true;
+		filter->prev_points.clear();
+	} catch (...) {
+		obs_log(LOG_ERROR, "Unknown exception in stabilization");
+		filter->first_frame = true;
+		filter->prev_points.clear();
 	}
 #endif
 	
