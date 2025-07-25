@@ -91,6 +91,9 @@ cmake --build --preset <platform>-ci
 # Run core compilation test only (no dependencies required)
 ./test-core-only.sh
 
+# Run integration test suite (validates core and OBS integration)
+./run-integration-test.sh
+
 # Run performance tests (requires OpenCV)
 ./run-perftest.sh
 
@@ -174,18 +177,22 @@ cmake --build --preset <platform>-ci
 
 ### Critical Next Steps
 - [x] **Issue #41**: Fix test system compatibility ✅ **RESOLVED**
-- [ ] **Issue #39**: Complete core integration testing (HIGH PRIORITY)
-- [ ] **Phase 3**: Begin UI implementation with modular architecture foundation
+- [x] **Issue #39**: Complete core integration testing ✅ **RESOLVED**
+- [x] **Issue #36**: UI Architecture Specification ✅ **RESOLVED**
+- [ ] **Phase 3**: Begin UI implementation with comprehensive architecture foundation
 
 See [CLAUDE.md](CLAUDE.md) for detailed technical specifications and complete development roadmap.
 
 For system architecture and technical design, see [docs/architecture.md](docs/architecture.md).
 
+For Phase 3 UI implementation specifications, see [docs/ui-architecture.md](docs/ui-architecture.md).
+
 ## Contributing
 
 We welcome contributions! Please see our documentation for:
 - **Development Guide**: [CLAUDE.md](CLAUDE.md) - Project specifications and workflow
-- **System Architecture**: [docs/architecture.md](docs/architecture.md) - Technical design and API specifications  
+- **System Architecture**: [docs/architecture.md](docs/architecture.md) - Technical design and API specifications
+- **UI Architecture**: [docs/ui-architecture.md](docs/ui-architecture.md) - Phase 3 UI implementation specifications
 - **Build system requirements** and testing procedures
 - **Code review process** and issue management workflow
 
