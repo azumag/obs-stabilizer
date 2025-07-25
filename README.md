@@ -162,13 +162,15 @@ cmake --build --preset <platform>-ci
 
 See [CLAUDE.md](CLAUDE.md) for detailed technical specifications and complete development roadmap.
 
+For system architecture and technical design, see [docs/architecture.md](docs/architecture.md).
+
 ## Contributing
 
-We welcome contributions! Please see our [development documentation](CLAUDE.md) for:
-- Technical architecture details
-- Build system requirements  
-- Code review process
-- Issue management workflow
+We welcome contributions! Please see our documentation for:
+- **Development Guide**: [CLAUDE.md](CLAUDE.md) - Project specifications and workflow
+- **System Architecture**: [docs/architecture.md](docs/architecture.md) - Technical design and API specifications  
+- **Build system requirements** and testing procedures
+- **Code review process** and issue management workflow
 
 ## Acknowledgments
 
