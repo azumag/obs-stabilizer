@@ -23,17 +23,25 @@ const char *PLUGIN_VERSION = "@CMAKE_PROJECT_VERSION@";
 
 void obs_log(int log_level, const char *format, ...)
 {
-	size_t length = 4 + strlen(PLUGIN_NAME) + strlen(format);
-
-	char *template = malloc(length + 1);
-
-	snprintf(template, length, "[%s] %s", PLUGIN_NAME, format);
-
-	va_list(args);
-
+	if (!PLUGIN_NAME || !format) return;
+	
+	// Conservative buffer size estimation with safety margin
+	size_t base_len = strlen(PLUGIN_NAME) + strlen(format) + 10; // "[" + "] " + null terminator + margin
+	size_t buffer_size = base_len + 256; // Extra space for format expansion
+	
+	char *template = malloc(buffer_size);
+	if (!template) return; // Handle allocation failure
+	
+	int ret = snprintf(template, buffer_size, "[%s] %s", PLUGIN_NAME, format);
+	if (ret < 0 || ret >= (int)buffer_size) {
+		free(template);
+		return; // Handle formatting error
+	}
+	
+	va_list args;
 	va_start(args, format);
 	blogva(log_level, template, args);
 	va_end(args);
-
+	
 	free(template);
 }

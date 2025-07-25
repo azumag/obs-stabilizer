@@ -47,8 +47,16 @@ else()
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_STABILIZATION)
 endif()
 
+# Configure plugin support file
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c
+    @ONLY
+)
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
   src/plugin-main.cpp
+  src/plugin-support.c
   # Future C++ sources will be added here
 )
 
