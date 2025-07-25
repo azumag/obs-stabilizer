@@ -34,22 +34,63 @@ if(ENABLE_QT)
   )
 endif()
 
-# OpenCV dependency for video stabilization with proper error handling
+# OpenCV dependency for video stabilization with comprehensive version checking
 find_package(OpenCV 4.5 QUIET COMPONENTS core imgproc video features2d)
 if(NOT OpenCV_FOUND)
-    message(WARNING "OpenCV not found. Building without stabilization features.")
-    set(ENABLE_STABILIZATION OFF)
-else()
-    # Check OpenCV version compatibility
-    if(OpenCV_VERSION VERSION_GREATER_EQUAL "5.0.0")
-        message(WARNING "OpenCV ${OpenCV_VERSION} may have compatibility issues. Tested with 4.5-4.x")
+    # Try alternative package names
+    find_package(OpenCV QUIET COMPONENTS core imgproc video features2d)
+    if(NOT OpenCV_FOUND)
+        message(WARNING "OpenCV not found. Building without stabilization features.")
+        message(STATUS "Install OpenCV 4.5+ with: brew install opencv (macOS) or apt-get install libopencv-dev (Ubuntu)")
+        set(ENABLE_STABILIZATION OFF)
+    endif()
+endif()
+
+if(OpenCV_FOUND)
+    # Comprehensive version compatibility validation
+    message(STATUS "Found OpenCV ${OpenCV_VERSION}")
+    
+    # Version compatibility matrix
+    if(OpenCV_VERSION VERSION_LESS "4.5.0")
+        message(FATAL_ERROR "OpenCV ${OpenCV_VERSION} is too old. Minimum required: 4.5.0")
+    elseif(OpenCV_VERSION VERSION_GREATER_EQUAL "4.5.0" AND OpenCV_VERSION VERSION_LESS "5.0.0")
+        message(STATUS "✅ OpenCV ${OpenCV_VERSION} - Fully tested and supported")
+        set(OPENCV_COMPATIBILITY_LEVEL "FULLY_SUPPORTED")
+    elseif(OpenCV_VERSION VERSION_GREATER_EQUAL "5.0.0" AND OpenCV_VERSION VERSION_LESS "6.0.0")
+        message(WARNING "⚠️  OpenCV ${OpenCV_VERSION} - Limited testing. May have API changes")
+        message(STATUS "Consider using OpenCV 4.8.x for maximum stability")
+        set(OPENCV_COMPATIBILITY_LEVEL "EXPERIMENTAL")
+    else()
+        message(WARNING "❌ OpenCV ${OpenCV_VERSION} - Untested version. Use at your own risk")
+        set(OPENCV_COMPATIBILITY_LEVEL "UNSUPPORTED")
+        message(STATUS "Recommended versions: 4.5.x - 4.8.x")
     endif()
     
-    message(STATUS "Found OpenCV ${OpenCV_VERSION}")
+    # Validate required components
+    set(REQUIRED_OPENCV_COMPONENTS core imgproc video features2d)
+    foreach(component ${REQUIRED_OPENCV_COMPONENTS})
+        if(NOT ${component} IN_LIST OpenCV_LIBS)
+            message(FATAL_ERROR "Required OpenCV component '${component}' not found")
+        endif()
+    endforeach()
+    
+    # API compatibility compile-time checks
     set(ENABLE_STABILIZATION ON)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_STABILIZATION)
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
+        ENABLE_STABILIZATION
+        OPENCV_VERSION_MAJOR=${OpenCV_VERSION_MAJOR}
+        OPENCV_VERSION_MINOR=${OpenCV_VERSION_MINOR}
+        OPENCV_COMPATIBILITY_LEVEL="${OPENCV_COMPATIBILITY_LEVEL}"
+    )
+    
+    # Log detailed version information for debugging
+    message(STATUS "OpenCV Configuration:")
+    message(STATUS "  - Version: ${OpenCV_VERSION}")
+    message(STATUS "  - Components: ${OpenCV_LIBS}")
+    message(STATUS "  - Include dirs: ${OpenCV_INCLUDE_DIRS}")
+    message(STATUS "  - Compatibility: ${OPENCV_COMPATIBILITY_LEVEL}")
 endif()
 
 # Configure plugin support file

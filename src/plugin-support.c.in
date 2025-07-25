@@ -25,16 +25,27 @@ void obs_log(int log_level, const char *format, ...)
 {
 	if (!PLUGIN_NAME || !format) return;
 	
-	// Conservative buffer size estimation with safety margin
-	size_t base_len = strlen(PLUGIN_NAME) + strlen(format) + 10; // "[" + "] " + null terminator + margin
-	size_t buffer_size = base_len + 256; // Extra space for format expansion
+	// Use safe stack allocation for typical log messages
+	const size_t STACK_BUFFER_SIZE = 512;
+	char stack_buffer[STACK_BUFFER_SIZE];
+	char *template = stack_buffer;
 	
-	char *template = malloc(buffer_size);
-	if (!template) return; // Handle allocation failure
+	// Conservative buffer size estimation
+	size_t base_len = strlen(PLUGIN_NAME) + strlen(format) + 10;
+	size_t buffer_size = base_len + 256;
+	
+	// Use heap allocation only for very large messages
+	bool use_heap = buffer_size > STACK_BUFFER_SIZE;
+	if (use_heap) {
+		template = malloc(buffer_size);
+		if (!template) return; // Handle allocation failure
+	} else {
+		buffer_size = STACK_BUFFER_SIZE;
+	}
 	
 	int ret = snprintf(template, buffer_size, "[%s] %s", PLUGIN_NAME, format);
 	if (ret < 0 || ret >= (int)buffer_size) {
-		free(template);
+		if (use_heap) free(template);
 		return; // Handle formatting error
 	}
 	
@@ -43,5 +54,5 @@ void obs_log(int log_level, const char *format, ...)
 	blogva(log_level, template, args);
 	va_end(args);
 	
-	free(template);
+	if (use_heap) free(template);
 }

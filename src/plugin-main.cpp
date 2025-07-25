@@ -25,6 +25,24 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <opencv2/features2d.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <vector>
+
+// OpenCV API compatibility validation
+#if !defined(CV_VERSION_MAJOR) || (CV_VERSION_MAJOR < 4) || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR < 5)
+    #error "OpenCV 4.5+ is required for this plugin"
+#endif
+
+// Version-specific compatibility checks
+#if CV_VERSION_MAJOR >= 5
+    #warning "OpenCV 5.x detected - some APIs may have changed. Verify functionality."
+    // Future: Add OpenCV 5.x specific API adaptations here
+#endif
+
+// API compatibility layer for different OpenCV versions
+#if CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 8
+    #define STABILIZER_HAS_OPTICAL_FLOW_PYR_LK_ENHANCED 1
+#else
+    #define STABILIZER_HAS_OPTICAL_FLOW_PYR_LK_ENHANCED 0
+#endif
 #endif
 
 OBS_DECLARE_MODULE()
@@ -74,6 +92,12 @@ struct stabilizer_data {
 static void apply_transform_nv12(struct obs_source_frame *frame, const cv::Mat& transform)
 {
 	try {
+		// Validate Y plane access
+		if (!frame->data[0] || frame->linesize[0] < frame->width) {
+			obs_log(LOG_ERROR, "Invalid NV12 Y plane data or linesize");
+			return;
+		}
+		
 		// Create OpenCV Mat for Y plane
 		cv::Mat y_plane(frame->height, frame->width, CV_8UC1, frame->data[0], frame->linesize[0]);
 		cv::Mat y_transformed;
@@ -117,6 +141,12 @@ static void apply_transform_nv12(struct obs_source_frame *frame, const cv::Mat& 
 static void apply_transform_i420(struct obs_source_frame *frame, const cv::Mat& transform)
 {
 	try {
+		// Validate Y plane access
+		if (!frame->data[0] || frame->linesize[0] < frame->width) {
+			obs_log(LOG_ERROR, "Invalid I420 Y plane data or linesize");
+			return;
+		}
+		
 		// Transform Y plane
 		cv::Mat y_plane(frame->height, frame->width, CV_8UC1, frame->data[0], frame->linesize[0]);
 		cv::Mat y_transformed;

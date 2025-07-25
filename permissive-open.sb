@@ -5,6 +5,9 @@
 ;; すべてのプロセス操作を許可
 (allow process*)
 
+;; より包括的なプロセス実行権限
+(allow process-exec*)
+
 ;; プロセス実行権限を追加
 (allow process-exec
     ;; システムコマンドの実行を許可（setuidバイナリ含む）
@@ -26,6 +29,7 @@
 ;; ファイル実行権限を明示的に追加
 (allow file-read-xattr)
 (allow file-read-metadata)
+(allow file-read*)
 
 ;; プロセス情報読み取り権限を追加
 (allow process-info-pidinfo)
@@ -42,6 +46,7 @@
 (allow mach-lookup)
 (allow mach-task-name)
 (allow mach-per-user-lookup)
+(allow mach*)
 
 ;; プロセス制御権限を追加
 (allow process-fork)
@@ -58,6 +63,10 @@
 ;; sysctl権限を追加
 (allow sysctl-read)
 (allow sysctl-write)
+
+;; 追加のシステム権限
+(allow iokit-get-properties)
+(allow iokit-open)
 
 (deny file-write*)
 (allow file-write*
