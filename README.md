@@ -1,25 +1,38 @@
 # OBS Stabilizer Plugin
 
-Real-time video stabilization plugin for OBS Studio using OpenCV computer vision algorithms.
+**⚠️ EARLY DEVELOPMENT - NOT FUNCTIONAL YET**
+
+A planned real-time video stabilization plugin for OBS Studio using OpenCV computer vision algorithms.
+
+## ⚠️ **IMPORTANT: Current Limitations**
+
+**This plugin is in early development and currently NON-FUNCTIONAL:**
+- ❌ No video stabilization implemented
+- ❌ No OBS filter registration 
+- ❌ Build system has template processing issues
+- ❌ Plugin loads but provides no user functionality
+- ⚠️ Buffer overflow vulnerability in support files
+
+**DO NOT USE IN PRODUCTION**
 
 ## Overview
 
-OBS Stabilizer provides real-time video stabilization for livestreams and recordings in OBS Studio. This plugin implements Point Feature Matching algorithms to reduce camera shake and improve video quality without significant performance impact.
+OBS Stabilizer will provide real-time video stabilization for livestreams and recordings in OBS Studio. The planned implementation uses Point Feature Matching algorithms to reduce camera shake and improve video quality without significant performance impact.
 
-### Key Features
+### Planned Features
 
-- **Real-time Processing**: Planned targets for 30+ fps performance on HD video
+- **Real-time Processing**: Target 30+ fps performance on HD video
 - **Low Latency**: Target <4ms processing time per frame on modern hardware  
 - **Adaptive Algorithms**: Intelligent feature detection with fallback strategies
 - **User-Friendly UI**: Integrated OBS properties panel with presets
 - **Cross-Platform**: Windows, macOS, and Linux support
 
-## Technical Specifications
+## Technical Specifications (Planned)
 
 - **Core Algorithm**: Point Feature Matching with Lucas-Kanade Optical Flow
-- **Dependencies**: OpenCV 4.5+, Qt6, OBS Studio 30.0+
+- **Dependencies**: OpenCV 4.5+ (optional), Qt6, OBS Studio 30.0+
 - **Language**: C++17/20
-- **Build System**: CMake 3.28+
+- **Build System**: CMake 3.28+ with conditional compilation (incomplete)
 - **License**: GPL-2.0 (OBS Studio compatible)
 
 ## Quick Start
@@ -27,10 +40,10 @@ OBS Stabilizer provides real-time video stabilization for livestreams and record
 ### Prerequisites
 
 - OBS Studio 30.0 or higher
-- OpenCV 4.5+ development libraries
 - CMake 3.28+ 
 - Qt6 development libraries
 - C++17 compatible compiler
+- OpenCV 4.5+ development libraries (optional, enables stabilization features)
 
 ### Building from Source
 
@@ -47,14 +60,22 @@ cmake --preset <platform>-ci
 cmake --build --preset <platform>-ci
 ```
 
+**⚠️ Warning**: The plugin currently has build system issues and will not function even when built successfully. Template file processing is incomplete.
+
 ### Installation
 
-1. Copy the built plugin to your OBS plugins directory
-2. Restart OBS Studio
-3. Add "Video Stabilizer" filter to your video source
-4. Configure stabilization parameters as needed
+**NOT RECOMMENDED** - Plugin is non-functional
 
-## Configuration Options
+~~1. Copy the built plugin to your OBS plugins directory~~
+~~2. Restart OBS Studio~~
+~~3. Add "Video Stabilizer" filter to your video source~~
+~~4. Configure stabilization parameters as needed~~
+
+**Current Status**: Plugin loads but provides no filter or functionality to OBS Studio.
+
+## Planned Configuration Options
+
+**NOTE: These options do not currently exist**
 
 - **Enable Stabilization**: Toggle stabilization on/off
 - **Smoothing Radius**: Frame averaging window (10-100 frames)
@@ -75,10 +96,13 @@ cmake --build --preset <platform>-ci
 
 This project is in active development. See [CLAUDE.md](CLAUDE.md) for detailed technical specifications and development roadmap.
 
-### Current Phase: Phase 1 - Foundation Setup ✅
-- [x] OBS plugin template setup (#1)
-- [ ] OpenCV integration (#2) 
-- [ ] Basic video filter implementation (#3)
+### Current Phase: Phase 1 - Foundation Setup ⚠️
+- [x] OBS plugin template setup (#1) ✅  
+- [x] Build system improvements (Partial) 🔄
+- [ ] Plugin support files completion (#23) - **CRITICAL BLOCKER**
+- [ ] Basic OBS filter registration - **MISSING**
+- [ ] OpenCV integration (#2) - Pending blocker resolution
+- [ ] Basic video filter implementation (#3) - Pending
 
 See project issues for complete development tracking.
 
