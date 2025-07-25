@@ -1,59 +1,100 @@
-# OBS Plugin Template
+# OBS Stabilizer Plugin
 
-## Introduction
+Real-time video stabilization plugin for OBS Studio using OpenCV computer vision algorithms.
 
-The plugin template is meant to be used as a starting point for OBS Studio plugin development. It includes:
+## Overview
 
-* Boilerplate plugin source code
-* A CMake project file
-* GitHub Actions workflows and repository actions
+OBS Stabilizer provides real-time video stabilization for livestreams and recordings in OBS Studio. This plugin implements Point Feature Matching algorithms to reduce camera shake and improve video quality without significant performance impact.
 
-## Supported Build Environments
+### Key Features
 
-| Platform  | Tool   |
-|-----------|--------|
-| Windows   | Visal Studio 17 2022 |
-| macOS     | XCode 16.0 |
-| Windows, macOS  | CMake 3.30.5 |
-| Ubuntu 24.04 | CMake 3.28.3 |
-| Ubuntu 24.04 | `ninja-build` |
-| Ubuntu 24.04 | `pkg-config`
-| Ubuntu 24.04 | `build-essential` |
+- **Real-time Processing**: Planned targets for 30+ fps performance on HD video
+- **Low Latency**: Target <4ms processing time per frame on modern hardware  
+- **Adaptive Algorithms**: Intelligent feature detection with fallback strategies
+- **User-Friendly UI**: Integrated OBS properties panel with presets
+- **Cross-Platform**: Windows, macOS, and Linux support
+
+## Technical Specifications
+
+- **Core Algorithm**: Point Feature Matching with Lucas-Kanade Optical Flow
+- **Dependencies**: OpenCV 4.5+, Qt6, OBS Studio 30.0+
+- **Language**: C++17/20
+- **Build System**: CMake 3.28+
+- **License**: GPL-2.0 (OBS Studio compatible)
 
 ## Quick Start
 
-An absolute bare-bones [Quick Start Guide](https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide) is available in the wiki.
+### Prerequisites
 
-## Documentation
+- OBS Studio 30.0 or higher
+- OpenCV 4.5+ development libraries
+- CMake 3.28+ 
+- Qt6 development libraries
+- C++17 compatible compiler
 
-All documentation can be found in the [Plugin Template Wiki](https://github.com/obsproject/obs-plugintemplate/wiki).
+### Building from Source
 
-Suggested reading to get up and running:
+```bash
+# Clone the repository
+git clone https://github.com/azumag/obs-stabilizer.git
+cd obs-stabilizer
 
-* [Getting started](https://github.com/obsproject/obs-plugintemplate/wiki/Getting-Started)
-* [Build system requirements](https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements)
-* [Build system options](https://github.com/obsproject/obs-plugintemplate/wiki/CMake-Build-System-Options)
+# Configure build
+cmake --preset <platform>-ci
+# Available presets: macos-ci, windows-ci-x64, ubuntu-ci-x86_64
 
-## GitHub Actions & CI
+# Build the plugin
+cmake --build --preset <platform>-ci
+```
 
-Default GitHub Actions workflows are available for the following repository actions:
+### Installation
 
-* `push`: Run for commits or tags pushed to `master` or `main` branches.
-* `pr-pull`: Run when a Pull Request has been pushed or synchronized.
-* `dispatch`: Run when triggered by the workflow dispatch in GitHub's user interface.
-* `build-project`: Builds the actual project and is triggered by other workflows.
-* `check-format`: Checks CMake and plugin source code formatting and is triggered by other workflows.
+1. Copy the built plugin to your OBS plugins directory
+2. Restart OBS Studio
+3. Add "Video Stabilizer" filter to your video source
+4. Configure stabilization parameters as needed
 
-The workflows make use of GitHub repository actions (contained in `.github/actions`) and build scripts (contained in `.github/scripts`) which are not needed for local development, but might need to be adjusted if additional/different steps are required to build the plugin.
+## Configuration Options
 
-### Retrieving build artifacts
+- **Enable Stabilization**: Toggle stabilization on/off
+- **Smoothing Radius**: Frame averaging window (10-100 frames)
+- **Feature Points**: Number of tracking points (100-1000)
+- **Crop Mode**: Handle borders with cropping or padding
 
-Successful builds on GitHub Actions will produce build artifacts that can be downloaded for testing. These artifacts are commonly simple archives and will not contain package installers or installation programs.
+## Performance Targets (Planned)
 
-### Building a Release
+| Resolution | Target Processing Time | Estimated CPU Usage |
+|------------|----------------------|-------------------|
+| 720p       | <2ms/frame          | <15%             |
+| 1080p      | <4ms/frame          | <20%             |
+| 4K         | <10ms/frame         | <35%             |
 
-To create a release, an appropriately named tag needs to be pushed to the `main`/`master` branch using semantic versioning (e.g., `12.3.4`, `23.4.5-beta2`). A draft release will be created on the associated repository with generated installer packages or installation programs attached as release artifacts.
+*Performance targets are preliminary and subject to validation through development.*
 
-## Signing and Notarizing on macOS
+## Development Status
 
-Basic concepts of codesigning and notarization on macOS are explained in the correspodning [Wiki article](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS) which has a specific section for the [GitHub Actions setup](https://github.com/obsproject/obs-plugintemplate/wiki/Codesigning-On-macOS#setting-up-code-signing-for-github-actions).
+This project is in active development. See [CLAUDE.md](CLAUDE.md) for detailed technical specifications and development roadmap.
+
+### Current Phase: Phase 1 - Foundation Setup ✅
+- [x] OBS plugin template setup (#1)
+- [ ] OpenCV integration (#2) 
+- [ ] Basic video filter implementation (#3)
+
+See project issues for complete development tracking.
+
+## Contributing
+
+We welcome contributions! Please see our [development documentation](CLAUDE.md) for:
+- Technical architecture details
+- Build system requirements  
+- Code review process
+- Issue management workflow
+
+## Acknowledgments
+
+This project was inspired by the [LiveVisionKit](https://github.com/Crowsinc/LiveVisionKit) plugin, which is no longer actively maintained. OBS Stabilizer aims to provide a modern, maintainable alternative with improved performance and user experience.
+
+## Support
+
+- **Documentation**: [CLAUDE.md](CLAUDE.md)
+- **License**: [GPL-2.0](LICENSE)

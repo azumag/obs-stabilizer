@@ -6,7 +6,7 @@
     },
     {
       "launch": "WORKFLOW_README_UPDATED",
-      "prompt": "## Most Important: Only if the review concludes that there are no issues, output a single line that says only WORKFLOW_REVIEWED — no other information should be included. ## Review: use subagent code-reviewer. plz review it ## Work Report: $WORK_SUMMARY "
+      "prompt": "## Most Important: Only if the review concludes that there are no issues, output a single line that says only WORKFLOW_REVIEWED — no other information should be included. ## Review: use subagent code-reviewer. plz review it and fix. ## Work Report: $WORK_SUMMARY "
     },
     {
       "launch": "WORKFLOW_REVIEWED",
