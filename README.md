@@ -85,17 +85,17 @@ cmake --build --preset <platform>-ci
 ### Testing & Performance Verification
 
 ```bash
-# Run comprehensive performance tests
-./run-perftest.sh
-
-# Run unit tests
+# Run comprehensive test suite (includes compilation and runtime tests)
 ./run-tests.sh
+
+# Run core compilation test only (no dependencies required)
+./test-core-only.sh
+
+# Run performance tests (requires OpenCV)
+./run-perftest.sh
 
 # Run security audit (validates 11 security checks)
 ./security/security-audit.sh
-
-# Test OpenCV version compatibility
-./scripts/test-opencv-compatibility.sh
 ```
 
 ### Installation
@@ -135,14 +135,15 @@ cmake --build --preset <platform>-ci
 | 4K         | <15ms/frame         | ✅ Performance tested |
 
 **Test Suite Features:**
-- Comprehensive performance benchmarking across resolutions
+- **Dual-layer testing**: Core compilation tests (no dependencies) + full suite (when available)
+- **Environment-independent**: Tests work whether OpenCV is installed or not
+- Performance benchmarking across resolutions (when OpenCV available)
 - Memory stability testing for extended operation (no leaks detected)
-- Real-time processing verification for streaming use cases
 - **Security audit system (11/11 security tests passing)**
-- **OpenCV version compatibility testing (4.5+ with 5.x experimental)**
-- Automated test framework with detailed metrics and audit reports
+- **Modular architecture validation** - ensures Phase 2.5 refactoring integrity
+- Automated test framework with graceful dependency handling
 
-*Run `./run-perftest.sh` to verify performance on your hardware.*
+*Run `./run-tests.sh` for comprehensive testing or `./test-core-only.sh` for basic validation.*
 
 ## Development Status
 
@@ -172,7 +173,7 @@ cmake --build --preset <platform>-ci
 - [ ] Production deployment features
 
 ### Critical Next Steps
-- [ ] **Issue #41**: Fix test system compatibility (CRITICAL BLOCKER)
+- [x] **Issue #41**: Fix test system compatibility ✅ **RESOLVED**
 - [ ] **Issue #39**: Complete core integration testing (HIGH PRIORITY)
 - [ ] **Phase 3**: Begin UI implementation with modular architecture foundation
 
