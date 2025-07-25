@@ -1,6 +1,6 @@
 /*
 Core stabilizer functionality tests
-Tests the basic stabilization algorithms and data structures
+Tests the StabilizerCore class with basic OpenCV algorithms
 */
 
 #include <gtest/gtest.h>
@@ -9,21 +9,29 @@ Tests the basic stabilization algorithms and data structures
 #include <opencv2/video/tracking.hpp>
 #include <vector>
 
-// Mock stabilizer data structure for testing
-struct MockStabilizerData {
-    cv::Mat prev_frame;
-    cv::Mat working_gray;
-    std::vector<cv::Point2f> prev_points;
-    cv::Mat accumulated_transform;
-    cv::Mat smoothed_transform;
-    std::vector<cv::Mat> transform_history;
-    bool first_frame;
-    int smoothing_radius;
-    int max_features;
+// Use the namespace for our tests
+using namespace obs_stabilizer;
+
+// Mock OBS frame structure for testing (simplified version)
+struct MockOBSFrame {
+    uint32_t width;
+    uint32_t height;
+    int format;  // Use int instead of enum for testing
+    uint8_t* data[4];  // Simplified to 4 planes
+    uint32_t linesize[4];
     
-    MockStabilizerData() : first_frame(true), smoothing_radius(30), max_features(200) {
-        accumulated_transform = cv::Mat::eye(2, 3, CV_64F);
-        smoothed_transform = cv::Mat::eye(2, 3, CV_64F);
+    // Constructor for test frame
+    MockOBSFrame(uint32_t w, uint32_t h, cv::Mat& source_image) 
+        : width(w), height(h), format(420) {  // Use 420 for I420 format
+        // Initialize all pointers to nullptr
+        for (int i = 0; i < 4; i++) {
+            data[i] = nullptr;
+            linesize[i] = 0;
+        }
+        
+        // Set up Y plane (grayscale data)
+        data[0] = source_image.data;
+        linesize[0] = static_cast<uint32_t>(source_image.step);
     }
 };
 
@@ -41,21 +49,36 @@ protected:
                 cv::circle(test_frame_2, cv::Point(x + 2, y + 1), 3, cv::Scalar(255), -1); // Slightly shifted
             }
         }
+        
+        // Initialize stabilizer core with test configuration
+        config.smoothing_radius = 10;
+        config.max_features = 100;
+        config.enable_stabilization = true;
+        
+        stabilizer = std::make_unique<StabilizerCore>();
+        stabilizer->initialize(config);
     }
     
     cv::Mat test_frame_1;
     cv::Mat test_frame_2;
-    MockStabilizerData stabilizer;
+    StabilizerConfig config;
+    std::unique_ptr<StabilizerCore> stabilizer;
 };
 
 TEST_F(StabilizerCoreTest, InitializationTest) {
-    EXPECT_TRUE(stabilizer.first_frame);
-    EXPECT_EQ(stabilizer.smoothing_radius, 30);
-    EXPECT_EQ(stabilizer.max_features, 200);
-    EXPECT_FALSE(stabilizer.accumulated_transform.empty());
-    EXPECT_FALSE(stabilizer.smoothed_transform.empty());
-    EXPECT_TRUE(stabilizer.prev_points.empty());
-    EXPECT_TRUE(stabilizer.transform_history.empty());
+    EXPECT_EQ(stabilizer->get_status(), StabilizerStatus::INITIALIZING);
+    
+    StabilizerMetrics metrics = stabilizer->get_metrics();
+    EXPECT_EQ(metrics.tracked_features, 0);
+    EXPECT_EQ(metrics.error_count, 0);
+    
+    // Test reinitialization
+    StabilizerConfig new_config;
+    new_config.smoothing_radius = 20;
+    new_config.max_features = 300;
+    
+    EXPECT_TRUE(stabilizer->initialize(new_config));
+    EXPECT_EQ(stabilizer->get_status(), StabilizerStatus::INITIALIZING);
 }
 
 TEST_F(StabilizerCoreTest, FeatureDetectionTest) {
