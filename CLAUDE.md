@@ -208,6 +208,27 @@ enum class ProcessingLevel {
 - **スマートポインタ**: 生ポインタ使用禁止
 - **例外安全性**: Strong exception safety guarantee
 
+## 開発進捗記録
+
+### Phase 1 完了 (2025-01-25)
+- [x] Issue #1: OBS Plugin Template Setup ✅
+- [x] 重要なバグ修正: Buffer overflow脆弱性 (#25) ✅
+- [x] CMakeテンプレート変数処理 (#26) ✅ 
+- [x] OBSフィルター登録 (#27) ✅
+
+### Phase 2 進行中 (2025-01-25)
+- [x] Issue #2: OpenCV Integration - Point Feature Matching実装 ✅
+  - Lucas-Kanade Optical Flow tracking
+  - Feature point detection and refresh
+  - Multi-format video frame support (NV12, I420)
+  - Error handling with graceful degradation
+  - Configurable parameters (smoothing_radius, max_features)
+
+### 次のステップ
+- [ ] Issue #3: Basic Video Filter Implementation - 実際のframe変換適用
+- [ ] Issue #17: Performance verification prototype
+- [ ] Issue #10: Test framework setup
+
 ## ライセンス
 
 GPL-2.0（OBS Studio互換）
