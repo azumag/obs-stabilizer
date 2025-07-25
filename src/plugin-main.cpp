@@ -18,6 +18,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 
 #include <obs-module.h>
 #include <plugin-support.h>
+#include <algorithm>
 
 #ifdef ENABLE_STABILIZATION
 #include <opencv2/opencv.hpp>
@@ -182,14 +183,17 @@ static void *stabilizer_create(obs_data_t *settings, obs_source_t *source)
 	
 #ifdef ENABLE_STABILIZATION
 	filter->first_frame = true;
-	filter->smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
-	filter->max_features = (int)obs_data_get_int(settings, "max_features");
+	
+	// Validate and clamp settings to safe ranges
+	filter->smoothing_radius = std::max(10, std::min(100, (int)obs_data_get_int(settings, "smoothing_radius")));
+	filter->max_features = std::max(100, std::min(1000, (int)obs_data_get_int(settings, "max_features")));
 	
 	// Initialize transformation matrices
 	filter->accumulated_transform = cv::Mat::eye(2, 3, CV_64F);
 	filter->smoothed_transform = cv::Mat::eye(2, 3, CV_64F);
 	
-	obs_log(LOG_INFO, "Stabilizer filter created with OpenCV support");
+	obs_log(LOG_INFO, "Stabilizer filter created with OpenCV support (smoothing=%d, features=%d)", 
+			filter->smoothing_radius, filter->max_features);
 #else
 	obs_log(LOG_INFO, "Stabilizer filter created (pass-through mode - no OpenCV)");
 #endif
