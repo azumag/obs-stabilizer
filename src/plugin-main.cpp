@@ -56,6 +56,12 @@ struct stabilizer_data {
 	cv::Mat accumulated_transform; // Accumulated transformation matrix
 	cv::Mat smoothed_transform;    // Smoothed transformation matrix
 	std::vector<cv::Mat> transform_history; // For smoothing
+	// Pre-allocated vectors for performance optimization
+	std::vector<cv::Point2f> current_points_buffer;
+	std::vector<uchar> status_buffer;
+	std::vector<float> errors_buffer;
+	std::vector<cv::Point2f> good_prev_buffer;
+	std::vector<cv::Point2f> good_current_buffer;
 	bool first_frame;
 	int smoothing_radius;
 	int max_features;
@@ -80,9 +86,13 @@ static void apply_transform_nv12(struct obs_source_frame *frame, const cv::Mat& 
 		y_transformed.copyTo(y_plane);
 		
 		// For UV plane, apply transformation at half resolution
+		// Validate NV12 UV plane access
+		if (!frame->data[1] || frame->linesize[1] < frame->width) {
+			obs_log(LOG_ERROR, "Invalid NV12 UV plane data or linesize");
+			return;
+		}
 		cv::Mat uv_plane(frame->height/2, frame->width/2, CV_8UC2,
-						frame->data[0] + frame->linesize[0] * frame->height,
-						frame->linesize[0]);
+						frame->data[1], frame->linesize[1]);
 		cv::Mat uv_transformed;
 		
 		// Scale transform for half-resolution UV plane
@@ -120,6 +130,12 @@ static void apply_transform_i420(struct obs_source_frame *frame, const cv::Mat& 
 		chroma_transform.at<double>(0, 2) /= 2.0; // Scale translation X
 		chroma_transform.at<double>(1, 2) /= 2.0; // Scale translation Y
 		
+		// Validate U plane access
+		if (!frame->data[1] || frame->linesize[1] < frame->width/2) {
+			obs_log(LOG_ERROR, "Invalid I420 U plane data or linesize");
+			return;
+		}
+		
 		// Transform U plane
 		cv::Mat u_plane(frame->height/2, frame->width/2, CV_8UC1, frame->data[1], frame->linesize[1]);
 		cv::Mat u_transformed;
@@ -128,6 +144,12 @@ static void apply_transform_i420(struct obs_source_frame *frame, const cv::Mat& 
 					   cv::Size(frame->width/2, frame->height/2),
 					   cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(128));
 		u_transformed.copyTo(u_plane);
+		
+		// Validate V plane access
+		if (!frame->data[2] || frame->linesize[2] < frame->width/2) {
+			obs_log(LOG_ERROR, "Invalid I420 V plane data or linesize");
+			return;
+		}
 		
 		// Transform V plane
 		cv::Mat v_plane(frame->height/2, frame->width/2, CV_8UC1, frame->data[2], frame->linesize[2]);
@@ -196,9 +218,21 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 #ifdef ENABLE_STABILIZATION
 	// OpenCV-based stabilization processing
 	try {
-		// Input validation
+		// Comprehensive input validation
 		if (!frame || !frame->data[0] || frame->width == 0 || frame->height == 0) {
 			obs_log(LOG_ERROR, "Invalid frame data for stabilization");
+			return frame;
+		}
+		
+		// Validate frame dimensions and prevent integer overflow
+		if (frame->width > 8192 || frame->height > 8192) {
+			obs_log(LOG_ERROR, "Frame dimensions too large: %ux%u", frame->width, frame->height);
+			return frame;
+		}
+		
+		// Validate that width*height won't overflow
+		if ((size_t)frame->width * frame->height > SIZE_MAX / 4) {
+			obs_log(LOG_ERROR, "Frame size would cause integer overflow");
 			return frame;
 		}
 		
@@ -266,16 +300,31 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 			return frame; // Pass through first frame
 		}
 		
-		// Track feature points using Lucas-Kanade optical flow
-		std::vector<cv::Point2f> current_points;
-		std::vector<uchar> status;
-		std::vector<float> errors;
+		// Track feature points using Lucas-Kanade optical flow (use pre-allocated buffers)
+		filter->current_points_buffer.clear();
+		filter->status_buffer.clear();
+		filter->errors_buffer.clear();
 		
 		if (!filter->prev_points.empty()) {
+			// Validate inputs before optical flow calculation
+			if (filter->prev_frame.empty() || filter->working_gray.empty()) {
+				obs_log(LOG_ERROR, "Empty frames for optical flow calculation");
+				filter->first_frame = true;
+				filter->prev_points.clear();
+				return frame;
+			}
+			
+			if (filter->prev_frame.size() != filter->working_gray.size()) {
+				obs_log(LOG_ERROR, "Frame size mismatch for optical flow");
+				filter->first_frame = true;
+				filter->prev_points.clear();
+				return frame;
+			}
+			
 			try {
 				cv::calcOpticalFlowLK(filter->prev_frame, filter->working_gray, 
-									  filter->prev_points, current_points, 
-									  status, errors);
+									  filter->prev_points, filter->current_points_buffer, 
+									  filter->status_buffer, filter->errors_buffer);
 			} catch (const cv::Exception& e) {
 				obs_log(LOG_ERROR, "Optical flow calculation failed: %s", e.what());
 				// Reset state for recovery
@@ -284,29 +333,49 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 				return frame;
 			}
 			
-			// Filter out bad tracking points with improved thresholds
-			std::vector<cv::Point2f> good_prev, good_current;
+			// Filter out bad tracking points with improved thresholds (use pre-allocated buffers)
+			filter->good_prev_buffer.clear();
+			filter->good_current_buffer.clear();
 			const float max_error = 30.0f; // Reduced from 50 for better quality
 			
-			for (size_t i = 0; i < status.size() && i < errors.size(); i++) {
-				if (status[i] && errors[i] < max_error) {
+			for (size_t i = 0; i < filter->status_buffer.size() && i < filter->errors_buffer.size(); i++) {
+				if (filter->status_buffer[i] && filter->errors_buffer[i] < max_error) {
 					// Additional bounds checking for points
-					if (current_points[i].x >= 0 && current_points[i].x < filter->working_gray.cols &&
-						current_points[i].y >= 0 && current_points[i].y < filter->working_gray.rows) {
-						good_prev.push_back(filter->prev_points[i]);
-						good_current.push_back(current_points[i]);
+					if (filter->current_points_buffer[i].x >= 0 && filter->current_points_buffer[i].x < filter->working_gray.cols &&
+						filter->current_points_buffer[i].y >= 0 && filter->current_points_buffer[i].y < filter->working_gray.rows) {
+						filter->good_prev_buffer.push_back(filter->prev_points[i]);
+						filter->good_current_buffer.push_back(filter->current_points_buffer[i]);
 					}
 				}
 			}
 			
 			// Estimate transformation if we have enough points
 			const size_t min_points = 6; // Increased from 4 for stability
-			if (good_prev.size() >= min_points) {
+			if (filter->good_prev_buffer.size() >= min_points) {
 				try {
-					cv::Mat transform = cv::estimateAffinePartial2D(good_current, good_prev, 
+					cv::Mat transform = cv::estimateAffinePartial2D(filter->good_current_buffer, filter->good_prev_buffer, 
 																	cv::noArray(), cv::RANSAC, 3.0);
 					
 					if (!transform.empty()) {
+						// Validate transform matrix to prevent degenerate transformations
+						cv::Mat rotation_scale = transform(cv::Rect(0, 0, 2, 2));
+						double det = cv::determinant(rotation_scale);
+						
+						// Check for reasonable determinant (scale factor)
+						if (std::abs(det) < 0.1 || std::abs(det) > 10.0) {
+							obs_log(LOG_WARNING, "Rejecting degenerate transform (det=%.3f)", det);
+							continue;
+						}
+						
+						// Check translation bounds to prevent extreme movement
+						double tx = transform.at<double>(0, 2);
+						double ty = transform.at<double>(1, 2);
+						double max_translation = std::max(filter->working_gray.cols, filter->working_gray.rows) * 0.1;
+						
+						if (std::abs(tx) > max_translation || std::abs(ty) > max_translation) {
+							obs_log(LOG_WARNING, "Rejecting excessive translation: tx=%.2f, ty=%.2f", tx, ty);
+							continue;
+						}
 						// Accumulate transformation
 						filter->accumulated_transform = transform * filter->accumulated_transform;
 						
@@ -334,25 +403,25 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 							apply_transform_i420(frame, filter->smoothed_transform);
 						}
 						
-						obs_log(LOG_DEBUG, "Transform applied with %zu points", good_prev.size());
+						obs_log(LOG_DEBUG, "Transform applied with %zu points", filter->good_prev_buffer.size());
 					}
 				} catch (const cv::Exception& e) {
 					obs_log(LOG_WARNING, "Transform estimation failed: %s", e.what());
 				}
 			} else {
-				obs_log(LOG_DEBUG, "Insufficient tracking points: %zu (need %zu)", good_prev.size(), min_points);
+				obs_log(LOG_DEBUG, "Insufficient tracking points: %zu (need %zu)", filter->good_prev_buffer.size(), min_points);
 			}
 			
 			// Update previous points with validated good points
-			filter->prev_points = good_current;
+			filter->prev_points = filter->good_current_buffer;
 		}
 		
 		// Update previous frame
 		filter->working_gray.copyTo(filter->prev_frame);
 		
-		// Refresh feature points if we lost too many (with bounds checking)
+		// Refresh feature points if we lost too many (with safe bounds checking)
 		const size_t refresh_threshold = std::max(static_cast<size_t>(25), 
-												  static_cast<size_t>(filter->max_features / 3));
+												  static_cast<size_t>(std::max(1, filter->max_features) / 3));
 		if (filter->prev_points.size() < refresh_threshold) {
 			try {
 				std::vector<cv::Point2f> new_points;
