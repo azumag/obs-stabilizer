@@ -65,7 +65,7 @@ obs-stabilizer/
 ## 開発計画
 
 ### Phase 1: 基盤構築 (Week 1-2)
-- [ ] OBSプラグインテンプレート設定 (#1)
+- [x] OBSプラグインテンプレート設定 (#1) ✅
 - [ ] OpenCV統合 (#2)
 - [ ] 基本的なVideo Filter実装 (#3)
 - [ ] **性能検証プロトタイプ作成** (#17) ← **リスク軽減のため前倒し**
@@ -210,7 +210,7 @@ enum class ProcessingLevel {
 
 ## ライセンス
 
-GPL-3.0（OBS Studio互換）
+GPL-2.0（OBS Studio互換）
 
 ## 参考資料
 
