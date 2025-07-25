@@ -1,0 +1,99 @@
+(version 1)
+
+(allow default)
+
+;; すべてのプロセス操作を許可
+(allow process*)
+
+;; プロセス実行権限を追加
+(allow process-exec
+    ;; システムコマンドの実行を許可（setuidバイナリ含む）
+    (literal "/bin/ps")
+    (literal "/usr/bin/ps")
+    (subpath "/bin")
+    (subpath "/usr/bin")
+    (subpath "/opt/homebrew/bin")
+    (subpath "/usr/local/bin")
+    (subpath "/System/Library/Frameworks")
+    (subpath "/System/Library/PrivateFrameworks")
+)
+
+
+;; プロセス情報読み取り権限を追加
+(allow process-info-pidinfo)
+(allow process-info-setcontrol)
+(allow process-info-dirtycontrol)
+(allow process-info-rusage)
+(allow process-info-codesignature)
+(allow process-info-pidfdinfo)
+(allow process-info-pidfileportinfo)
+(allow process-info-listpids)
+(allow process-info*)
+
+;; プロセス管理に必要な最小権限（psコマンド対応）
+(allow mach-lookup)
+(allow mach-task-name)
+(allow mach-per-user-lookup)
+
+;; プロセス制御権限を追加
+(allow process-fork)
+(allow process-exec-interpreter)
+
+;; システムコール権限を追加
+(allow system-info)
+(allow system-fsctl)
+(allow system-socket)
+(allow system-privilege)
+(allow system-kext-query)
+(allow system-audit)
+;; system-info* は無効な構文のためコメントアウト
+;; (allow system-info*)
+
+;; sysctl権限を追加
+(allow sysctl-read)
+(allow sysctl-write)
+
+(deny file-write*)
+(allow file-write*
+    ;; (param "NAME") には、起動時に -D NAME=VALUE として渡した値が反映される
+
+    ;; プロジェクトディレクトリを TARGET_DIR として指定する
+    (subpath (param "TARGET_DIR"))
+
+    ;; プロジェクトディレクトリ以外に書き込みを許可する場所
+    ;; Claude Code関係
+    (regex (string-append "^" (param "HOME_DIR") "/.claude*"))
+    ;; セッション情報をKeychain経由で記録するらしい
+    (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
+
+
+    ;; 一時ファイル関連
+    (subpath "/tmp")
+    (subpath "/var/folders")
+    (subpath "/private/tmp")
+    (subpath "/private/var/folders")
+    (subpath (string-append (param "HOME_DIR") "/.cache"))
+    (subpath (string-append (param "HOME_DIR") "/Library/Caches"))
+    
+    ;; Claude Code関連の一時ファイル（より明確な設定）
+    (subpath "/tmp/claude")
+    (regex #"^/tmp/claude/.*")
+    (subpath "/private/tmp/claude")
+    (regex #"^/private/tmp/claude/.*")
+
+    ;; その他のツール関連。ご利用のツールに合わせて調整してください
+    (subpath (string-append (param "HOME_DIR") "/.npm"))
+    (subpath (string-append (param "HOME_DIR") "/Library/Homebrew"))
+    (subpath "/opt/homebrew")
+    (subpath "/usr/bin")
+    (subpath "/bin")
+
+    ;; STDOUTとか
+    (literal "/dev/stdout")
+    (literal "/dev/stderr")
+    (literal "/dev/null")
+    (literal "/dev/dtracehelper")
+    ;; /dev/ttys000 のようなパターンも許可したいためこのように書いています
+    ;; regexとglobを混同しているように見えますが、なんか本当にこう書く必要があるらしく……
+    (regex #"^/dev/tty*")
+)

@@ -216,7 +216,7 @@ enum class ProcessingLevel {
 - [x] CMakeテンプレート変数処理 (#26) ✅ 
 - [x] OBSフィルター登録 (#27) ✅
 
-### Phase 2 進行中 (2025-01-25)
+### Phase 2 完了 (2025-01-25)
 - [x] Issue #2: OpenCV Integration - Point Feature Matching実装 ✅
   - Lucas-Kanade Optical Flow tracking
   - Feature point detection and refresh
@@ -224,10 +224,40 @@ enum class ProcessingLevel {
   - Error handling with graceful degradation
   - Configurable parameters (smoothing_radius, max_features)
 
-### 次のステップ
-- [ ] Issue #3: Basic Video Filter Implementation - 実際のframe変換適用
-- [ ] Issue #17: Performance verification prototype
-- [ ] Issue #10: Test framework setup
+- [x] Issue #3: Basic Video Filter Implementation - 実際のframe変換適用 ✅
+  - Affine transformation matrix calculation and accumulation
+  - Frame transformation for NV12 and I420 formats
+  - Separate Y/UV plane handling with proper scaling
+  - Real-time frame stabilization application
+
+- [x] Issue #4: Point Feature Matching実装の完成 (smoothing algorithm) ✅
+  - Transform smoothing using moving average
+  - Transform history management with configurable window size
+  - Numerical stability and bounds checking
+
+- [x] Issue #5: スムージングアルゴリズム実装 ✅
+  - Moving average smoothing for transformation matrices
+  - Configurable smoothing radius parameter
+  - Frame-to-frame jitter reduction
+
+- [x] Issue #17: Performance verification prototype ✅
+  - Comprehensive performance testing across multiple resolutions
+  - Memory stability testing for extended operation
+  - Real-time processing verification (30fps/60fps targets)
+  - Automated test suite with detailed metrics
+
+- [x] Issue #10: Test framework setup (Google Test integration) ✅
+  - Complete unit test suite with Google Test
+  - Core stabilizer functionality tests
+  - Feature tracking and point management tests
+  - Transform smoothing algorithm validation tests
+  - Automated test runner and build scripts
+
+### Phase 3 開始予定項目
+- [ ] Issue #6: 設定パネル作成 (UI/UX implementation)
+- [ ] Issue #11: 単体テスト実装 (expanded test coverage)
+- [ ] Issue #12: パフォーマンステスト自動化
+- [ ] Issue #13: 統合テスト環境構築
 
 ## ライセンス
 

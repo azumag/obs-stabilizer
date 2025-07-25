@@ -29,6 +29,12 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
+#ifdef ENABLE_STABILIZATION
+// Helper functions for frame transformation
+static void apply_transform_nv12(struct obs_source_frame *frame, const cv::Mat& transform);
+static void apply_transform_i420(struct obs_source_frame *frame, const cv::Mat& transform);
+#endif
+
 // Forward declarations for filter callbacks
 static const char *stabilizer_get_name(void *unused);
 static void *stabilizer_create(obs_data_t *settings, obs_source_t *source);
@@ -47,11 +53,96 @@ struct stabilizer_data {
 	cv::Mat working_frame;  // Pre-allocated for efficiency
 	cv::Mat working_gray;   // Pre-allocated for efficiency
 	std::vector<cv::Point2f> prev_points;
+	cv::Mat accumulated_transform; // Accumulated transformation matrix
+	cv::Mat smoothed_transform;    // Smoothed transformation matrix
+	std::vector<cv::Mat> transform_history; // For smoothing
 	bool first_frame;
 	int smoothing_radius;
 	int max_features;
 #endif
 };
+
+#ifdef ENABLE_STABILIZATION
+// Apply transformation to NV12 format frame
+static void apply_transform_nv12(struct obs_source_frame *frame, const cv::Mat& transform)
+{
+	try {
+		// Create OpenCV Mat for Y plane
+		cv::Mat y_plane(frame->height, frame->width, CV_8UC1, frame->data[0], frame->linesize[0]);
+		cv::Mat y_transformed;
+		
+		// Apply transformation to Y plane
+		cv::warpAffine(y_plane, y_transformed, transform, 
+					   cv::Size(frame->width, frame->height), 
+					   cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
+		
+		// Copy transformed Y plane back
+		y_transformed.copyTo(y_plane);
+		
+		// For UV plane, apply transformation at half resolution
+		cv::Mat uv_plane(frame->height/2, frame->width/2, CV_8UC2,
+						frame->data[0] + frame->linesize[0] * frame->height,
+						frame->linesize[0]);
+		cv::Mat uv_transformed;
+		
+		// Scale transform for half-resolution UV plane
+		cv::Mat uv_transform = transform.clone();
+		uv_transform.at<double>(0, 2) /= 2.0; // Scale translation X
+		uv_transform.at<double>(1, 2) /= 2.0; // Scale translation Y
+		
+		cv::warpAffine(uv_plane, uv_transformed, uv_transform,
+					   cv::Size(frame->width/2, frame->height/2),
+					   cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(128, 128));
+		
+		// Copy transformed UV plane back
+		uv_transformed.copyTo(uv_plane);
+		
+	} catch (const cv::Exception& e) {
+		obs_log(LOG_ERROR, "NV12 transformation failed: %s", e.what());
+	}
+}
+
+// Apply transformation to I420 format frame
+static void apply_transform_i420(struct obs_source_frame *frame, const cv::Mat& transform)
+{
+	try {
+		// Transform Y plane
+		cv::Mat y_plane(frame->height, frame->width, CV_8UC1, frame->data[0], frame->linesize[0]);
+		cv::Mat y_transformed;
+		
+		cv::warpAffine(y_plane, y_transformed, transform,
+					   cv::Size(frame->width, frame->height),
+					   cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
+		y_transformed.copyTo(y_plane);
+		
+		// Scale transform for half-resolution chroma planes  
+		cv::Mat chroma_transform = transform.clone();
+		chroma_transform.at<double>(0, 2) /= 2.0; // Scale translation X
+		chroma_transform.at<double>(1, 2) /= 2.0; // Scale translation Y
+		
+		// Transform U plane
+		cv::Mat u_plane(frame->height/2, frame->width/2, CV_8UC1, frame->data[1], frame->linesize[1]);
+		cv::Mat u_transformed;
+		
+		cv::warpAffine(u_plane, u_transformed, chroma_transform,
+					   cv::Size(frame->width/2, frame->height/2),
+					   cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(128));
+		u_transformed.copyTo(u_plane);
+		
+		// Transform V plane
+		cv::Mat v_plane(frame->height/2, frame->width/2, CV_8UC1, frame->data[2], frame->linesize[2]);
+		cv::Mat v_transformed;
+		
+		cv::warpAffine(v_plane, v_transformed, chroma_transform,
+					   cv::Size(frame->width/2, frame->height/2),
+					   cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(128));
+		v_transformed.copyTo(v_plane);
+		
+	} catch (const cv::Exception& e) {
+		obs_log(LOG_ERROR, "I420 transformation failed: %s", e.what());
+	}
+}
+#endif
 
 // Filter callbacks implementation
 static const char *stabilizer_get_name(void *unused)
@@ -71,6 +162,11 @@ static void *stabilizer_create(obs_data_t *settings, obs_source_t *source)
 	filter->first_frame = true;
 	filter->smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
 	filter->max_features = (int)obs_data_get_int(settings, "max_features");
+	
+	// Initialize transformation matrices
+	filter->accumulated_transform = cv::Mat::eye(2, 3, CV_64F);
+	filter->smoothed_transform = cv::Mat::eye(2, 3, CV_64F);
+	
 	obs_log(LOG_INFO, "Stabilizer filter created with OpenCV support");
 #else
 	obs_log(LOG_INFO, "Stabilizer filter created (pass-through mode - no OpenCV)");
@@ -211,9 +307,34 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 																	cv::noArray(), cv::RANSAC, 3.0);
 					
 					if (!transform.empty()) {
-						// TODO: Apply stabilization transform to actual frame
-						// For now, just log successful calculation
-						obs_log(LOG_DEBUG, "Transform calculated with %zu points", good_prev.size());
+						// Accumulate transformation
+						filter->accumulated_transform = transform * filter->accumulated_transform;
+						
+						// Add to history for smoothing
+						filter->transform_history.push_back(transform.clone());
+						
+						// Keep only recent transforms for smoothing
+						size_t max_history = static_cast<size_t>(filter->smoothing_radius);
+						if (filter->transform_history.size() > max_history) {
+							filter->transform_history.erase(filter->transform_history.begin());
+						}
+						
+						// Calculate smoothed transform (moving average)
+						cv::Mat smoothed = cv::Mat::zeros(2, 3, CV_64F);
+						for (const auto& hist_transform : filter->transform_history) {
+							smoothed += hist_transform;
+						}
+						smoothed /= static_cast<double>(filter->transform_history.size());
+						filter->smoothed_transform = smoothed;
+						
+						// Apply stabilization transform to the frame
+						if (frame->format == VIDEO_FORMAT_NV12) {
+							apply_transform_nv12(frame, filter->smoothed_transform);
+						} else if (frame->format == VIDEO_FORMAT_I420) {
+							apply_transform_i420(frame, filter->smoothed_transform);
+						}
+						
+						obs_log(LOG_DEBUG, "Transform applied with %zu points", good_prev.size());
 					}
 				} catch (const cv::Exception& e) {
 					obs_log(LOG_WARNING, "Transform estimation failed: %s", e.what());
