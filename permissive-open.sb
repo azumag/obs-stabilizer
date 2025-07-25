@@ -16,8 +16,16 @@
     (subpath "/usr/local/bin")
     (subpath "/System/Library/Frameworks")
     (subpath "/System/Library/PrivateFrameworks")
+    ;; Homebrewのライブラリディレクトリも明示的に許可
+    (subpath "/opt/homebrew/Library")
+    (subpath "/opt/homebrew/Library/Homebrew")
+    ;; Homebrewのシェルスクリプト実行を許可
+    (literal "/opt/homebrew/Library/Homebrew/cmd/shellenv.sh")
 )
 
+;; ファイル実行権限を明示的に追加
+(allow file-read-xattr)
+(allow file-read-metadata)
 
 ;; プロセス情報読み取り権限を追加
 (allow process-info-pidinfo)
@@ -46,8 +54,6 @@
 (allow system-privilege)
 (allow system-kext-query)
 (allow system-audit)
-;; system-info* は無効な構文のためコメントアウト
-;; (allow system-info*)
 
 ;; sysctl権限を追加
 (allow sysctl-read)
@@ -65,7 +71,6 @@
     (regex (string-append "^" (param "HOME_DIR") "/.claude*"))
     ;; セッション情報をKeychain経由で記録するらしい
     (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
-
 
     ;; 一時ファイル関連
     (subpath "/tmp")
