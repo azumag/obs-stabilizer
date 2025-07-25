@@ -34,13 +34,21 @@ if(ENABLE_QT)
   )
 endif()
 
-# OpenCV dependency for video stabilization
-find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+# OpenCV dependency for video stabilization with proper error handling
+find_package(OpenCV 4.5 QUIET COMPONENTS core imgproc video features2d)
+if(NOT OpenCV_FOUND)
+    message(WARNING "OpenCV not found. Building without stabilization features.")
+    set(ENABLE_STABILIZATION OFF)
+else()
+    message(STATUS "Found OpenCV ${OpenCV_VERSION}")
+    set(ENABLE_STABILIZATION ON)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_LIBS})
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_STABILIZATION)
+endif()
 
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
-  src/plugin-main.c
+  src/plugin-main.cpp
   # Future C++ sources will be added here
 )
 

@@ -19,13 +19,27 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-module.h>
 #include <plugin-support.h>
 
+#ifdef ENABLE_STABILIZATION
+#include <opencv2/opencv.hpp>
+#endif
+
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
+
+extern "C" {
 
 bool obs_module_load(void)
 {
 	obs_log(LOG_INFO, "OBS Stabilizer plugin loaded successfully (version %s)", PLUGIN_VERSION);
 	obs_log(LOG_INFO, "Real-time video stabilization plugin for OBS Studio");
+	
+#ifdef ENABLE_STABILIZATION
+	obs_log(LOG_INFO, "OpenCV version: %s", CV_VERSION);
+	obs_log(LOG_INFO, "Stabilization features enabled");
+#else
+	obs_log(LOG_WARNING, "OpenCV not found - stabilization features disabled");
+#endif
+	
 	return true;
 }
 
@@ -33,3 +47,5 @@ void obs_module_unload(void)
 {
 	obs_log(LOG_INFO, "OBS Stabilizer plugin unloaded");
 }
+
+} // extern "C"
