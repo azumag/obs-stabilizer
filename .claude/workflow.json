@@ -27,7 +27,7 @@
     },
     {
       "launch": "WORKFLOW_CLAUDE_RECALL",
-      "prompt": "github の issue を確認し、コードベース上の TODO や、問題点を解析して必要な場合は新しい issue を作成せよ。解決済みと思われるものは「解決済み」ラベルをつけよ。特に技術的負債の解消、取引所とBOT管理残高の整合性チェックを最優先に、収益を上げる手段を考慮して対策を講じることを考えよ。終わったら WORKFLOW_ISSUE_CHECKED とだけ表示せよ。"
+      "prompt": "github の issue を確認し、コードベース上の TODO や、問題点を解析して必要な場合は新しい issue を作成せよ。解決済みと思われるものは「解決済み」ラベルをつけよ。特に技術的負債の解消を最優先に考えよ。終わったら WORKFLOW_ISSUE_CHECKED とだけ表示せよ。"
     },
     {
       "launch": "WORKFLOW_ISSUE_CHECKED",
