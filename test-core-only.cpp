@@ -113,7 +113,7 @@ int main() {
         // These should work but return false/defaults in stub mode
         bool init_result = core->initialize(config);
         StabilizerStatus status = core->get_status();
-        StabilizerMetrics metrics = core->get_metrics();
+        [[maybe_unused]] StabilizerMetrics metrics = core->get_metrics();
         
         std::cout << "✅ StabilizerCore stub compilation and API test PASSED" << std::endl;
         std::cout << "   - ENABLE_STABILIZATION not defined (no OpenCV)" << std::endl;
