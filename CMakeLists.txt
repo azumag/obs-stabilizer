@@ -103,7 +103,8 @@ configure_file(
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
   src/plugin-main.cpp
   src/plugin-support.c
-  # Future C++ sources will be added here
+  src/core/stabilizer_core.cpp
+  src/obs/obs_integration.cpp
 )
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
