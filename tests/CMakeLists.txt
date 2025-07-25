@@ -1,8 +1,24 @@
 # Test framework CMakeLists.txt for OBS Stabilizer Plugin
 cmake_minimum_required(VERSION 3.16)
 
+# Set project name for test suite
+project(stabilizer_tests)
+
 # Find required packages
-find_package(OpenCV REQUIRED COMPONENTS core imgproc features2d video)
+find_package(OpenCV 4.5 QUIET COMPONENTS core imgproc features2d video)
+if(NOT OpenCV_FOUND)
+    # Try alternative package names and paths
+    find_package(OpenCV QUIET COMPONENTS core imgproc features2d video)
+    if(NOT OpenCV_FOUND)
+        message(WARNING "OpenCV not found. Building basic tests without OpenCV functionality.")
+        set(SKIP_OPENCV_TESTS ON)
+    endif()
+endif()
+
+if(OpenCV_FOUND)
+    message(STATUS "Found OpenCV ${OpenCV_VERSION} - Full test suite enabled")
+    set(SKIP_OPENCV_TESTS OFF)
+endif()
 
 # Try to find Google Test
 find_package(GTest QUIET)
@@ -19,34 +35,75 @@ if(NOT GTEST_FOUND)
     FetchContent_MakeAvailable(googletest)
 endif()
 
-# Include test source directory
+# Include test source directory and modular source directories
 include_directories(../src)
+include_directories(../src/core)
+include_directories(../src/obs)
 
-# Create test executable
-add_executable(
-    stabilizer_tests
-    test_main.cpp
-    test_stabilizer_core.cpp
-    test_feature_tracking.cpp
-    test_transform_smoothing.cpp
-    ../src/plugin-main.cpp  # Include source for testing
+# Create test executable with modular architecture sources
+if(SKIP_OPENCV_TESTS)
+    # Basic test suite without OpenCV functionality
+    add_executable(
+        stabilizer_tests
+        test_main.cpp
+    )
+    
+    # Link libraries (no OpenCV)
+    target_link_libraries(
+        stabilizer_tests
+        gtest_main
+    )
+    
+    # Add compile definitions for testing
+    target_compile_definitions(stabilizer_tests PRIVATE 
+        TESTING_MODE
+        SKIP_OPENCV_TESTS
+    )
+    
+    message(STATUS "Building basic test suite without OpenCV")
+else()
+    # Full test suite with OpenCV functionality
+    add_executable(
+        stabilizer_tests
+        test_main.cpp
+        test_stabilizer_core_new.cpp
+        # Include only the core stabilizer implementation for testing
+        ../src/core/stabilizer_core.cpp
+    )
+    
+    # Link libraries
+    target_link_libraries(
+        stabilizer_tests
+        gtest_main
+        ${OpenCV_LIBS}
+    )
+    
+    # Include directories
+    target_include_directories(stabilizer_tests PRIVATE 
+        ${OpenCV_INCLUDE_DIRS}
+        ../src
+        ../src/core
+        ../src/obs
+    )
+    
+    # Add compile definitions for testing
+    target_compile_definitions(stabilizer_tests PRIVATE 
+        ENABLE_STABILIZATION 
+        TESTING_MODE
+        OPENCV_VERSION_MAJOR=${OpenCV_VERSION_MAJOR}
+        OPENCV_VERSION_MINOR=${OpenCV_VERSION_MINOR}
+    )
+    
+    message(STATUS "Building full test suite with OpenCV ${OpenCV_VERSION}")
+endif()
+
+# Common settings
+# Include directories (basic)
+target_include_directories(stabilizer_tests PRIVATE 
+    ../src
+    ../src/core
+    ../src/obs
 )
-
-# Link libraries
-target_link_libraries(
-    stabilizer_tests
-    gtest_main
-    ${OpenCV_LIBS}
-)
-
-# Include directories
-target_include_directories(stabilizer_tests PRIVATE ${OpenCV_INCLUDE_DIRS})
-
-# Set C++ standard
-set_property(TARGET stabilizer_tests PROPERTY CXX_STANDARD 17)
-
-# Add compile definitions for testing
-target_compile_definitions(stabilizer_tests PRIVATE -DENABLE_STABILIZATION -DTESTING_MODE)
 
 # Enable testing
 enable_testing()

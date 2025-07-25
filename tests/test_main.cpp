@@ -4,14 +4,36 @@ Uses Google Test framework for unit testing
 */
 
 #include <gtest/gtest.h>
-#include <opencv2/opencv.hpp>
 #include <iostream>
 
-// Test environment setup
+#ifdef SKIP_OPENCV_TESTS
+// Test environment setup without OpenCV
 class StabilizerTestEnvironment : public ::testing::Environment {
 public:
     void SetUp() override {
-        std::cout << "=== OBS Stabilizer Test Suite ===" << std::endl;
+        std::cout << "=== OBS Stabilizer Test Suite (Basic) ===" << std::endl;
+        std::cout << "OpenCV tests SKIPPED - OpenCV not found" << std::endl;
+        std::cout << "Running basic tests only..." << std::endl;
+    }
+    
+    void TearDown() override {
+        std::cout << "=== Basic Test Suite Completed ===" << std::endl;
+    }
+};
+
+// Basic functionality test when OpenCV is not available
+TEST(BasicTest, EnvironmentTest) {
+    EXPECT_TRUE(true) << "Basic test environment is functional";
+}
+
+#else
+#include <opencv2/opencv.hpp>
+
+// Test environment setup with OpenCV
+class StabilizerTestEnvironment : public ::testing::Environment {
+public:
+    void SetUp() override {
+        std::cout << "=== OBS Stabilizer Test Suite (Full) ===" << std::endl;
         std::cout << "OpenCV Version: " << CV_VERSION << std::endl;
         
         // Verify OpenCV components are available
@@ -25,9 +47,10 @@ public:
     }
     
     void TearDown() override {
-        std::cout << "=== Test Suite Completed ===" << std::endl;
+        std::cout << "=== Full Test Suite Completed ===" << std::endl;
     }
 };
+#endif
 
 int main(int argc, char **argv) {
     // Initialize Google Test

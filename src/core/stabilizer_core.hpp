@@ -61,12 +61,21 @@ struct StabilizerMetrics {
     StabilizerStatus status = StabilizerStatus::INACTIVE;
 };
 
-// Transform result structure
+#ifdef ENABLE_STABILIZATION
+// Transform result structure (OpenCV version)
 struct TransformResult {
     bool success = false;
     cv::Mat transform_matrix;
     StabilizerMetrics metrics;
 };
+#else
+// Transform result structure (stub version)
+struct TransformResult {
+    bool success = false;
+    void* transform_matrix = nullptr;  // Placeholder for cv::Mat
+    StabilizerMetrics metrics;
+};
+#endif
 
 #ifdef ENABLE_STABILIZATION
 // Core stabilization engine class
@@ -138,7 +147,7 @@ public:
     
     bool initialize(const StabilizerConfig&) { return false; }
     TransformResult process_frame(struct obs_source_frame*) { 
-        return TransformResult{false, cv::Mat(), StabilizerMetrics{}}; 
+        return TransformResult{false, nullptr, StabilizerMetrics{}}; 
     }
     void update_configuration(const StabilizerConfig&) {}
     StabilizerStatus get_status() const { return StabilizerStatus::INACTIVE; }
