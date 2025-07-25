@@ -11,7 +11,8 @@ A real-time video stabilization plugin for OBS Studio using OpenCV computer visi
 - ✅ Basic plugin structure implemented
 - ✅ Build system with OpenCV integration
 - ✅ Pass-through video filter functional
-- ❌ No actual video stabilization implemented yet
+- ✅ OpenCV Point Feature Matching implemented
+- ❌ Frame transformation application pending
 
 **LIMITED FUNCTIONALITY - DEVELOPMENT VERSION ONLY**
 
@@ -67,18 +68,21 @@ cmake --build --preset <platform>-ci
 1. Copy the built plugin to your OBS plugins directory
 2. Restart OBS Studio  
 3. Add "Stabilizer" filter to your video source
-4. Enable the filter (currently acts as pass-through only)
+4. Enable the filter and configure feature tracking parameters
 
-**Current Status**: Plugin loads and provides a functional pass-through filter. Actual stabilization features are not yet implemented.
+**Current Status**: Plugin processes video frames through OpenCV Point Feature Matching algorithm. Frame transformations are calculated but not yet applied to output.
 
-## Planned Configuration Options
+## Configuration Options
 
-**NOTE: These options do not currently exist**
+**Currently Available:**
+- **Enable Stabilization**: Toggle stabilization processing on/off
+- **Smoothing Radius**: Frame averaging window (10-100 frames) *
+- **Feature Points**: Number of tracking points (100-1000) ✅
 
-- **Enable Stabilization**: Toggle stabilization on/off
-- **Smoothing Radius**: Frame averaging window (10-100 frames)
-- **Feature Points**: Number of tracking points (100-1000)
+**Planned:**
 - **Crop Mode**: Handle borders with cropping or padding
+
+*Smoothing Radius affects feature detection but smoothing is not yet implemented
 
 ## Performance Targets (Planned)
 
@@ -99,8 +103,8 @@ This project is in active development. See [CLAUDE.md](CLAUDE.md) for detailed t
 - [x] Build system improvements (#23, #24) ✅
 - [x] Plugin support files completion (#25, #26) ✅
 - [x] Basic OBS filter registration (#27) ✅
-- [ ] OpenCV integration (#2) - **IN PROGRESS**
-- [ ] Basic video filter implementation (#3) - Pending #2
+- [x] OpenCV integration (#2) ✅
+- [ ] Basic video filter implementation (#3) - **IN PROGRESS**
 
 See project issues for complete development tracking.
 
