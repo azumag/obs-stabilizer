@@ -66,7 +66,9 @@ else()
     add_executable(
         stabilizer_tests
         test_main.cpp
-        test_stabilizer_core_new.cpp
+        test_stabilizer_core.cpp
+        test_feature_tracking.cpp
+        test_transform_smoothing.cpp
         # Include only the core stabilizer implementation for testing
         ../src/core/stabilizer_core.cpp
     )

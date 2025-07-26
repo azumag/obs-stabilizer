@@ -199,6 +199,7 @@ cmake --build --preset <platform>-ci
 - [x] **Issue #40**: Test suite modernization ✅ **SUBSTANTIALLY RESOLVED**
 - [x] **Issue #42**: Development priority matrix ✅ **RESOLVED**
 - [x] **Issue #43**: Technical debt cleanup ✅ **RESOLVED** (plugin-main-original.cpp removed, documentation updated)
+- [x] **Issue #46**: Legacy test file consolidation ✅ **SUBSTANTIALLY RESOLVED** (duplicate files removed, build system updated)
 
 See [CLAUDE.md](CLAUDE.md) for detailed technical specifications and complete development roadmap.
 
