@@ -191,6 +191,7 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
         result.metrics.status = status_;
         
         update_metrics(result, processing_time);
+        update_detailed_metrics(result.metrics);
         consecutive_failures_ = 0;
         
         return result;
@@ -246,8 +247,21 @@ void StabilizerCore::reset() {
 bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
     try {
         previous_points_.clear();
-        cv::goodFeaturesToTrack(gray_frame, previous_points_, 
-                               std::max(50, std::min(active_config_.max_features, 1000)), 
+        
+        // SIMD optimization: Ensure proper memory alignment for OpenCV SIMD operations
+        cv::Mat aligned_frame;
+        if (gray_frame.isContinuous() && (reinterpret_cast<uintptr_t>(gray_frame.data) % 32 == 0)) {
+            aligned_frame = gray_frame;
+        } else {
+            gray_frame.copyTo(aligned_frame);
+        }
+        
+        // Adaptive feature detection based on frame resolution
+        int optimal_features = std::max(50, std::min(active_config_.max_features, 
+                                      static_cast<int>(gray_frame.rows * gray_frame.cols / 10000)));
+        
+        cv::goodFeaturesToTrack(aligned_frame, previous_points_, 
+                               optimal_features, 
                                active_config_.min_feature_quality, 10);
         
         if (previous_points_.size() < 50) {
@@ -269,10 +283,23 @@ bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
             return false;
         }
         
+        // Pre-allocate vectors to avoid dynamic allocation during tracking
         std::vector<uchar> status;
         std::vector<float> errors;
+        status.reserve(previous_points_.size());
+        errors.reserve(previous_points_.size());
         
-        cv::calcOpticalFlowPyrLK(previous_gray_, gray_frame, previous_points_, 
+        // Memory alignment optimization for SIMD operations
+        cv::Mat aligned_current, aligned_previous;
+        if (gray_frame.isContinuous() && previous_gray_.isContinuous()) {
+            aligned_current = gray_frame;
+            aligned_previous = previous_gray_;
+        } else {
+            gray_frame.copyTo(aligned_current);
+            previous_gray_.copyTo(aligned_previous);
+        }
+        
+        cv::calcOpticalFlowPyrLK(aligned_previous, aligned_current, previous_points_, 
                                 current_points_, status, errors);
         
         // Filter good points (pre-allocate for performance)

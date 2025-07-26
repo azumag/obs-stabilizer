@@ -73,10 +73,21 @@ enum class StabilizerStatus {
     FAILED            // Stabilization failed
 };
 
-// Metrics structure for performance monitoring
+// Metrics structure for performance monitoring and debugging
 struct StabilizerMetrics {
     uint32_t tracked_features = 0;
     float processing_time_ms = 0.0f;
+    
+    // Enhanced diagnostic metrics
+    float feature_detection_time_ms = 0.0f;
+    float optical_flow_time_ms = 0.0f;
+    float transform_calc_time_ms = 0.0f;
+    float smoothing_time_ms = 0.0f;
+    
+    // Quality metrics
+    float tracking_success_rate = 0.0f;
+    uint32_t features_lost = 0;
+    uint32_t features_refreshed = 0;
     float transform_stability = 0.0f;
     uint32_t error_count = 0;
     StabilizerStatus status = StabilizerStatus::INACTIVE;
@@ -151,6 +162,10 @@ private:
     bool track_features(const cv::Mat& gray_frame);
     cv::Mat calculate_transform(const std::vector<cv::Point2f>& prev_pts,
                                const std::vector<cv::Point2f>& curr_pts);
+    
+    // Debug and diagnostic methods
+    void update_detailed_metrics(const StabilizerMetrics& frame_metrics);
+    void log_performance_breakdown() const;
     cv::Mat smooth_transform(const cv::Mat& transform);
     void apply_configuration_if_dirty();
     void update_metrics(const TransformResult& result, float processing_time);

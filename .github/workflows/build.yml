@@ -1,0 +1,93 @@
+name: Build OBS Stabilizer
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-ubuntu:
+    name: Build on Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          ninja-build \
+          libobs-dev \
+          libqt6svg6-dev \
+          qt6-base-dev \
+          libopencv-dev \
+          pkg-config
+    
+    - name: Configure CMake
+      run: cmake --preset ubuntu-ci-x86_64
+    
+    - name: Build
+      run: cmake --build --preset ubuntu-ci-x86_64
+    
+    - name: Run Tests
+      run: |
+        cd build_ubuntu-ci-x86_64
+        ctest --output-on-failure
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: obs-stabilizer-ubuntu
+        path: build_ubuntu-ci-x86_64/obs-stabilizer.so
+
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure CMake
+      run: cmake --preset windows-ci-x64
+    
+    - name: Build
+      run: cmake --build --preset windows-ci-x64
+    
+    - name: Run Tests
+      run: |
+        cd build_windows-ci-x64
+        ctest -C Release --output-on-failure
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: obs-stabilizer-windows
+        path: build_windows-ci-x64/Release/obs-stabilizer.dll
+
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        brew install cmake ninja opencv qt@6 pkg-config
+    
+    - name: Configure CMake
+      run: cmake --preset macos-ci
+    
+    - name: Build
+      run: cmake --build --preset macos-ci
+    
+    - name: Run Tests
+      run: |
+        cd build_macos-ci
+        ctest --output-on-failure
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: obs-stabilizer-macos
+        path: build_macos-ci/obs-stabilizer.plugin
