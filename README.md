@@ -195,6 +195,10 @@ cmake --build --preset <platform>-ci
 - [x] **Issue #39**: Complete core integration testing ✅ **RESOLVED**
 - [x] **Issue #36**: UI Architecture Specification ✅ **RESOLVED**
 - [x] **Issue #6**: Phase 3 UI Implementation ✅ **COMPLETE**
+- [x] **Issue #35**: Configuration parameterization ✅ **RESOLVED**
+- [x] **Issue #40**: Test suite modernization ✅ **SUBSTANTIALLY RESOLVED**
+- [x] **Issue #42**: Development priority matrix ✅ **RESOLVED**
+- [x] **Issue #43**: Technical debt cleanup ✅ **RESOLVED** (plugin-main-original.cpp removed, documentation updated)
 
 See [CLAUDE.md](CLAUDE.md) for detailed technical specifications and complete development roadmap.
 
