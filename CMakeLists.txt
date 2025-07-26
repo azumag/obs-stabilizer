@@ -104,7 +104,15 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   src/plugin-main.cpp
   src/plugin-support.c
   src/core/stabilizer_core.cpp
+  src/core/error_handler.cpp
+  src/core/parameter_validator.cpp
+  src/core/transform_matrix.cpp
   src/obs/obs_integration.cpp
+)
+
+# Ensure config_macros.hpp is available to all source files
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/core
 )
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})

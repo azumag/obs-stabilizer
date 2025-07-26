@@ -10,6 +10,8 @@ the Free Software Foundation; either version 2 of the License, or
 
 #pragma once
 
+#include "transform_matrix.hpp"
+
 #ifdef ENABLE_STABILIZATION
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
@@ -93,24 +95,23 @@ struct StabilizerMetrics {
     StabilizerStatus status = StabilizerStatus::INACTIVE;
 };
 
-#ifdef ENABLE_STABILIZATION
-// Transform result structure (OpenCV version)
+// Transform result structure (unified for OpenCV and stub modes)
 struct TransformResult {
     bool success = false;
-    cv::Mat transform_matrix;
+    TransformMatrix transform_matrix;
     StabilizerMetrics metrics;
 };
-#else
-// Transform result structure (stub version)
-struct TransformResult {
-    bool success = false;
-    void* transform_matrix = nullptr;  // Placeholder for cv::Mat
-    StabilizerMetrics metrics;
-};
-#endif
 
 #ifdef ENABLE_STABILIZATION
 // Core stabilization engine class
+// 
+// THREAD SAFETY NOTES:
+// - This class is designed to be used from the OBS video processing thread
+// - Configuration updates (update_configuration) are thread-safe via config_mutex_
+// - Metrics access (get_metrics) is thread-safe via metrics_mutex_
+// - process_frame() should only be called from one thread at a time
+// - reset() is thread-safe but should not be called during frame processing
+// - All OpenCV operations are contained within this class for thread isolation
 class StabilizerCore {
 public:
     StabilizerCore();
@@ -144,7 +145,7 @@ private:
     cv::Mat previous_gray_;
     
     // Transform smoothing
-    std::vector<cv::Mat> transform_history_;
+    std::vector<TransformMatrix> transform_history_;
     size_t history_index_ = 0;
     bool history_filled_ = false;
     
@@ -160,13 +161,13 @@ private:
     // Internal processing methods
     bool detect_features(const cv::Mat& gray_frame);
     bool track_features(const cv::Mat& gray_frame);
-    cv::Mat calculate_transform(const std::vector<cv::Point2f>& prev_pts,
-                               const std::vector<cv::Point2f>& curr_pts);
+    TransformMatrix calculate_transform(const std::vector<cv::Point2f>& prev_pts,
+                                       const std::vector<cv::Point2f>& curr_pts);
     
     // Debug and diagnostic methods
     void update_detailed_metrics(const StabilizerMetrics& frame_metrics);
     void log_performance_breakdown() const;
-    cv::Mat smooth_transform(const cv::Mat& transform);
+    TransformMatrix smooth_transform(const TransformMatrix& transform);
     void apply_configuration_if_dirty();
     void update_metrics(const TransformResult& result, float processing_time);
     
@@ -183,7 +184,7 @@ public:
     
     bool initialize(const StabilizerConfig&) { return false; }
     TransformResult process_frame(struct obs_source_frame*) { 
-        return TransformResult{false, nullptr, StabilizerMetrics{}}; 
+        return TransformResult{false, TransformMatrix{}, StabilizerMetrics{}}; 
     }
     void update_configuration(const StabilizerConfig&) {}
     StabilizerStatus get_status() const { return StabilizerStatus::INACTIVE; }

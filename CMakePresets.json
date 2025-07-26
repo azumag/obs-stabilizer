@@ -39,7 +39,7 @@
       "inherits": ["macos"],
       "displayName": "macOS Universal CI build",
       "description": "Build for macOS 12.0+ (Universal binary) for CI",
-      "generator": "Xcode",
+      "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_COMPILE_WARNING_AS_ERROR": true,
         "ENABLE_CCACHE": true

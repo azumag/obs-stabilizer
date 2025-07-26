@@ -9,6 +9,8 @@ the Free Software Foundation; either version 2 of the License, or
 */
 
 #include "stabilizer_core.hpp"
+#include "error_handler.hpp"
+#include "parameter_validator.hpp"
 #include <obs-module.h>
 #include <chrono>
 #include <algorithm>
@@ -28,17 +30,16 @@ StabilizerCore::~StabilizerCore() {
 bool StabilizerCore::initialize(const StabilizerConfig& config) {
     std::lock_guard<std::mutex> lock(config_mutex_);
     
-    try {
+    return SAFE_EXECUTE([&]() {
         active_config_ = config;
         
         // Initialize transform history buffer
         transform_history_.clear();
         transform_history_.reserve(active_config_.smoothing_radius);
         
-        // Initialize OpenCV matrices
-        cv::Mat identity = cv::Mat::eye(2, 3, CV_64F);
+        // Initialize transform matrices
         for (int i = 0; i < active_config_.smoothing_radius; ++i) {
-            transform_history_.push_back(identity.clone());
+            transform_history_.emplace_back(); // Creates identity TransformMatrix
         }
         
         history_index_ = 0;
@@ -49,14 +50,8 @@ bool StabilizerCore::initialize(const StabilizerConfig& config) {
         status_ = StabilizerStatus::INITIALIZING;
         obs_log(LOG_INFO, "StabilizerCore initialized (smoothing=%d, features=%d)", 
                 active_config_.smoothing_radius, active_config_.max_features);
-        
-        return true;
-        
-    } catch (const std::exception& e) {
-        status_ = StabilizerStatus::FAILED;
-        obs_log(LOG_ERROR, "StabilizerCore initialization failed: %s", e.what());
-        return false;
-    }
+    }, ErrorCategory::INITIALIZATION, "StabilizerCore initialization") ? 
+    (true) : (status_ = StabilizerStatus::FAILED, false);
 }
 
 TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
@@ -73,29 +68,13 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
     }
     
     try {
-        // Comprehensive input validation
-        if (!frame || !frame->data[0] || frame->width == 0 || frame->height == 0) {
-            obs_log(LOG_ERROR, "Invalid frame data for stabilization");
-            result.success = false;
-            return result;
-        }
-        
-        // Validate frame dimensions and prevent integer overflow
-        if (frame->width > 8192 || frame->height > 8192) {
-            obs_log(LOG_ERROR, "Frame dimensions too large: %ux%u", frame->width, frame->height);
-            result.success = false;
-            return result;
-        }
+        // Unified parameter validation
+        VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_dimensions(frame), result);
         
         // Convert frame to grayscale for processing
         cv::Mat current_gray;
         if (frame->format == VIDEO_FORMAT_NV12) {
-            // Validate NV12 format requirements
-            if (!frame->data[0] || frame->linesize[0] < frame->width) {
-                obs_log(LOG_ERROR, "Invalid NV12 frame data or linesize");
-                result.success = false;
-                return result;
-            }
+            VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_nv12(frame), result);
             
             // Use Y plane directly
             cv::Mat nv12_y(frame->height, frame->width, CV_8UC1, 
@@ -103,12 +82,7 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
             nv12_y.copyTo(current_gray);
             
         } else if (frame->format == VIDEO_FORMAT_I420) {
-            // Validate I420 format requirements  
-            if (!frame->data[0] || frame->linesize[0] < frame->width) {
-                obs_log(LOG_ERROR, "Invalid I420 frame data or linesize");
-                result.success = false;
-                return result;
-            }
+            VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_i420(frame), result);
             
             // Use Y plane directly
             cv::Mat y_plane(frame->height, frame->width, CV_8UC1, 
@@ -144,7 +118,7 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
             status_ = StabilizerStatus::ACTIVE;
             obs_log(LOG_INFO, "Stabilization initialized with %zu feature points", previous_points_.size());
             result.success = true;
-            result.transform_matrix = cv::Mat::eye(2, 3, CV_64F);
+            result.transform_matrix.set_identity();
             return result;
         }
         
@@ -156,15 +130,15 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
         }
         
         // Calculate transformation matrix
-        cv::Mat transform = calculate_transform(previous_points_, current_points_);
-        if (transform.empty()) {
+        TransformMatrix transform = calculate_transform(previous_points_, current_points_);
+        if (transform.is_empty()) {
             handle_tracking_failure();
             result.success = false;
             return result;
         }
         
         // Apply smoothing
-        cv::Mat smoothed_transform = smooth_transform(transform);
+        TransformMatrix smoothed_transform = smooth_transform(transform);
         
         // Update state for next frame
         current_gray.copyTo(previous_gray_);
@@ -245,7 +219,7 @@ void StabilizerCore::reset() {
 // Private methods implementation
 
 bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
-    try {
+    return SAFE_BOOL_EXECUTE([&]() {
         previous_points_.clear();
         
         // SIMD optimization: Ensure proper memory alignment for OpenCV SIMD operations
@@ -265,20 +239,18 @@ bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
                                active_config_.min_feature_quality, 10);
         
         if (previous_points_.size() < 50) {
-            obs_log(LOG_WARNING, "Insufficient feature points detected: %zu", previous_points_.size());
+            ErrorHandler::log_warning(ErrorCategory::FEATURE_DETECTION, 
+                                    "detect_features", 
+                                    "Insufficient feature points detected");
             return false;
         }
         
         return true;
-        
-    } catch (const cv::Exception& e) {
-        obs_log(LOG_ERROR, "Feature detection failed: %s", e.what());
-        return false;
-    }
+    }, ErrorCategory::FEATURE_DETECTION, "feature detection");
 }
 
 bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
-    try {
+    return SAFE_BOOL_EXECUTE([&]() {
         if (previous_points_.empty()) {
             return false;
         }
@@ -315,7 +287,9 @@ bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
         }
         
         if (good_prev.size() < 10) {
-            obs_log(LOG_WARNING, "Too few good tracking points: %zu", good_prev.size());
+            ErrorHandler::log_warning(ErrorCategory::FEATURE_TRACKING, 
+                                    "track_features", 
+                                    "Too few good tracking points");
             return false;
         }
         
@@ -323,17 +297,18 @@ bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
         current_points_ = good_current;
         
         return true;
-        
-    } catch (const cv::Exception& e) {
-        obs_log(LOG_ERROR, "Feature tracking failed: %s", e.what());
-        return false;
-    }
+    }, ErrorCategory::FEATURE_TRACKING, "feature tracking");
 }
 
-cv::Mat StabilizerCore::calculate_transform(const std::vector<cv::Point2f>& prev_pts,
-                                           const std::vector<cv::Point2f>& curr_pts) {
-    try {
-        if (prev_pts.size() < 4 || curr_pts.size() < 4) {
+TransformMatrix StabilizerCore::calculate_transform(const std::vector<cv::Point2f>& prev_pts,
+                                                  const std::vector<cv::Point2f>& curr_pts) {
+    cv::Mat opencv_result;
+    if (!SAFE_CV_EXECUTE([&]() {
+        // Unified parameter validation
+        auto prev_validation = ParameterValidator::validate_feature_points(prev_pts, 4, "Previous feature points");
+        auto curr_validation = ParameterValidator::validate_feature_points(curr_pts, 4, "Current feature points");
+        
+        if (!prev_validation || !curr_validation) {
             return cv::Mat();
         }
         
@@ -343,46 +318,44 @@ cv::Mat StabilizerCore::calculate_transform(const std::vector<cv::Point2f>& prev
             return cv::Mat();
         }
         
-        // Validate transform matrix for reasonable values
-        double dx = transform.at<double>(0, 2);
-        double dy = transform.at<double>(1, 2);
-        double scale = sqrt(transform.at<double>(0, 0) * transform.at<double>(0, 0) + 
-                           transform.at<double>(0, 1) * transform.at<double>(0, 1));
-        
-        // Reject unreasonable transformations
-        if (abs(dx) > 100 || abs(dy) > 100 || scale < 0.5 || scale > 2.0) {
-            obs_log(LOG_WARNING, "Rejecting unreasonable transform: dx=%.2f, dy=%.2f, scale=%.2f", 
-                    dx, dy, scale);
+        // Validate transform matrix using unified validation
+        auto transform_validation = ParameterValidator::validate_transform_matrix(transform);
+        if (!transform_validation) {
+            ErrorHandler::log_warning(ErrorCategory::TRANSFORM_CALCULATION, 
+                                    "calculate_transform", 
+                                    transform_validation.error_message);
             return cv::Mat();
         }
         
         return transform;
-        
-    } catch (const cv::Exception& e) {
-        obs_log(LOG_ERROR, "Transform calculation failed: %s", e.what());
-        return cv::Mat();
+    }, opencv_result, ErrorCategory::TRANSFORM_CALCULATION, "transform calculation")) {
+        return TransformMatrix(); // Returns empty TransformMatrix
     }
+    
+    // Convert cv::Mat to TransformMatrix
+    return TransformMatrix(opencv_result);
 }
 
-cv::Mat StabilizerCore::smooth_transform(const cv::Mat& transform) {
+TransformMatrix StabilizerCore::smooth_transform(const TransformMatrix& transform) {
     // Add transform to history
-    transform.copyTo(transform_history_[history_index_]);
+    transform_history_[history_index_] = transform;
     history_index_ = (history_index_ + 1) % active_config_.smoothing_radius;
     
     if (!history_filled_ && history_index_ == 0) {
         history_filled_ = true;
     }
     
-    // Calculate moving average
-    cv::Mat smoothed = cv::Mat::zeros(2, 3, CV_64F);
+    // Calculate moving average using transform_utils
     int count = history_filled_ ? active_config_.smoothing_radius : history_index_;
     
+    std::vector<TransformMatrix> transforms_for_average;
+    transforms_for_average.reserve(count);
+    
     for (int i = 0; i < count; ++i) {
-        smoothed += transform_history_[i];
+        transforms_for_average.push_back(transform_history_[i]);
     }
     
-    smoothed /= count;
-    return smoothed;
+    return transform_utils::average_transforms(transforms_for_average);
 }
 
 void StabilizerCore::apply_configuration_if_dirty() {
@@ -391,12 +364,11 @@ void StabilizerCore::apply_configuration_if_dirty() {
         
         // Resize transform history if smoothing radius changed
         if (transform_history_.size() != static_cast<size_t>(active_config_.smoothing_radius)) {
-            cv::Mat identity = cv::Mat::eye(2, 3, CV_64F);
             transform_history_.clear();
             transform_history_.reserve(active_config_.smoothing_radius);
             
             for (int i = 0; i < active_config_.smoothing_radius; ++i) {
-                transform_history_.push_back(identity.clone());
+                transform_history_.emplace_back(); // Creates identity TransformMatrix
             }
             
             history_index_ = 0;
@@ -417,8 +389,8 @@ void StabilizerCore::update_metrics(const TransformResult& result, float process
     current_metrics_.error_count = consecutive_failures_;
     
     // Calculate transform stability (simplified metric)
-    double dx = result.transform_matrix.at<double>(0, 2);
-    double dy = result.transform_matrix.at<double>(1, 2);
+    double dx = result.transform_matrix.get_translation_x();
+    double dy = result.transform_matrix.get_translation_y();
     current_metrics_.transform_stability = std::max(0.0f, 1.0f - static_cast<float>(sqrt(dx*dx + dy*dy) / 100.0));
 }
 

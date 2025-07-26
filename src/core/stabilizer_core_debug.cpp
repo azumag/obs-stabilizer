@@ -49,9 +49,17 @@ void StabilizerCore::update_detailed_metrics(const StabilizerMetrics& frame_metr
     current_metrics_.transform_calc_time_ms = avg_transform_calc;
     current_metrics_.smoothing_time_ms = avg_smoothing;
     
-    // Log detailed breakdown every 300 frames (10 seconds at 30fps)
-    if (frame_count % 300 == 0) {
+    // Log detailed breakdown at configurable intervals based on framerate
+    static int log_interval = 300; // Default: 10 seconds at 30fps
+    if (frame_count % log_interval == 0) {
         log_performance_breakdown();
+        
+        // Adaptive interval based on processing time
+        if (frame_metrics.processing_time_ms > 16.0f) { // >16ms suggests <60fps
+            log_interval = 150; // 5 seconds at 30fps
+        } else {
+            log_interval = 600; // 10 seconds at 60fps
+        }
     }
 }
 

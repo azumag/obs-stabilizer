@@ -59,16 +59,16 @@ public:
     static void filter_defaults(obs_data_t* settings);
     
     // Frame transformation utilities
-    static void apply_transform_to_frame(struct obs_source_frame* frame, const cv::Mat& transform);
+    static void apply_transform_to_frame(struct obs_source_frame* frame, const TransformMatrix& transform);
     
 private:
     // Format-specific transformation methods
-    static void apply_transform_nv12(struct obs_source_frame* frame, const cv::Mat& transform);
-    static void apply_transform_i420(struct obs_source_frame* frame, const cv::Mat& transform);
+    static void apply_transform_nv12(struct obs_source_frame* frame, const TransformMatrix& transform);
+    static void apply_transform_i420(struct obs_source_frame* frame, const TransformMatrix& transform);
     
     // Validation utilities
     static bool validate_frame_data(struct obs_source_frame* frame);
-    static bool validate_transform_matrix(const cv::Mat& transform);
+    static bool validate_transform_matrix(const TransformMatrix& transform);
 };
 
 } // namespace obs_stabilizer

@@ -1,0 +1,102 @@
+name: Release OBS Stabilizer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: OBS Stabilizer ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+
+  build-and-upload:
+    name: Build and Upload Assets
+    needs: release
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            asset_name: obs-stabilizer-linux.tar.gz
+          - os: windows-latest  
+            asset_name: obs-stabilizer-windows.zip
+          - os: macos-latest
+            asset_name: obs-stabilizer-macos.tar.gz
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build build-essential libopencv-dev pkg-config
+    
+    - name: Install dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        vcpkg install opencv[core,imgproc,features2d,video]:x64-windows
+    
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install cmake ninja opencv pkg-config
+    
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+        ninja
+    
+    - name: Package (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        mkdir -p package/obs-stabilizer
+        cp build/src/*.so package/obs-stabilizer/
+        cp README.md LICENSE package/obs-stabilizer/
+        cd package
+        tar -czf ../obs-stabilizer-linux.tar.gz obs-stabilizer/
+    
+    - name: Package (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        mkdir package\obs-stabilizer
+        copy build\src\Release\*.dll package\obs-stabilizer\
+        copy README.md package\obs-stabilizer\
+        copy LICENSE package\obs-stabilizer\
+        cd package
+        powershell Compress-Archive -Path obs-stabilizer -DestinationPath ..\obs-stabilizer-windows.zip
+    
+    - name: Package (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        mkdir -p package/obs-stabilizer
+        cp build/src/*.dylib package/obs-stabilizer/ || true
+        cp build/src/*.so package/obs-stabilizer/ || true
+        cp README.md LICENSE package/obs-stabilizer/
+        cd package
+        tar -czf ../obs-stabilizer-macos.tar.gz obs-stabilizer/
+    
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        files: ./${{ matrix.asset_name }}

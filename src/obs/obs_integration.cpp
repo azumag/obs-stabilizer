@@ -321,7 +321,7 @@ void OBSIntegration::filter_defaults(obs_data_t* settings) {
     filter.set_default_settings(settings);
 }
 
-void OBSIntegration::apply_transform_to_frame(struct obs_source_frame* frame, const cv::Mat& transform) {
+void OBSIntegration::apply_transform_to_frame(struct obs_source_frame* frame, const TransformMatrix& transform) {
 #ifdef ENABLE_STABILIZATION
     // Route to format-specific transformation
     switch (frame->format) {
@@ -339,7 +339,7 @@ void OBSIntegration::apply_transform_to_frame(struct obs_source_frame* frame, co
 }
 
 #ifdef ENABLE_STABILIZATION
-void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const cv::Mat& transform) {
+void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const TransformMatrix& transform) {
     try {
         // Validate frame data
         if (!frame->data[0] || frame->linesize[0] < frame->width) {
@@ -347,12 +347,15 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
             return;
         }
         
+        // Convert TransformMatrix to cv::Mat for OpenCV operations
+        cv::Mat cv_transform = transform.to_opencv_mat();
+        
         // Create OpenCV Mat for Y plane
         cv::Mat y_plane(frame->height, frame->width, CV_8UC1, frame->data[0], frame->linesize[0]);
         cv::Mat y_transformed;
         
         // Apply transformation to Y plane
-        cv::warpAffine(y_plane, y_transformed, transform, 
+        cv::warpAffine(y_plane, y_transformed, cv_transform, 
                       cv::Size(frame->width, frame->height), 
                       cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
         
@@ -370,7 +373,7 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
         cv::Mat uv_transformed;
         
         // Scale transform for half-resolution UV plane
-        cv::Mat uv_transform = transform.clone();
+        cv::Mat uv_transform = cv_transform.clone();
         uv_transform.at<double>(0, 2) /= 2.0; // Scale translation X
         uv_transform.at<double>(1, 2) /= 2.0; // Scale translation Y
         
@@ -386,7 +389,7 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
     }
 }
 
-void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const cv::Mat& transform) {
+void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const TransformMatrix& transform) {
     try {
         // Validate Y plane access
         if (!frame->data[0] || frame->linesize[0] < frame->width) {
@@ -394,17 +397,20 @@ void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const 
             return;
         }
         
+        // Convert TransformMatrix to cv::Mat for OpenCV operations
+        cv::Mat cv_transform = transform.to_opencv_mat();
+        
         // Transform Y plane
         cv::Mat y_plane(frame->height, frame->width, CV_8UC1, frame->data[0], frame->linesize[0]);
         cv::Mat y_transformed;
         
-        cv::warpAffine(y_plane, y_transformed, transform,
+        cv::warpAffine(y_plane, y_transformed, cv_transform,
                       cv::Size(frame->width, frame->height),
                       cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
         y_transformed.copyTo(y_plane);
         
         // Scale transform for half-resolution chroma planes  
-        cv::Mat chroma_transform = transform.clone();
+        cv::Mat chroma_transform = cv_transform.clone();
         chroma_transform.at<double>(0, 2) /= 2.0; // Scale translation X
         chroma_transform.at<double>(1, 2) /= 2.0; // Scale translation Y
         
@@ -466,20 +472,19 @@ bool OBSIntegration::validate_frame_data(struct obs_source_frame* frame) {
     return true;
 }
 
-bool OBSIntegration::validate_transform_matrix(const cv::Mat& transform) {
+bool OBSIntegration::validate_transform_matrix(const TransformMatrix& transform) {
 #ifdef ENABLE_STABILIZATION
-    if (transform.empty() || transform.rows != 2 || transform.cols != 3) {
+    if (transform.is_empty() || !transform.is_valid()) {
         return false;
     }
     
-    // Check for reasonable transformation values
-    double dx = transform.at<double>(0, 2);
-    double dy = transform.at<double>(1, 2);
-    double scale = sqrt(transform.at<double>(0, 0) * transform.at<double>(0, 0) + 
-                       transform.at<double>(0, 1) * transform.at<double>(0, 1));
+    // Check for reasonable transformation values using TransformMatrix interface
+    double dx = transform.get_translation_x();
+    double dy = transform.get_translation_y();
+    double scale = transform.get_scale();
     
     // Reject unreasonable transformations
-    if (abs(dx) > 200 || abs(dy) > 200 || scale < 0.1 || scale > 3.0) {
+    if (std::abs(dx) > 200 || std::abs(dy) > 200 || scale < 0.1 || scale > 3.0) {
         obs_log(LOG_WARNING, "Rejecting unreasonable transform: dx=%.2f, dy=%.2f, scale=%.2f", 
                 dx, dy, scale);
         return false;

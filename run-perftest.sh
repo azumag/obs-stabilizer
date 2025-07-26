@@ -32,7 +32,7 @@ fi
 
 # Build the performance test
 echo "Configuring build..."
-$CMAKE_CMD -S . -B build-perftest -f CMakeLists-perftest.txt
+$CMAKE_CMD -S . -B build-perftest -f CMakeLists-perftest.txt -DCMAKE_BUILD_TYPE=Release
 
 echo "Building performance test..."
 $CMAKE_CMD --build build-perftest --config Release

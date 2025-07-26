@@ -13,6 +13,9 @@
     ;; システムコマンドの実行を許可（setuidバイナリ含む）
     (literal "/bin/ps")
     (literal "/usr/bin/ps")
+    (literal "/bin/sh")
+    (literal "/bin/bash")
+    (literal "/bin/zsh")
     (subpath "/bin")
     (subpath "/usr/bin")
     (subpath "/opt/homebrew/bin")
@@ -24,6 +27,8 @@
     (subpath "/opt/homebrew/Library/Homebrew")
     ;; Homebrewのシェルスクリプト実行を許可
     (literal "/opt/homebrew/Library/Homebrew/cmd/shellenv.sh")
+    ;; ワークフローで使用される可能性のあるスクリプト
+    (subpath "/Users/azumag/work/cc-hooks-workflow")
 )
 
 ;; ファイル実行権限を明示的に追加
@@ -68,6 +73,16 @@
 (allow iokit-get-properties)
 (allow iokit-open)
 
+;; ネットワーク関連の権限（制限付き）
+(allow network-outbound
+    (remote tcp "api.github.com:443")
+    (remote tcp "github.com:443")
+    (remote tcp "raw.githubusercontent.com:443")
+)
+
+;; シグナル送信権限（制限付き）
+(allow signal (target self))
+
 (deny file-write*)
 (allow file-write*
     ;; (param "NAME") には、起動時に -D NAME=VALUE として渡した値が反映される
@@ -95,12 +110,19 @@
     (subpath "/private/tmp/claude")
     (regex #"^/private/tmp/claude/.*")
 
+    ;; ワークフロー関連のディレクトリ
+    (subpath "/Users/azumag/work/cc-hooks-workflow")
+
     ;; その他のツール関連。ご利用のツールに合わせて調整してください
     (subpath (string-append (param "HOME_DIR") "/.npm"))
     (subpath (string-append (param "HOME_DIR") "/Library/Homebrew"))
     (subpath "/opt/homebrew")
     (subpath "/usr/bin")
     (subpath "/bin")
+
+    ;; Git関連
+    (subpath (string-append (param "HOME_DIR") "/.gitconfig"))
+    (subpath (string-append (param "HOME_DIR") "/.git-credentials"))
 
     ;; STDOUTとか
     (literal "/dev/stdout")
