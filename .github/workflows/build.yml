@@ -56,7 +56,7 @@ jobs:
     
     - name: Install OpenCV
       run: |
-        vcpkg install opencv[core,imgproc,features2d,video]:x64-windows
+        vcpkg install opencv[core,imgproc,features2d]:x64-windows
     
     - name: Configure CMake
       run: |

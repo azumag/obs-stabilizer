@@ -35,10 +35,10 @@ if(ENABLE_QT)
 endif()
 
 # OpenCV dependency for video stabilization with comprehensive version checking
-find_package(OpenCV 4.5 QUIET COMPONENTS core imgproc video features2d)
+find_package(OpenCV 4.5 QUIET COMPONENTS core imgproc features2d)
 if(NOT OpenCV_FOUND)
     # Try alternative package names
-    find_package(OpenCV QUIET COMPONENTS core imgproc video features2d)
+    find_package(OpenCV QUIET COMPONENTS core imgproc features2d)
     if(NOT OpenCV_FOUND)
         message(WARNING "OpenCV not found. Building without stabilization features.")
         message(STATUS "Install OpenCV 4.5+ with: brew install opencv (macOS) or apt-get install libopencv-dev (Ubuntu)")
@@ -67,7 +67,7 @@ if(OpenCV_FOUND)
     endif()
     
     # Validate required components
-    set(REQUIRED_OPENCV_COMPONENTS core imgproc video features2d)
+    set(REQUIRED_OPENCV_COMPONENTS core imgproc features2d)
     foreach(component ${REQUIRED_OPENCV_COMPONENTS})
         if(NOT ${component} IN_LIST OpenCV_LIBS)
             message(FATAL_ERROR "Required OpenCV component '${component}' not found")
