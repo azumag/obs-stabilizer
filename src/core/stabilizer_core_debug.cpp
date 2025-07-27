@@ -24,6 +24,7 @@ void StabilizerCore::update_detailed_metrics(const StabilizerMetrics& frame_metr
     
     // Thread-safe initialization of static variables
     static std::once_flag init_flag;
+    static std::mutex metrics_mutex;
     static float avg_feature_detection = 0.0f;
     static float avg_optical_flow = 0.0f;
     static float avg_transform_calc = 0.0f;
@@ -34,7 +35,10 @@ void StabilizerCore::update_detailed_metrics(const StabilizerMetrics& frame_metr
         // Static variables are zero-initialized, no additional setup needed
     });
     
-    frame_count++;
+    frame_count.fetch_add(1, std::memory_order_relaxed);
+    
+    // Thread-safe update of averages
+    std::lock_guard<std::mutex> lock(metrics_mutex);
     
     // Exponential moving average with alpha = 0.1
     const float alpha = 0.1f;

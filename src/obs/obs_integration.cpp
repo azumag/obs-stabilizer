@@ -9,6 +9,8 @@ the Free Software Foundation; either version 2 of the License, or
 */
 
 #include "obs_integration.hpp"
+#include "../core/error_handler.hpp"
+#include "../core/parameter_validator.hpp"
 #include <util/bmem.h>
 #include <algorithm>
 #include <memory>
