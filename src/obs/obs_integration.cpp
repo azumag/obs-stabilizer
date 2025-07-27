@@ -419,11 +419,12 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
 }
 
 void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const TransformMatrix& transform) {
-    try {
-        // Validate Y plane access
-        if (!frame->data[0] || frame->linesize[0] < frame->width) {
+    SAFE_EXECUTE([&]() {
+        // Validate Y plane access using unified validation
+        auto validation_result = ParameterValidator::validate_frame_i420(frame);
+        if (!validation_result) {
             ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_i420", 
-                                   "Invalid I420 Y plane data or linesize");
+                                   validation_result.error_message);
             return;
         }
         
@@ -476,11 +477,28 @@ void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const 
                       cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(128));
         v_transformed.copyTo(v_plane);
         
-    } catch (const cv::Exception& e) {
-        ErrorHandler::log_error(ErrorCategory::FRAME_PROCESSING, "apply_transform_i420", 
-                               "I420 transformation failed: %s", e.what());
-    }
+    }, ErrorCategory::FRAME_PROCESSING, "apply_transform_i420");
 }
+
+template<typename PlaneProcessor>
+void OBSIntegration::apply_transform_generic(struct obs_source_frame* frame, 
+                                           const TransformMatrix& transform,
+                                           PlaneProcessor process_planes) {
+    SAFE_EXECUTE([&]() {
+        // Validate frame data
+        if (!validate_frame_data(frame)) {
+            return;
+        }
+        
+        // Convert TransformMatrix to cv::Mat for OpenCV operations
+        cv::Mat cv_transform = transform.to_opencv_mat();
+        
+        // Process all planes using the provided processor
+        process_planes(frame, cv_transform);
+        
+    }, ErrorCategory::FRAME_PROCESSING, "apply_transform_generic");
+}
+
 #endif
 
 bool OBSIntegration::validate_frame_data(struct obs_source_frame* frame) {

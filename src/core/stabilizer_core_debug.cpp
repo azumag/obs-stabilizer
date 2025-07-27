@@ -80,17 +80,6 @@ void StabilizerCore::log_performance_breakdown() const {
     STABILIZER_LOG_INFO( "%s", ss.str().c_str());
 }
 
-#else
-
-// Stub implementations for non-OpenCV builds
-void StabilizerCore::update_detailed_metrics(const StabilizerMetrics&) {
-    // No-op in stub mode
-}
-
-void StabilizerCore::log_performance_breakdown() const {
-    STABILIZER_LOG_INFO( "Performance breakdown: stub mode - no detailed metrics available");
-}
-
 #endif
 
 } // namespace obs_stabilizer

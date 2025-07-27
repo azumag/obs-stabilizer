@@ -44,7 +44,7 @@ the Free Software Foundation; either version 2 of the License, or
 // Simplified conditional compilation helpers without complex templates
 struct OpenCVGuard {
     template<typename Func, typename DefaultValue>
-    static auto execute_or(Func&& func, [[maybe_unused]] DefaultValue&& default_val) {
+    static auto execute_or([[maybe_unused]] Func&& func, [[maybe_unused]] DefaultValue&& default_val) {
         #if STABILIZER_OPENCV_AVAILABLE
             return func();
         #else
@@ -55,7 +55,7 @@ struct OpenCVGuard {
 
 struct FeatureGuard {
     template<typename Func, typename DefaultValue>
-    static auto execute_or(Func&& func, [[maybe_unused]] DefaultValue&& default_val) {
+    static auto execute_or([[maybe_unused]] Func&& func, [[maybe_unused]] DefaultValue&& default_val) {
         #if STABILIZER_FULL_FEATURES
             return func();
         #else
@@ -181,12 +181,3 @@ namespace config {
 }
 } // namespace obs_stabilizer
 
-// Legacy compatibility (to be phased out)
-// Keep these for gradual migration from direct #ifdef usage
-#if STABILIZER_OPENCV_AVAILABLE
-    #define STABILIZER_ENABLED_LEGACY
-#endif
-
-#ifdef ENABLE_STABILIZATION
-    #define STABILIZER_COMPATIBILITY_CHECK_PASSED
-#endif
