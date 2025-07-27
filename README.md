@@ -4,6 +4,16 @@
 
 A real-time video stabilization plugin for OBS Studio using OpenCV computer vision algorithms.
 
+## 🏛️ **Development Philosophy**
+
+This project follows strict engineering principles for maintainable, production-grade software:
+- **YAGNI** (You Aren't Gonna Need It): Focus on current requirements, avoid feature bloat
+- **DRY** (Don't Repeat Yourself): Eliminate code duplication and maintain single sources of truth
+- **KISS** (Keep It Simple Stupid): Prioritize simplicity and clarity in design and implementation
+- **TDD** (Test-Driven Development): Comprehensive testing with Google Test framework ensuring reliability
+
+These principles guided the Phase 5 refactoring, resulting in a clean, secure, and maintainable codebase with enterprise-grade quality.
+
 ## ✅ **Current Status: Production-Ready with Code Quality Refactoring Complete**
 
 **Phase 5 Complete - Advanced Code Quality & Security:**
