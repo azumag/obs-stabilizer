@@ -48,7 +48,7 @@ public:
     template<typename Func, typename ReturnType>
     static bool safe_execute_cv(Func&& func, ReturnType& result, 
                                ErrorCategory category, const char* operation_name) {
-        return OpenCVGuard::execute_or([&]() {
+        return OpenCVGuard::execute_or([&]() -> bool {
             try {
                 result = func();
                 return true;
@@ -61,7 +61,7 @@ public:
                 handle_standard_error(e, category, operation_name);
                 return false;
             }
-        }, [&]() {
+        }, [&]() -> bool {
             // Stub mode - always fail gracefully
             log_stub_mode_warning(operation_name);
             return false;
@@ -83,7 +83,7 @@ public:
     // Execute function returning boolean with unified error context
     template<typename Func>
     static bool safe_execute_bool(Func&& func, ErrorCategory category, const char* operation_name) {
-        return OpenCVGuard::execute_or([&]() {
+        return OpenCVGuard::execute_or([&]() -> bool {
             try {
                 return func();
 #if STABILIZER_OPENCV_AVAILABLE
@@ -95,7 +95,7 @@ public:
                 handle_standard_error(e, category, operation_name);
                 return false;
             }
-        }, [&]() {
+        }, [&]() -> bool {
             // Stub mode - log and return false
             log_stub_mode_warning(operation_name);
             return false;
