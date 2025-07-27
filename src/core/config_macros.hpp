@@ -41,36 +41,28 @@ the Free Software Foundation; either version 2 of the License, or
         } \
     } while(0)
 
-// Template-based conditional compilation helpers
-template<bool Enable>
-struct StabilizerFeatureGuard {
-    template<typename Func>
-    static constexpr auto execute(Func&& func) -> decltype(func()) {
-        if constexpr (Enable) {
-            return func();
-        } else {
-            using ReturnType = decltype(func());
-            if constexpr (std::is_same<ReturnType, void>::value) {
-                return;
-            } else {
-                return ReturnType{};
-            }
-        }
-    }
-    
+// Simplified conditional compilation helpers without complex templates
+struct OpenCVGuard {
     template<typename Func, typename DefaultValue>
-    static constexpr auto execute_or(Func&& func, DefaultValue&& default_val) -> decltype(func()) {
-        if constexpr (Enable) {
+    static auto execute_or(Func&& func, DefaultValue&& default_val) {
+        #if STABILIZER_OPENCV_AVAILABLE
             return func();
-        } else {
+        #else
             return default_val;
-        }
+        #endif
     }
 };
 
-// Type aliases for common feature guards
-using OpenCVGuard = StabilizerFeatureGuard<STABILIZER_OPENCV_AVAILABLE>;
-using FeatureGuard = StabilizerFeatureGuard<STABILIZER_FULL_FEATURES>;
+struct FeatureGuard {
+    template<typename Func, typename DefaultValue>
+    static auto execute_or(Func&& func, DefaultValue&& default_val) {
+        #if STABILIZER_FULL_FEATURES
+            return func();
+        #else
+            return default_val;
+        #endif
+    }
+};
 
 // Conditional include macros with cross-platform warning suppression
 #if STABILIZER_OPENCV_AVAILABLE
