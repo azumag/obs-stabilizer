@@ -4,11 +4,16 @@
 build/
 build-*/
 *build*/
+tests/build*/
+tests/_deps/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 install_manifest.txt
+**/CMakeFiles/
+**/CMakeCache.txt
+**/_deps/
 
 # Compiled binaries
 *.exe
@@ -18,6 +23,7 @@ install_manifest.txt
 *.a
 *.lib
 *.o
+*.bin
 *.obj
 
 # Test executables

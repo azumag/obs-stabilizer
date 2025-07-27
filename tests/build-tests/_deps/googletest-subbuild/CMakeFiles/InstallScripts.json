@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/Users/azumag/work/obs-stabilizer/tests/build-tests/_deps/googletest-subbuild/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
