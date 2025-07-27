@@ -125,12 +125,12 @@ private:
 
 // Convenience macros for common error handling patterns
 #define SAFE_CV_EXECUTE(func, result, category, op_name) \
-    ErrorHandler::safe_execute_cv([&]() { return func; }, result, category, op_name)
+    ErrorHandler::safe_execute_cv(func, result, category, op_name)
 
 #define SAFE_EXECUTE(func, category, op_name) \
-    ErrorHandler::safe_execute([&]() { func; }, category, op_name)
+    ErrorHandler::safe_execute(func, category, op_name)
 
 #define SAFE_BOOL_EXECUTE(func, category, op_name) \
-    ErrorHandler::safe_execute_bool([&]() { return func; }, category, op_name)
+    ErrorHandler::safe_execute_bool(func, category, op_name)
 
 } // namespace obs_stabilizer
