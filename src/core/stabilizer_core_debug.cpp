@@ -38,7 +38,7 @@ void StabilizerCore::update_detailed_metrics(const StabilizerMetrics& frame_metr
     frame_count.fetch_add(1, std::memory_order_relaxed);
     
     // Thread-safe update of averages
-    std::lock_guard<std::mutex> lock(metrics_mutex);
+    std::lock_guard<std::mutex> static_lock(metrics_mutex);
     
     // Exponential moving average with alpha = 0.1
     const float alpha = 0.1f;
