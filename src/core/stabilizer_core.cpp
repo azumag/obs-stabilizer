@@ -220,11 +220,11 @@ void StabilizerCore::reset() {
 // Private methods implementation
 
 bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
-    return SAFE_BOOL_EXECUTE([&]() {
+    return SAFE_BOOL_EXECUTE([&]() -> bool {
         previous_points_.clear();
         
         // SIMD optimization: Ensure proper memory alignment for OpenCV SIMD operations
-        auto aligned_frame_guard = [&]() {
+        auto aligned_frame_guard = [&]() -> CVMatGuard {
             if (gray_frame.isContinuous() && (reinterpret_cast<uintptr_t>(gray_frame.data) % 32 == 0)) {
                 return make_mat_guard(gray_frame);
             } else {
@@ -254,7 +254,7 @@ bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
 }
 
 bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
-    return ErrorHandler::safe_execute_bool([&]() {
+    return ErrorHandler::safe_execute_bool([&]() -> bool {
         if (previous_points_.empty()) {
             return false;
         }
