@@ -35,12 +35,12 @@ bool StabilizerCore::initialize(const StabilizerConfig& config) {
         active_config_ = config;
         
         // Initialize transform history buffer
-        transform_history_.clear();
-        transform_history_.reserve(active_config_.smoothing_radius);
+        transform_history_buffer_.clear();
+        transform_history_buffer_.reserve(active_config_.smoothing_radius);
         
         // Initialize transform matrices
         for (int i = 0; i < active_config_.smoothing_radius; ++i) {
-            transform_history_.emplace_back(); // Creates identity TransformMatrix
+            transform_history_buffer_.emplace_back(); // Creates identity TransformMatrix
         }
         
         history_index_ = 0;
@@ -204,7 +204,7 @@ void StabilizerCore::reset() {
     
     previous_points_.clear();
     current_points_.clear();
-    transform_history_.clear();
+    transform_history_buffer_.clear();
     previous_gray_ = cv::Mat();
     
     history_index_ = 0;
@@ -342,7 +342,7 @@ TransformMatrix StabilizerCore::calculate_transform(const std::vector<cv::Point2
 
 TransformMatrix StabilizerCore::smooth_transform(const TransformMatrix& transform) {
     // Add transform to history
-    transform_history_[history_index_] = transform;
+    transform_history_buffer_[history_index_] = transform;
     history_index_ = (history_index_ + 1) % active_config_.smoothing_radius;
     
     if (!history_filled_ && history_index_ == 0) {
@@ -356,7 +356,7 @@ TransformMatrix StabilizerCore::smooth_transform(const TransformMatrix& transfor
     transforms_for_average.reserve(count);
     
     for (int i = 0; i < count; ++i) {
-        transforms_for_average.push_back(transform_history_[i]);
+        transforms_for_average.push_back(transform_history_buffer_[i]);
     }
     
     return transform_utils::average_transforms(transforms_for_average);
@@ -367,12 +367,12 @@ void StabilizerCore::apply_configuration_if_dirty() {
     if (config_dirty_.exchange(false)) {
         
         // Resize transform history if smoothing radius changed
-        if (transform_history_.size() != static_cast<size_t>(active_config_.smoothing_radius)) {
-            transform_history_.clear();
-            transform_history_.reserve(active_config_.smoothing_radius);
+        if (transform_history_buffer_.size() != static_cast<size_t>(active_config_.smoothing_radius)) {
+            transform_history_buffer_.clear();
+            transform_history_buffer_.reserve(active_config_.smoothing_radius);
             
             for (int i = 0; i < active_config_.smoothing_radius; ++i) {
-                transform_history_.emplace_back(); // Creates identity TransformMatrix
+                transform_history_buffer_.emplace_back(); // Creates identity TransformMatrix
             }
             
             history_index_ = 0;

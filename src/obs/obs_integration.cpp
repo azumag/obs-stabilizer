@@ -11,6 +11,7 @@ the Free Software Foundation; either version 2 of the License, or
 #include "obs_integration.hpp"
 #include <util/bmem.h>
 #include <algorithm>
+#include <memory>
 
 namespace obs_stabilizer {
 
@@ -170,21 +171,44 @@ const char* OBSIntegration::filter_get_name(void* unused) {
 }
 
 void* OBSIntegration::filter_create(obs_data_t* settings, obs_source_t* source) {
-    StabilizerFilter* filter = new StabilizerFilter();
-    
-    filter->source = source;
-    filter->update_settings(settings);
-    
-    obs_log(LOG_INFO, "Stabilizer filter created");
-    return filter;
+    try {
+        // Use unique_ptr for exception safety during construction
+        auto filter = std::make_unique<StabilizerFilter>();
+        
+        filter->source = source;
+        filter->update_settings(settings);
+        
+        obs_log(LOG_INFO, "Stabilizer filter created");
+        
+        // Release ownership to OBS - OBS will manage lifetime via filter_destroy
+        return filter.release();
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "Failed to create stabilizer filter: %s", e.what());
+        return nullptr;
+    } catch (...) {
+        obs_log(LOG_ERROR, "Failed to create stabilizer filter: unknown error");
+        return nullptr;
+    }
 }
 
 void OBSIntegration::filter_destroy(void* data) {
-    StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
+    if (!data) {
+        obs_log(LOG_WARNING, "Attempted to destroy null stabilizer filter");
+        return;
+    }
     
-    if (filter) {
+    try {
+        StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
         obs_log(LOG_INFO, "Stabilizer filter destroyed");
-        delete filter;
+        
+        // Use unique_ptr for RAII cleanup - ensures destructor is called even if exceptions occur
+        std::unique_ptr<StabilizerFilter> filter_guard(filter);
+        
+        // filter_guard will automatically delete filter when going out of scope
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "Error during filter destruction: %s", e.what());
+    } catch (...) {
+        obs_log(LOG_ERROR, "Unknown error during filter destruction");
     }
 }
 

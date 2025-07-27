@@ -145,7 +145,7 @@ private:
     cv::Mat previous_gray_;
     
     // Transform smoothing
-    std::vector<TransformMatrix> transform_history_;
+    std::vector<TransformMatrix> transform_history_buffer_;
     size_t history_index_ = 0;
     bool history_filled_ = false;
     
