@@ -108,12 +108,15 @@ if(OpenCV_FOUND)
         message(STATUS "Recommended versions: 4.5.x - 4.8.x")
     endif()
     
-    # Validate required components
+    # Validate required components are available
     set(REQUIRED_OPENCV_COMPONENTS core imgproc features2d)
     foreach(component ${REQUIRED_OPENCV_COMPONENTS})
-        if(NOT ${component} IN_LIST OpenCV_LIBS)
-            message(FATAL_ERROR "Required OpenCV component '${component}' not found")
+        # Check if component exists in OpenCV installation
+        find_library(OPENCV_${component}_FOUND opencv_${component} PATHS ${OpenCV_LIB_DIR} NO_DEFAULT_PATH)
+        if(NOT OPENCV_${component}_FOUND)
+            message(FATAL_ERROR "Required OpenCV component 'opencv_${component}' library not found in ${OpenCV_LIB_DIR}")
         endif()
+        message(STATUS "✅ Found OpenCV component: opencv_${component}")
     endforeach()
     
     # API compatibility compile-time checks
