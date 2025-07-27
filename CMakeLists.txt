@@ -158,6 +158,7 @@ if(BUILD_STANDALONE)
     # Standalone library sources (core functionality only)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
       src/core/stabilizer_core.cpp
+      src/core/stabilizer_core_debug.cpp
       src/core/error_handler.cpp
       src/core/parameter_validator.cpp
       src/core/transform_matrix.cpp
@@ -171,6 +172,7 @@ else()
       src/plugin-main.cpp
       src/plugin-support.c
       src/core/stabilizer_core.cpp
+      src/core/stabilizer_core_debug.cpp
       src/core/error_handler.cpp
       src/core/parameter_validator.cpp
       src/core/transform_matrix.cpp
