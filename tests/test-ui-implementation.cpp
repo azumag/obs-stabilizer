@@ -24,7 +24,7 @@ struct obs_source_frame {
 };
 
 // Include the enhanced core module
-#include "src/core/stabilizer_core.hpp"
+#include "../src/core/stabilizer_core.hpp"
 
 using namespace obs_stabilizer;
 
