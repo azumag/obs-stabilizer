@@ -307,7 +307,7 @@ bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
 TransformMatrix StabilizerCore::calculate_transform(const std::vector<cv::Point2f>& prev_pts,
                                                   const std::vector<cv::Point2f>& curr_pts) {
     cv::Mat opencv_result;
-    if (!SAFE_CV_EXECUTE([&]() {
+    if (!SAFE_CV_EXECUTE([&]() -> cv::Mat {
         // Unified parameter validation
         auto prev_validation = ParameterValidator::validate_feature_points(prev_pts, 4, "Previous feature points");
         auto curr_validation = ParameterValidator::validate_feature_points(curr_pts, 4, "Current feature points");
