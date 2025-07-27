@@ -254,7 +254,7 @@ bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
 }
 
 bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
-    return SAFE_BOOL_EXECUTE([&]() {
+    return ErrorHandler::safe_execute_bool([&]() {
         if (previous_points_.empty()) {
             return false;
         }
