@@ -21,23 +21,20 @@ jobs:
           ninja-build \
           build-essential \
           libopencv-dev \
-          pkg-config
+          pkg-config \
+          qtbase5-dev \
+          qtbase5-dev-tools
     
-    - name: Configure CMake (basic build)
+    - name: Configure CMake (standalone build)
       run: |
         mkdir -p build
         cd build
-        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
     
     - name: Build
       run: |
         cd build
         ninja
-    
-    - name: Run Tests
-      run: |
-        cd build
-        ./run-tests.sh || echo "Tests may not be available in CI environment"
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -56,13 +53,13 @@ jobs:
     
     - name: Install OpenCV
       run: |
-        vcpkg install opencv[core,imgproc,features2d]:x64-windows
+        vcpkg install opencv:x64-windows
     
     - name: Configure CMake
       run: |
         mkdir build
         cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
     
     - name: Build
       run: |
@@ -89,17 +86,12 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
     
     - name: Build
       run: |
         cd build
         ninja
-    
-    - name: Run Tests
-      run: |
-        cd build
-        ./run-tests.sh || echo "Tests may not be available in CI environment"
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

@@ -9,7 +9,7 @@ the Free Software Foundation; either version 2 of the License, or
 */
 
 #include "stabilizer_core.hpp"
-#include <obs-module.h>
+#include "logging_adapter.hpp"
 #include <iomanip>
 #include <sstream>
 #include <mutex>
@@ -77,7 +77,7 @@ void StabilizerCore::log_performance_breakdown() const {
     ss << "Features=" << current_metrics_.tracked_features;
     ss << " Success=" << (current_metrics_.tracking_success_rate * 100.0f) << "%";
     
-    obs_log(LOG_INFO, "%s", ss.str().c_str());
+    STABILIZER_LOG_INFO( "%s", ss.str().c_str());
 }
 
 #else
@@ -88,7 +88,7 @@ void StabilizerCore::update_detailed_metrics(const StabilizerMetrics&) {
 }
 
 void StabilizerCore::log_performance_breakdown() const {
-    obs_log(LOG_INFO, "Performance breakdown: stub mode - no detailed metrics available");
+    STABILIZER_LOG_INFO( "Performance breakdown: stub mode - no detailed metrics available");
 }
 
 #endif

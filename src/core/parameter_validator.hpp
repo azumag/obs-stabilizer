@@ -10,7 +10,8 @@ the Free Software Foundation; either version 2 of the License, or
 
 #pragma once
 
-#include <obs-module.h>
+#include "logging_adapter.hpp"
+#include "frame_adapter.hpp"
 #include <cstdint>
 #include <vector>
 
@@ -36,10 +37,10 @@ struct ValidationResult {
 class ParameterValidator {
 public:
     // Frame validation with comprehensive checks
-    static ValidationResult validate_frame_basic(struct obs_source_frame* frame);
-    static ValidationResult validate_frame_dimensions(struct obs_source_frame* frame);
-    static ValidationResult validate_frame_nv12(struct obs_source_frame* frame);
-    static ValidationResult validate_frame_i420(struct obs_source_frame* frame);
+    static ValidationResult validate_frame_basic(frame_t* frame);
+    static ValidationResult validate_frame_dimensions(frame_t* frame);
+    static ValidationResult validate_frame_nv12(frame_t* frame);
+    static ValidationResult validate_frame_i420(frame_t* frame);
     
     // OpenCV matrix validation
 #ifdef ENABLE_STABILIZATION
@@ -76,7 +77,7 @@ private:
     do { \
         auto validation_result = (validation); \
         if (!validation_result) { \
-            obs_log(LOG_ERROR, "Validation failed: %s", \
+            STABILIZER_LOG_ERROR( "Validation failed: %s", \
                     validation_result.error_message ? validation_result.error_message : "Unknown error"); \
             result_var.success = false; \
             return result_var; \
@@ -87,7 +88,7 @@ private:
     do { \
         auto validation_result = (validation); \
         if (!validation_result) { \
-            obs_log(LOG_ERROR, "Validation failed: %s", \
+            STABILIZER_LOG_ERROR( "Validation failed: %s", \
                     validation_result.error_message ? validation_result.error_message : "Unknown error"); \
             return false; \
         } \
@@ -97,7 +98,7 @@ private:
     do { \
         auto validation_result = (validation); \
         if (!validation_result) { \
-            obs_log(LOG_WARNING, "Validation warning: %s", \
+            STABILIZER_LOG_WARNING( "Validation warning: %s", \
                     validation_result.error_message ? validation_result.error_message : "Unknown warning"); \
         } \
     } while(0)

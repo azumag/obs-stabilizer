@@ -11,9 +11,12 @@ the Free Software Foundation; either version 2 of the License, or
 #pragma once
 
 #include "config_macros.hpp"
-#include <obs-module.h>
 #include <string>
 #include <functional>
+
+#ifndef BUILD_STANDALONE
+#include <obs-module.h>
+#endif
 
 #if STABILIZER_OPENCV_AVAILABLE
 #include <opencv2/opencv.hpp>
@@ -49,9 +52,11 @@ public:
             try {
                 result = func();
                 return true;
+#if STABILIZER_OPENCV_AVAILABLE
             } catch (const cv::Exception& e) {
                 handle_opencv_error(e, category, operation_name);
                 return false;
+#endif
             } catch (const std::exception& e) {
                 handle_standard_error(e, category, operation_name);
                 return false;
@@ -81,9 +86,11 @@ public:
         return OpenCVGuard::execute_or([&]() {
             try {
                 return func();
+#if STABILIZER_OPENCV_AVAILABLE
             } catch (const cv::Exception& e) {
                 handle_opencv_error(e, category, operation_name);
                 return false;
+#endif
             } catch (const std::exception& e) {
                 handle_standard_error(e, category, operation_name);
                 return false;

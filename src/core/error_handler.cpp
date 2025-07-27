@@ -9,7 +9,7 @@ the Free Software Foundation; either version 2 of the License, or
 */
 
 #include "error_handler.hpp"
-#include <obs-module.h>
+#include "logging_adapter.hpp"
 
 namespace obs_stabilizer {
 
@@ -17,7 +17,7 @@ namespace obs_stabilizer {
 void ErrorHandler::handle_opencv_error(const cv::Exception& e, ErrorCategory category, 
                                       const char* operation_name) {
     const char* category_name = get_category_name(category);
-    obs_log(LOG_ERROR, "[%s] OpenCV error in %s: %s (code: %d, file: %s, line: %d)", 
+    STABILIZER_LOG_ERROR( "[%s] OpenCV error in %s: %s (code: %d, file: %s, line: %d)", 
             category_name, operation_name, e.what(), e.code, e.file.c_str(), e.line);
 }
 #endif
@@ -25,21 +25,21 @@ void ErrorHandler::handle_opencv_error(const cv::Exception& e, ErrorCategory cat
 void ErrorHandler::handle_standard_error(const std::exception& e, ErrorCategory category, 
                                         const char* operation_name) {
     const char* category_name = get_category_name(category);
-    obs_log(LOG_ERROR, "[%s] Standard error in %s: %s", 
+    STABILIZER_LOG_ERROR( "[%s] Standard error in %s: %s", 
             category_name, operation_name, e.what());
 }
 
 void ErrorHandler::log_stub_mode_warning(const char* operation_name) {
-    obs_log(LOG_INFO, "Stub mode: %s skipped (OpenCV not available)", operation_name);
+    STABILIZER_LOG_INFO( "Stub mode: %s skipped (OpenCV not available)", operation_name);
 }
 
 void ErrorHandler::log_critical_error(ErrorCategory category, const char* operation_name, 
                                      const char* details) {
     const char* category_name = get_category_name(category);
     if (details) {
-        obs_log(LOG_ERROR, "[%s] CRITICAL: %s - %s", category_name, operation_name, details);
+        STABILIZER_LOG_ERROR( "[%s] CRITICAL: %s - %s", category_name, operation_name, details);
     } else {
-        obs_log(LOG_ERROR, "[%s] CRITICAL: %s", category_name, operation_name);
+        STABILIZER_LOG_ERROR( "[%s] CRITICAL: %s", category_name, operation_name);
     }
 }
 
@@ -47,9 +47,9 @@ void ErrorHandler::log_warning(ErrorCategory category, const char* operation_nam
                               const char* details) {
     const char* category_name = get_category_name(category);
     if (details) {
-        obs_log(LOG_WARNING, "[%s] %s - %s", category_name, operation_name, details);
+        STABILIZER_LOG_WARNING( "[%s] %s - %s", category_name, operation_name, details);
     } else {
-        obs_log(LOG_WARNING, "[%s] %s", category_name, operation_name);
+        STABILIZER_LOG_WARNING( "[%s] %s", category_name, operation_name);
     }
 }
 

@@ -9,74 +9,73 @@ the Free Software Foundation; either version 2 of the License, or
 */
 
 #include "parameter_validator.hpp"
-#include <obs-module.h>
 #include <cmath>
 #include <climits>
 
 namespace obs_stabilizer {
 
-ValidationResult ParameterValidator::validate_frame_basic(struct obs_source_frame* frame) {
+ValidationResult ParameterValidator::validate_frame_basic(frame_t* frame) {
     if (!frame) {
         return ValidationResult(false, "Frame pointer is null");
     }
     
-    if (!frame->data[0]) {
+    if (!get_frame_data(frame, 0)) {
         return ValidationResult(false, "Frame data[0] is null");
     }
     
-    if (frame->width == 0 || frame->height == 0) {
+    if (get_frame_width(frame) == 0 || get_frame_height(frame) == 0) {
         return ValidationResult(false, "Frame dimensions are zero");
     }
     
-    if (!is_valid_video_format(frame->format)) {
+    if (!is_valid_video_format(get_frame_format(frame))) {
         return ValidationResult(false, "Unsupported video format");
     }
     
     return ValidationResult(true);
 }
 
-ValidationResult ParameterValidator::validate_frame_dimensions(struct obs_source_frame* frame) {
+ValidationResult ParameterValidator::validate_frame_dimensions(frame_t* frame) {
     auto basic_validation = validate_frame_basic(frame);
     if (!basic_validation) {
         return basic_validation;
     }
     
     // Validate frame dimensions to prevent integer overflow
-    if (frame->width > 8192 || frame->height > 8192) {
+    if (get_frame_width(frame) > 8192 || get_frame_height(frame) > 8192) {
         return ValidationResult(false, "Frame dimensions too large (max 8192x8192)");
     }
     
     // Check for potential integer overflow in size calculations
-    if (check_integer_overflow(frame->width, frame->height)) {
+    if (check_integer_overflow(get_frame_width(frame), get_frame_height(frame))) {
         return ValidationResult(false, "Frame size would cause integer overflow");
     }
     
     // Validate minimum size for feature detection
-    if (frame->width < 50 || frame->height < 50) {
+    if (get_frame_width(frame) < 50 || get_frame_height(frame) < 50) {
         return ValidationResult(false, "Frame too small for reliable processing (min 50x50)");
     }
     
     return ValidationResult(true);
 }
 
-ValidationResult ParameterValidator::validate_frame_nv12(struct obs_source_frame* frame) {
+ValidationResult ParameterValidator::validate_frame_nv12(frame_t* frame) {
     auto basic_validation = validate_frame_dimensions(frame);
     if (!basic_validation) {
         return basic_validation;
     }
     
-    if (frame->format != VIDEO_FORMAT_NV12) {
+    if (get_frame_format(frame) != VIDEO_FORMAT_NV12) {
         return ValidationResult(false, "Frame is not NV12 format");
     }
     
     // Validate Y plane
-    if (frame->linesize[0] < frame->width) {
+    if (get_frame_linesize(frame, 0) < get_frame_width(frame)) {
         return ValidationResult(false, "NV12 Y plane linesize too small");
     }
     
     // Validate UV plane (if present)
-    if (frame->data[1]) {
-        if (frame->linesize[1] < frame->width) {
+    if (get_frame_data(frame, 1)) {
+        if (get_frame_linesize(frame, 1) < get_frame_width(frame)) {
             return ValidationResult(false, "NV12 UV plane linesize too small");
         }
     }
@@ -84,31 +83,31 @@ ValidationResult ParameterValidator::validate_frame_nv12(struct obs_source_frame
     return ValidationResult(true);
 }
 
-ValidationResult ParameterValidator::validate_frame_i420(struct obs_source_frame* frame) {
+ValidationResult ParameterValidator::validate_frame_i420(frame_t* frame) {
     auto basic_validation = validate_frame_dimensions(frame);
     if (!basic_validation) {
         return basic_validation;
     }
     
-    if (frame->format != VIDEO_FORMAT_I420) {
+    if (get_frame_format(frame) != VIDEO_FORMAT_I420) {
         return ValidationResult(false, "Frame is not I420 format");
     }
     
     // Validate Y plane
-    if (frame->linesize[0] < frame->width) {
+    if (get_frame_linesize(frame, 0) < get_frame_width(frame)) {
         return ValidationResult(false, "I420 Y plane linesize too small");
     }
     
     // Validate U plane
-    if (frame->data[1]) {
-        if (frame->linesize[1] < frame->width / 2) {
+    if (get_frame_data(frame, 1)) {
+        if (get_frame_linesize(frame, 1) < get_frame_width(frame) / 2) {
             return ValidationResult(false, "I420 U plane linesize too small");
         }
     }
     
     // Validate V plane
-    if (frame->data[2]) {
-        if (frame->linesize[2] < frame->width / 2) {
+    if (get_frame_data(frame, 2)) {
+        if (get_frame_linesize(frame, 2) < get_frame_width(frame) / 2) {
             return ValidationResult(false, "I420 V plane linesize too small");
         }
     }

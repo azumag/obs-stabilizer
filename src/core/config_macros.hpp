@@ -10,6 +10,9 @@ the Free Software Foundation; either version 2 of the License, or
 
 #pragma once
 
+#include "logging_adapter.hpp"
+#include <type_traits>
+
 // Central configuration for conditional compilation
 // This header unifies all ENABLE_STABILIZATION checks and provides
 // consistent feature detection across the entire codebase
@@ -47,7 +50,7 @@ struct StabilizerFeatureGuard {
             return func();
         } else {
             using ReturnType = decltype(func());
-            if constexpr (std::is_same_v<ReturnType, void>) {
+            if constexpr (std::is_same<ReturnType, void>::value) {
                 return;
             } else {
                 return ReturnType{};
@@ -137,9 +140,9 @@ using FeatureGuard = StabilizerFeatureGuard<STABILIZER_FULL_FEATURES>;
 #define STABILIZER_LOG_FEATURE_STATUS() \
     do { \
         if constexpr (STABILIZER_OPENCV_AVAILABLE) { \
-            obs_log(LOG_INFO, "OBS Stabilizer: OpenCV features enabled"); \
+            STABILIZER_LOG_INFO( "OBS Stabilizer: OpenCV features enabled"); \
         } else { \
-            obs_log(LOG_INFO, "OBS Stabilizer: Running in stub mode (OpenCV unavailable)"); \
+            STABILIZER_LOG_INFO( "OBS Stabilizer: Running in stub mode (OpenCV unavailable)"); \
         } \
     } while(0)
 
@@ -147,7 +150,7 @@ using FeatureGuard = StabilizerFeatureGuard<STABILIZER_FULL_FEATURES>;
 #define STABILIZER_VALIDATE_OPENCV_AVAILABLE(return_value) \
     do { \
         if constexpr (!STABILIZER_OPENCV_AVAILABLE) { \
-            obs_log(LOG_WARNING, "OpenCV feature requested but not available"); \
+            STABILIZER_LOG_WARNING( "OpenCV feature requested but not available"); \
             return return_value; \
         } \
     } while(0)

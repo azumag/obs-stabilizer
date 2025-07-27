@@ -11,7 +11,7 @@ the Free Software Foundation; either version 2 of the License, or
 #include "stabilizer_core.hpp"
 #include "error_handler.hpp"
 #include "parameter_validator.hpp"
-#include <obs-module.h>
+#include "logging_adapter.hpp"
 #include <chrono>
 #include <algorithm>
 
@@ -48,13 +48,13 @@ bool StabilizerCore::initialize(const StabilizerConfig& config) {
         consecutive_failures_ = 0;
         
         status_ = StabilizerStatus::INITIALIZING;
-        obs_log(LOG_INFO, "StabilizerCore initialized (smoothing=%d, features=%d)", 
+        STABILIZER_LOG_INFO("StabilizerCore initialized (smoothing=%d, features=%d)", 
                 active_config_.smoothing_radius, active_config_.max_features);
     }, ErrorCategory::INITIALIZATION, "StabilizerCore initialization") ? 
     (true) : (status_ = StabilizerStatus::FAILED, false);
 }
 
-TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
+TransformResult StabilizerCore::process_frame(frame_t* frame) {
     auto start_time = std::chrono::high_resolution_clock::now();
     TransformResult result;
     
@@ -73,25 +73,25 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
         
         // Convert frame to grayscale for processing
         cv::Mat current_gray;
-        if (frame->format == VIDEO_FORMAT_NV12) {
+        if (get_frame_format(frame) == VIDEO_FORMAT_NV12) {
             VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_nv12(frame), result);
             
             // Use Y plane directly
-            cv::Mat nv12_y(frame->height, frame->width, CV_8UC1, 
-                          frame->data[0], frame->linesize[0]);
+            cv::Mat nv12_y(get_frame_height(frame), get_frame_width(frame), CV_8UC1, 
+                          get_frame_data(frame, 0), get_frame_linesize(frame, 0));
             nv12_y.copyTo(current_gray);
             
-        } else if (frame->format == VIDEO_FORMAT_I420) {
+        } else if (get_frame_format(frame) == VIDEO_FORMAT_I420) {
             VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_i420(frame), result);
             
             // Use Y plane directly
-            cv::Mat y_plane(frame->height, frame->width, CV_8UC1, 
-                           frame->data[0], frame->linesize[0]);
+            cv::Mat y_plane(get_frame_height(frame), get_frame_width(frame), CV_8UC1, 
+                           get_frame_data(frame, 0), get_frame_linesize(frame, 0));
             y_plane.copyTo(current_gray);
             
         } else {
             // Unsupported format
-            obs_log(LOG_WARNING, "Unsupported video format for stabilization: %d", frame->format);
+            STABILIZER_LOG_WARNING( "Unsupported video format for stabilization: %d", get_frame_format(frame));
             result.success = false;
             return result;
         }
@@ -102,7 +102,7 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
             
             // Validate frame dimensions for feature detection
             if (current_gray.rows < 50 || current_gray.cols < 50) {
-                obs_log(LOG_WARNING, "Frame too small for reliable feature detection: %dx%d", 
+                STABILIZER_LOG_WARNING( "Frame too small for reliable feature detection: %dx%d", 
                         current_gray.cols, current_gray.rows);
                 result.success = false;
                 return result;
@@ -116,7 +116,7 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
             }
             
             status_ = StabilizerStatus::ACTIVE;
-            obs_log(LOG_INFO, "Stabilization initialized with %zu feature points", previous_points_.size());
+            STABILIZER_LOG_INFO( "Stabilization initialized with %zu feature points", previous_points_.size());
             result.success = true;
             result.transform_matrix.set_identity();
             return result;
@@ -148,7 +148,7 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
         frames_since_detection_++;
         if (frames_since_detection_ >= active_config_.refresh_threshold || previous_points_.size() < 50) {
             if (!detect_features(current_gray)) {
-                obs_log(LOG_WARNING, "Feature refresh failed, continuing with existing points");
+                STABILIZER_LOG_WARNING( "Feature refresh failed, continuing with existing points");
             } else {
                 frames_since_detection_ = 0;
             }
@@ -171,12 +171,12 @@ TransformResult StabilizerCore::process_frame(struct obs_source_frame* frame) {
         return result;
         
     } catch (const cv::Exception& e) {
-        obs_log(LOG_ERROR, "OpenCV error in frame processing: %s", e.what());
+        STABILIZER_LOG_ERROR( "OpenCV error in frame processing: %s", e.what());
         escalate_error();
         result.success = false;
         return result;
     } catch (const std::exception& e) {
-        obs_log(LOG_ERROR, "Error in frame processing: %s", e.what());
+        STABILIZER_LOG_ERROR( "Error in frame processing: %s", e.what());
         escalate_error();
         result.success = false;
         return result;
@@ -213,7 +213,7 @@ void StabilizerCore::reset() {
     
     status_ = StabilizerStatus::INACTIVE;
     
-    obs_log(LOG_INFO, "StabilizerCore reset");
+    STABILIZER_LOG_INFO( "StabilizerCore reset");
 }
 
 // Private methods implementation
@@ -375,7 +375,7 @@ void StabilizerCore::apply_configuration_if_dirty() {
             history_filled_ = false;
         }
         
-        obs_log(LOG_INFO, "Configuration updated: smoothing=%d, features=%d", 
+        STABILIZER_LOG_INFO( "Configuration updated: smoothing=%d, features=%d", 
                 active_config_.smoothing_radius, active_config_.max_features);
     }
 }
@@ -413,10 +413,10 @@ void StabilizerCore::escalate_error() {
     
     if (consecutive_failures_ > 10) {
         status_ = StabilizerStatus::FAILED;
-        obs_log(LOG_ERROR, "Stabilization failed after multiple consecutive errors");
+        STABILIZER_LOG_ERROR( "Stabilization failed after multiple consecutive errors");
     } else {
         status_ = StabilizerStatus::DEGRADED;
-        obs_log(LOG_WARNING, "Stabilization degraded due to tracking failures");
+        STABILIZER_LOG_WARNING( "Stabilization degraded due to tracking failures");
     }
 }
 

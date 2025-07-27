@@ -221,6 +221,9 @@ cmake --build --preset <platform>-ci
 - [x] **Issue #56**: Technical Debt - Deprecated GitHub Actions ✅ **RESOLVED** (Release workflow modernized with softprops/action-gh-release@v2)
 - [x] **Issue #57**: Performance Issue - Fixed Logging Interval ✅ **RESOLVED** (Adaptive logging intervals based on framerate)
 - [x] **Issue #58**: Package Security - Missing Binary Verification ✅ **RESOLVED** (ELF validation and OBS symbol verification added)
+- [x] **Issue #60**: CI/CD Failures - Multi-Platform Build Configuration ✅ **RESOLVED** (OpenCV feature specification corrected)  
+- [x] **Issue #61**: Critical CI/CD Pipeline Restoration ✅ **RESOLVED** (Infrastructure directory structure restored)
+- [ ] **Issue #62**: Technical Debt - OBS Template Dependencies ❌ **CRITICAL** (Mandatory libobs REQUIRED blocking all CI builds - architectural fix needed)
 
 ### 🔧 **Code Review Critical Fixes (Latest)**
 - [x] **Matrix Bounds Safety**: Enhanced OpenCV matrix access with comprehensive bounds checking and exception handling
@@ -228,6 +231,8 @@ cmake --build --preset <platform>-ci
 - [x] **Division-by-Zero Protection**: Added comprehensive checks in parameter validation and transform calculations
 - [x] **Thread Safety Documentation**: Added detailed thread safety notes for all major classes
 - [x] **Conditional Compilation Standardization**: Unified `#ifdef ENABLE_STABILIZATION` and `#if STABILIZER_*` patterns
+- [x] **CI/CD Workflow Restoration**: Fixed GitHub Actions workflow configuration and dependency management
+- [ ] **CI/CD Architecture Issue**: Mandatory OBS dependencies require BUILD_STANDALONE option (Issue #62) ❌ **CRITICAL**
 
 ## 🏁 Project Status: Production Ready
 

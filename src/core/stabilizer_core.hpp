@@ -23,8 +23,8 @@ the Free Software Foundation; either version 2 of the License, or
 #include <atomic>
 #include <mutex>
 
-// Forward declarations
-struct obs_source_frame;
+// Forward declarations and frame abstraction
+#include "frame_adapter.hpp"
 
 namespace obs_stabilizer {
 
@@ -121,7 +121,7 @@ public:
     bool initialize(const StabilizerConfig& config);
     
     // Process a video frame and return transformation result
-    TransformResult process_frame(struct obs_source_frame* frame);
+    TransformResult process_frame(frame_t* frame);
     
     // Update configuration (thread-safe)
     void update_configuration(const StabilizerConfig& config);
@@ -183,7 +183,7 @@ public:
     ~StabilizerCore() = default;
     
     bool initialize(const StabilizerConfig&) { return false; }
-    TransformResult process_frame(struct obs_source_frame*) { 
+    TransformResult process_frame(frame_t*) { 
         return TransformResult{false, TransformMatrix{}, StabilizerMetrics{}}; 
     }
     void update_configuration(const StabilizerConfig&) {}

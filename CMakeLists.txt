@@ -1,37 +1,79 @@
 cmake_minimum_required(VERSION 3.28...3.30)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
+# Conditional project setup based on build mode
+option(BUILD_STANDALONE "Build as standalone library without OBS integration" OFF)
 
-project(${_name} VERSION ${_version})
+if(NOT BUILD_STANDALONE)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
+    project(${_name} VERSION ${_version})
+else()
+    # Standalone mode - use direct project definition
+    project(obs-stabilizer VERSION 0.1.0)
+endif()
 
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 
-include(compilerconfig)
-include(defaults)
-include(helpers)
+# Conditional CMake includes based on build mode
+if(NOT BUILD_STANDALONE)
+    include(compilerconfig)
+    include(defaults)
+    include(helpers)
+else()
+    # Standalone mode - minimal compiler configuration
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    
+    if(NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE RelWithDebInfo)
+    endif()
+    
+    # Basic compiler flags for standalone mode
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -DNDEBUG")
+    endif()
+endif()
 
-add_library(${CMAKE_PROJECT_NAME} MODULE)
+# Conditional library type based on build mode
+if(BUILD_STANDALONE)
+    add_library(${CMAKE_PROJECT_NAME} SHARED)
+    message(STATUS "Building standalone library")
+else()
+    add_library(${CMAKE_PROJECT_NAME} MODULE)
+    message(STATUS "Building OBS plugin module")
+endif()
 
-find_package(libobs REQUIRED)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
+# Conditional OBS dependencies
+if(NOT BUILD_STANDALONE)
+    find_package(libobs REQUIRED)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
+else()
+    message(STATUS "Skipping OBS dependencies in standalone mode")
+endif()
 
-if(ENABLE_FRONTEND_API)
+if(ENABLE_FRONTEND_API AND NOT BUILD_STANDALONE)
   find_package(obs-frontend-api REQUIRED)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::obs-frontend-api)
 endif()
 
-if(ENABLE_QT)
+if(ENABLE_QT AND NOT BUILD_STANDALONE)
   find_package(Qt6 COMPONENTS Widgets Core)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
-  target_compile_options(
-    ${CMAKE_PROJECT_NAME}
-    PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>
-  )
-  set_target_properties(
-    ${CMAKE_PROJECT_NAME}
-    PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON
-  )
+  if(Qt6_FOUND)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
+    target_compile_options(
+      ${CMAKE_PROJECT_NAME}
+      PRIVATE $<$<C_COMPILER_ID:Clang,AppleClang>:-Wno-quoted-include-in-framework-header -Wno-comma>
+    )
+    set_target_properties(
+      ${CMAKE_PROJECT_NAME}
+      PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON
+    )
+  else()
+    message(WARNING "Qt6 not found, building without Qt support")
+  endif()
 endif()
 
 # OpenCV dependency for video stabilization with comprehensive version checking
@@ -93,29 +135,55 @@ if(OpenCV_FOUND)
     message(STATUS "  - Compatibility: ${OPENCV_COMPATIBILITY_LEVEL}")
 endif()
 
-# Configure plugin support file
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c
-    @ONLY
-)
+# Configure plugin support file (OBS plugin mode only)
+if(NOT BUILD_STANDALONE)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c.in
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c
+        @ONLY
+    )
+endif()
 
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
-  src/plugin-main.cpp
-  src/plugin-support.c
-  src/core/stabilizer_core.cpp
-  src/core/error_handler.cpp
-  src/core/parameter_validator.cpp
-  src/core/transform_matrix.cpp
-  src/obs/obs_integration.cpp
-)
+# Conditional source files based on build mode
+if(BUILD_STANDALONE)
+    # Standalone library sources (core functionality only)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
+      src/core/stabilizer_core.cpp
+      src/core/error_handler.cpp
+      src/core/parameter_validator.cpp
+      src/core/transform_matrix.cpp
+    )
+    
+    # Define standalone mode for conditional compilation
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BUILD_STANDALONE)
+else()
+    # OBS plugin sources (full integration)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
+      src/plugin-main.cpp
+      src/plugin-support.c
+      src/core/stabilizer_core.cpp
+      src/core/error_handler.cpp
+      src/core/parameter_validator.cpp
+      src/core/transform_matrix.cpp
+      src/obs/obs_integration.cpp
+    )
+endif()
 
 # Ensure config_macros.hpp is available to all source files
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
   ${CMAKE_CURRENT_SOURCE_DIR}/src/core
 )
 
-set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+# Set target properties based on build mode
+if(BUILD_STANDALONE)
+    set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES 
+        OUTPUT_NAME ${CMAKE_PROJECT_NAME}-standalone
+        VERSION ${CMAKE_PROJECT_VERSION}
+        SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR}
+    )
+else()
+    set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+endif()
 
 # Ensure C++17 standard for future C++ code
 set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY CXX_STANDARD 17)

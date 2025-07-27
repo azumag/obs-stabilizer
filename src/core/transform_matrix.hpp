@@ -12,6 +12,7 @@ the Free Software Foundation; either version 2 of the License, or
 
 #include <memory>
 #include <array>
+#include <vector>
 
 #ifdef ENABLE_STABILIZATION
 #include <opencv2/opencv.hpp>
