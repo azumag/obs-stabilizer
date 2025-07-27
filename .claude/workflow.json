@@ -31,6 +31,10 @@
     },
     {
       "launch": "WORKFLOW_ISSUE_CHECKED",
+      "prompt": "CI/CD の現現在の状態確認し、問題があれば修正せよ。CI/CD が正常に動作していることを確認したら WORKFLOW_CI_CD_CHECKED とだけ表示せよ。"
+    },
+    {
+      "launch": "WORKFLOW_CI_CD_CHECKED",
       "path":"/Users/azumag/work/cc-hooks-workflow/workflow.sh",
       "args": ["--stop"]
     }

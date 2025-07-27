@@ -5,6 +5,9 @@
 - DRY（Don't Repeat Yourself）：同じコードを繰り返さない
 - KISS（Keep It Simple Stupid）：シンプルに保つ
 - t-wada TDD: テスト駆動開発
+- 絵文字を使うな
+- 無駄にファイルを作りまくるな
+- 一時ファイルは一箇所のディレクトリにまとめよ
 
 ## プロジェクト概要
 
