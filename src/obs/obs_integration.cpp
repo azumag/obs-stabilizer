@@ -210,7 +210,8 @@ struct obs_source_frame* OBSIntegration::filter_video(void* data, struct obs_sou
             // Apply transformation to frame
             apply_transform_to_frame(frame, result.transform_matrix);
         } else {
-            obs_log(LOG_WARNING, "Invalid transformation matrix, skipping frame transform");
+            ErrorHandler::log_warning(ErrorCategory::VALIDATION, "filter_video", 
+                                  "Invalid transformation matrix, skipping frame transform");
         }
     }
 #endif
@@ -332,7 +333,8 @@ void OBSIntegration::apply_transform_to_frame(struct obs_source_frame* frame, co
             apply_transform_i420(frame, transform);
             break;
         default:
-            obs_log(LOG_WARNING, "Unsupported video format for transformation: %d", frame->format);
+            ErrorHandler::log_warning(ErrorCategory::VALIDATION, "apply_transform_to_frame", 
+                                      "Unsupported video format for transformation: %d", frame->format);
             break;
     }
 #endif
@@ -343,7 +345,8 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
     try {
         // Validate frame data
         if (!frame->data[0] || frame->linesize[0] < frame->width) {
-            obs_log(LOG_ERROR, "Invalid NV12 Y plane data or linesize");
+            ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_nv12", 
+                                   "Invalid NV12 Y plane data or linesize");
             return;
         }
         
@@ -365,7 +368,8 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
         // For UV plane, apply transformation at half resolution
         // Validate NV12 UV plane access
         if (!frame->data[1] || frame->linesize[1] < frame->width) {
-            obs_log(LOG_ERROR, "Invalid NV12 UV plane data or linesize");
+            ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_nv12", 
+                                   "Invalid NV12 UV plane data or linesize");
             return;
         }
         cv::Mat uv_plane(frame->height/2, frame->width/2, CV_8UC2,
@@ -385,7 +389,8 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
         uv_transformed.copyTo(uv_plane);
         
     } catch (const cv::Exception& e) {
-        obs_log(LOG_ERROR, "NV12 transformation failed: %s", e.what());
+        ErrorHandler::log_error(ErrorCategory::FRAME_PROCESSING, "apply_transform_nv12", 
+                               "NV12 transformation failed: %s", e.what());
     }
 }
 
@@ -393,7 +398,8 @@ void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const 
     try {
         // Validate Y plane access
         if (!frame->data[0] || frame->linesize[0] < frame->width) {
-            obs_log(LOG_ERROR, "Invalid I420 Y plane data or linesize");
+            ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_i420", 
+                                   "Invalid I420 Y plane data or linesize");
             return;
         }
         
@@ -416,7 +422,8 @@ void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const 
         
         // Validate U plane access
         if (!frame->data[1] || frame->linesize[1] < frame->width/2) {
-            obs_log(LOG_ERROR, "Invalid I420 U plane data or linesize");
+            ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_i420", 
+                                   "Invalid I420 U plane data or linesize");
             return;
         }
         
@@ -431,7 +438,8 @@ void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const 
         
         // Validate V plane access
         if (!frame->data[2] || frame->linesize[2] < frame->width/2) {
-            obs_log(LOG_ERROR, "Invalid I420 V plane data or linesize");
+            ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_i420", 
+                                   "Invalid I420 V plane data or linesize");
             return;
         }
         
@@ -445,7 +453,8 @@ void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const 
         v_transformed.copyTo(v_plane);
         
     } catch (const cv::Exception& e) {
-        obs_log(LOG_ERROR, "I420 transformation failed: %s", e.what());
+        ErrorHandler::log_error(ErrorCategory::FRAME_PROCESSING, "apply_transform_i420", 
+                               "I420 transformation failed: %s", e.what());
     }
 }
 #endif
@@ -453,19 +462,23 @@ void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const 
 bool OBSIntegration::validate_frame_data(struct obs_source_frame* frame) {
     // Comprehensive input validation
     if (!frame || !frame->data[0] || frame->width == 0 || frame->height == 0) {
-        obs_log(LOG_ERROR, "Invalid frame data for stabilization");
+        ErrorHandler::log_error(ErrorCategory::VALIDATION, "validate_frame_data", 
+                               "Invalid frame data for stabilization");
         return false;
     }
     
     // Validate frame dimensions and prevent integer overflow
     if (frame->width > 8192 || frame->height > 8192) {
-        obs_log(LOG_ERROR, "Frame dimensions too large: %ux%u", frame->width, frame->height);
+        ErrorHandler::log_error(ErrorCategory::VALIDATION, "validate_frame_data", 
+                                "Frame dimensions too large: %ux%u", frame->width, frame->height);
         return false;
     }
     
     // Validate that width*height won't overflow
-    if ((size_t)frame->width * frame->height > SIZE_MAX / 4) {
-        obs_log(LOG_ERROR, "Frame size would cause integer overflow");
+    // Check for overflow before multiplication
+    if (frame->width > 0 && frame->height > SIZE_MAX / frame->width / 4) {
+        ErrorHandler::log_error(ErrorCategory::VALIDATION, "validate_frame_data", 
+                                "Frame size would cause integer overflow");
         return false;
     }
     
@@ -485,8 +498,9 @@ bool OBSIntegration::validate_transform_matrix(const TransformMatrix& transform)
     
     // Reject unreasonable transformations
     if (std::abs(dx) > 200 || std::abs(dy) > 200 || scale < 0.1 || scale > 3.0) {
-        obs_log(LOG_WARNING, "Rejecting unreasonable transform: dx=%.2f, dy=%.2f, scale=%.2f", 
-                dx, dy, scale);
+        ErrorHandler::log_warning(ErrorCategory::VALIDATION, "validate_transform_matrix", 
+                                  "Rejecting unreasonable transform: dx=%.2f, dy=%.2f, scale=%.2f", 
+                                  dx, dy, scale);
         return false;
     }
     

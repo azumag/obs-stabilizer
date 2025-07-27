@@ -13,6 +13,8 @@ the Free Software Foundation; either version 2 of the License, or
 #include <memory>
 #include <array>
 #include <vector>
+#include <atomic>
+#include <mutex>
 
 #ifdef ENABLE_STABILIZATION
 #include <opencv2/opencv.hpp>
@@ -23,9 +25,9 @@ namespace obs_stabilizer {
 // Type-safe transform matrix wrapper that handles OpenCV/stub mode compatibility
 //
 // THREAD SAFETY NOTES:
-// - This class is NOT thread-safe by design for performance reasons
-// - Each thread should use its own TransformMatrix instances
-// - Shared instances must be protected by external synchronization
+// - This class provides thread-safe read operations using atomic operations
+// - Write operations are protected by internal mutex for safety
+// - Multiple readers can access simultaneously without blocking
 // - The fallback_data_ array provides lock-free access to basic transform info
 class TransformMatrix {
 public:
@@ -92,6 +94,10 @@ private:
     // Implementation details hidden from header
     struct Impl;
     std::unique_ptr<Impl> pimpl_;
+    
+    // Thread safety
+    mutable std::mutex mutex_;
+    mutable std::atomic<bool> data_valid_{true};
     
     // Fallback data for stub mode (when OpenCV unavailable)
     std::array<double, 6> fallback_data_; // 2x3 affine matrix: [a, b, c, d, tx, ty]

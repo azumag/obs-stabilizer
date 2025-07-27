@@ -1,12 +1,12 @@
+;; filepath: permissive-open.sb
 (version 1)
 
 (allow default)
 
-;; すべてのプロセス操作を許可
-(allow process*)
-
-;; より包括的なプロセス実行権限
-(allow process-exec*)
+;; プロセス操作を個別に許可
+(allow process-exec)
+(allow process-fork)
+(allow process-exec-interpreter)
 
 ;; プロセス実行権限を追加
 (allow process-exec
@@ -34,7 +34,7 @@
 ;; ファイル実行権限を明示的に追加
 (allow file-read-xattr)
 (allow file-read-metadata)
-(allow file-read*)
+(allow file-read-data)
 
 ;; プロセス情報読み取り権限を追加
 (allow process-info-pidinfo)
@@ -45,17 +45,11 @@
 (allow process-info-pidfdinfo)
 (allow process-info-pidfileportinfo)
 (allow process-info-listpids)
-(allow process-info*)
 
 ;; プロセス管理に必要な最小権限（psコマンド対応）
 (allow mach-lookup)
 (allow mach-task-name)
 (allow mach-per-user-lookup)
-(allow mach*)
-
-;; プロセス制御権限を追加
-(allow process-fork)
-(allow process-exec-interpreter)
 
 ;; システムコール権限を追加
 (allow system-info)
@@ -75,24 +69,29 @@
 
 ;; ネットワーク関連の権限（制限付き）
 (allow network-outbound
-    (remote tcp "api.github.com:443")
-    (remote tcp "github.com:443")
-    (remote tcp "raw.githubusercontent.com:443")
+    (remote tcp "*:443")
+    (remote tcp "*:80")
 )
 
 ;; シグナル送信権限（制限付き）
 (allow signal (target self))
 
-(deny file-write*)
-(allow file-write*
-    ;; (param "NAME") には、起動時に -D NAME=VALUE として渡した値が反映される
+;; ファイル書き込み権限を個別に設定
+(deny file-write-create)
+(deny file-write-data)
+(deny file-write-mode)
+(deny file-write-owner)
+(deny file-write-xattr)
+(deny file-write-acl)
+(deny file-write-times)
 
+(allow file-write-create
     ;; プロジェクトディレクトリを TARGET_DIR として指定する
     (subpath (param "TARGET_DIR"))
 
     ;; プロジェクトディレクトリ以外に書き込みを許可する場所
     ;; Claude Code関係
-    (regex (string-append "^" (param "HOME_DIR") "/.claude*"))
+    (regex (string-append "^" (param "HOME_DIR") "/.claude"))
     ;; セッション情報をKeychain経由で記録するらしい
     (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
 
@@ -106,9 +105,7 @@
     
     ;; Claude Code関連の一時ファイル（より明確な設定）
     (subpath "/tmp/claude")
-    (regex #"^/tmp/claude/.*")
     (subpath "/private/tmp/claude")
-    (regex #"^/private/tmp/claude/.*")
 
     ;; ワークフロー関連のディレクトリ
     (subpath "/Users/azumag/work/cc-hooks-workflow")
@@ -129,7 +126,35 @@
     (literal "/dev/stderr")
     (literal "/dev/null")
     (literal "/dev/dtracehelper")
-    ;; /dev/ttys000 のようなパターンも許可したいためこのように書いています
-    ;; regexとglobを混同しているように見えますが、なんか本当にこう書く必要があるらしく……
-    (regex #"^/dev/tty*")
+    ;; TTYデバイス
+    (regex "^/dev/tty")
+)
+
+(allow file-write-data
+    ;; 上記と同じパス
+    (subpath (param "TARGET_DIR"))
+    (regex (string-append "^" (param "HOME_DIR") "/.claude"))
+    (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
+    (subpath "/tmp")
+    (subpath "/var/folders")
+    (subpath "/private/tmp")
+    (subpath "/private/var/folders")
+    (subpath (string-append (param "HOME_DIR") "/.cache"))
+    (subpath (string-append (param "HOME_DIR") "/Library/Caches"))
+    (subpath "/tmp/claude")
+    (subpath "/private/tmp/claude")
+    (subpath "/Users/azumag/work/cc-hooks-workflow")
+    (subpath (string-append (param "HOME_DIR") "/.npm"))
+    (subpath (string-append (param "HOME_DIR") "/Library/Homebrew"))
+    (subpath "/opt/homebrew")
+    (subpath "/usr/bin")
+    (subpath "/bin")
+    (subpath (string-append (param "HOME_DIR") "/.gitconfig"))
+    (subpath (string-append (param "HOME_DIR") "/.git-credentials"))
+    (literal "/dev/stdout")
+    (literal "/dev/stderr")
+    (literal "/dev/null")
+    (literal "/dev/dtracehelper")
+    ;; TTYデバイス
+    (regex "^/dev/tty")
 )

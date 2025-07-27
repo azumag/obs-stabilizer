@@ -45,9 +45,12 @@ TransformMatrix::TransformMatrix(const TransformMatrix& other)
 
 TransformMatrix& TransformMatrix::operator=(const TransformMatrix& other) {
     if (this != &other) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> other_lock(other.mutex_);
         *pimpl_ = *other.pimpl_;
         fallback_data_ = other.fallback_data_;
         has_fallback_data_ = other.has_fallback_data_;
+        data_valid_.store(true);
     }
     return *this;
 }

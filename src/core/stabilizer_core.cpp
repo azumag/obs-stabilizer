@@ -12,6 +12,7 @@ the Free Software Foundation; either version 2 of the License, or
 #include "error_handler.hpp"
 #include "parameter_validator.hpp"
 #include "logging_adapter.hpp"
+#include "opencv_raii.hpp"
 #include <chrono>
 #include <algorithm>
 
@@ -223,18 +224,21 @@ bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
         previous_points_.clear();
         
         // SIMD optimization: Ensure proper memory alignment for OpenCV SIMD operations
-        cv::Mat aligned_frame;
-        if (gray_frame.isContinuous() && (reinterpret_cast<uintptr_t>(gray_frame.data) % 32 == 0)) {
-            aligned_frame = gray_frame;
-        } else {
-            gray_frame.copyTo(aligned_frame);
-        }
+        auto aligned_frame_guard = [&]() {
+            if (gray_frame.isContinuous() && (reinterpret_cast<uintptr_t>(gray_frame.data) % 32 == 0)) {
+                return make_mat_guard(gray_frame);
+            } else {
+                cv::Mat aligned_copy;
+                gray_frame.copyTo(aligned_copy);
+                return make_mat_guard(std::move(aligned_copy));
+            }
+        }();
         
         // Adaptive feature detection based on frame resolution
         int optimal_features = std::max(50, std::min(active_config_.max_features, 
                                       static_cast<int>(gray_frame.rows * gray_frame.cols / 10000)));
         
-        cv::goodFeaturesToTrack(aligned_frame, previous_points_, 
+        cv::goodFeaturesToTrack(aligned_frame_guard.get(), previous_points_, 
                                optimal_features, 
                                active_config_.min_feature_quality, 10);
         

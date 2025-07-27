@@ -66,6 +66,13 @@ private:
     static void apply_transform_nv12(struct obs_source_frame* frame, const TransformMatrix& transform);
     static void apply_transform_i420(struct obs_source_frame* frame, const TransformMatrix& transform);
     
+private:
+    // Template method to reduce code duplication in transform applications
+    template<typename PlaneProcessor>
+    static void apply_transform_generic(struct obs_source_frame* frame, 
+                                      const TransformMatrix& transform,
+                                      PlaneProcessor process_planes);
+    
     // Validation utilities
     static bool validate_frame_data(struct obs_source_frame* frame);
     static bool validate_transform_matrix(const TransformMatrix& transform);
