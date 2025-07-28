@@ -68,7 +68,7 @@ MODULE_EXPORT void obs_module_unload(void)
 #else // BUILD_STANDALONE_TEST mode
 
 // Standalone test mode entry point for development without OBS
-int main(int argc, char* argv[])
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
     printf("OBS Stabilizer Plugin v%s - Standalone Test Mode\n", PLUGIN_VERSION);
     
