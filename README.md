@@ -133,11 +133,12 @@ make
 ```
 
 **Build System Changes:**
-- ✅ **Simplified Configuration**: Removed complex OBS Studio source building
-- ✅ **Plugin-Only Build**: Builds plugin without requiring full OBS compilation
+- ✅ **Dual-Mode Build System**: Automatically builds as OBS plugin (shared library) or standalone executable
+- ✅ **Smart OBS Detection**: Detects OBS headers and builds accordingly
+- ✅ **Development Mode**: Standalone executable for development without OBS installation  
 - ✅ **Cross-Platform**: Works with default system generators (Make, Visual Studio, Xcode)
 - ✅ **OpenCV Integration**: Automatic detection with graceful fallback
-- ⚠️ **OBS Headers Required**: Still needs OBS Studio headers for plugin functionality
+- ✅ **C11/C++17 Standards**: Modern language compliance with proper conditional compilation
 
 #### Legacy Build (with presets) - DEPRECATED
 
@@ -181,7 +182,7 @@ sudo apt install build-essential
 
 #### "OBS headers not found" Warning
 
-The plugin requires OBS Studio headers for full functionality:
+**For Plugin Development**: Install OBS Studio headers for full plugin functionality:
 
 ```bash
 # macOS - Install OBS Studio (provides headers)
@@ -195,6 +196,8 @@ sudo apt install obs-studio-dev
 # Windows - Download OBS Studio and set environment variable
 # Set OBS_STUDIO_PATH to OBS installation directory
 ```
+
+**For Core Development**: The build system automatically creates a standalone executable when OBS headers are not found, allowing development of stabilization algorithms without OBS installation.
 
 #### "Ninja not found" Error (Legacy builds only)
 
@@ -436,14 +439,14 @@ GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 - **Issue #74**: Replace assert() with proper test framework ✅ **RESOLVED** (Google Test framework fully implemented with 195+ assertions)
 - **Issue #78**: Replace magic numbers with named constants ✅ **RESOLVED** (StabilizerConstants namespace with type-safe enums, 300+ constants centralized)
 
-**🔧 PRODUCTION-READY CODEBASE WITH SIMPLIFIED BUILD SYSTEM** - Core functionality and CI/CD infrastructure fully operational. Build system completely modernized: eliminated 2,700+ lines of OBS template complexity, replaced with simple 73-line CMakeLists.txt for plugin-only builds. All major technical debt resolved with unified error handling, centralized constants system, and comprehensive exception safety. Security audit verified (11/11 tests passing). The codebase achieves production-ready status with modern C++17/20 patterns and streamlined build process.
+**🔧 PRODUCTION-READY CODEBASE WITH INTELLIGENT BUILD SYSTEM** - Core functionality and CI/CD infrastructure fully operational. Build system completely modernized: eliminated 2,700+ lines of OBS template complexity, replaced with intelligent dual-mode CMakeLists.txt with automatic OBS header detection and C11/C++17 compliance. Resolved all critical consistency issues including file duplication, external symbol dependencies, and conditional compilation. All major technical debt resolved with unified error handling, centralized constants system, and comprehensive exception safety. Security audit verified (11/11 tests passing). The codebase achieves production-ready status with modern language standards and intelligent build process.
 
 ### 🏗️ **CI/CD Infrastructure Status**
-- **Latest Fix**: Code review critical fixes - added missing ErrorHandler::log_error method and improved constant semantics
-- **Progress**: CI/CD compilation issues fully resolved - Build progressing normally
-- **Current Status**: ✅ Multi-platform builds operational (Windows, Ubuntu, macOS)
-- **Production Impact**: Enhanced - Code quality significantly improved with unified patterns, centralized constants, enhanced exception safety, and resolved compilation issues
-- **Resolution**: CI/CD infrastructure fully operational with substantially enhanced code quality, safety improvements, and critical fixes applied
+- **Latest Fix**: Critical consistency issues resolved - file duplication, external symbols, conditional compilation
+- **Progress**: All build system issues resolved - dual-mode operation functional, compiler warnings eliminated
+- **Current Status**: ✅ Production-ready builds with intelligent OBS detection and graceful fallbacks
+- **Production Impact**: Complete - Intelligent dual-mode build system with resolved consistency issues
+- **Resolution**: Build system fully operational with production-ready plugin compilation and standalone development capabilities
 
 See [CLAUDE.md](CLAUDE.md) for detailed technical specifications and complete development roadmap.
 
