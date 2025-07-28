@@ -9,6 +9,7 @@ the Free Software Foundation; either version 2 of the License, or
 */
 
 #include "parameter_validator.hpp"
+#include "stabilizer_constants.hpp"
 #include <cmath>
 #include <climits>
 
@@ -41,8 +42,9 @@ ValidationResult ParameterValidator::validate_frame_dimensions(frame_t* frame) {
     }
     
     // Validate frame dimensions to prevent integer overflow
-    if (get_frame_width(frame) > 8192 || get_frame_height(frame) > 8192) {
-        return ValidationResult(false, "Frame dimensions too large (max 8192x8192)");
+    if (get_frame_width(frame) > StabilizerConstants::MAX_FRAME_WIDTH || 
+        get_frame_height(frame) > StabilizerConstants::MAX_FRAME_HEIGHT) {
+        return ValidationResult(false, "Frame dimensions too large");
     }
     
     // Check for potential integer overflow in size calculations
@@ -50,9 +52,10 @@ ValidationResult ParameterValidator::validate_frame_dimensions(frame_t* frame) {
         return ValidationResult(false, "Frame size would cause integer overflow");
     }
     
-    // Validate minimum size for feature detection
-    if (get_frame_width(frame) < 50 || get_frame_height(frame) < 50) {
-        return ValidationResult(false, "Frame too small for reliable processing (min 50x50)");
+    // Validate minimum size for feature detection  
+    if (get_frame_width(frame) < StabilizerConstants::MIN_FEATURE_DETECTION_SIZE || 
+        get_frame_height(frame) < StabilizerConstants::MIN_FEATURE_DETECTION_SIZE) {
+        return ValidationResult(false, "Frame too small for reliable feature detection");
     }
     
     return ValidationResult(true);
@@ -64,7 +67,7 @@ ValidationResult ParameterValidator::validate_frame_nv12(frame_t* frame) {
         return basic_validation;
     }
     
-    if (get_frame_format(frame) != VIDEO_FORMAT_NV12) {
+    if (get_frame_format(frame) != StabilizerConstants::VIDEO_FORMAT_NV12) {
         return ValidationResult(false, "Frame is not NV12 format");
     }
     
@@ -89,7 +92,7 @@ ValidationResult ParameterValidator::validate_frame_i420(frame_t* frame) {
         return basic_validation;
     }
     
-    if (get_frame_format(frame) != VIDEO_FORMAT_I420) {
+    if (get_frame_format(frame) != StabilizerConstants::VIDEO_FORMAT_I420) {
         return ValidationResult(false, "Frame is not I420 format");
     }
     
@@ -161,11 +164,13 @@ ValidationResult ParameterValidator::validate_transform_matrix(const cv::Mat& tr
     }
     double scale = std::sqrt(scale_squared);
     
-    if (std::abs(dx) > 100 || std::abs(dy) > 100) {
+    if (std::abs(dx) > StabilizerConstants::MAX_TRANSLATION || 
+        std::abs(dy) > StabilizerConstants::MAX_TRANSLATION) {
         return ValidationResult(false, "Transform translation values too large");
     }
     
-    if (scale < 0.5 || scale > 2.0) {
+    if (scale < StabilizerConstants::MIN_SCALE_FACTOR || 
+        scale > StabilizerConstants::MAX_SCALE_FACTOR) {
         return ValidationResult(false, "Transform scale values unreasonable");
     }
     
@@ -183,11 +188,13 @@ ValidationResult ParameterValidator::validate_feature_points(const std::vector<c
 #endif
 
 ValidationResult ParameterValidator::validate_smoothing_radius(int radius) {
-    return validate_range_integer(radius, 1, 200, "Smoothing radius");
+    return validate_range_integer(radius, StabilizerConstants::MIN_SMOOTHING_RADIUS, 
+                                 StabilizerConstants::MAX_SMOOTHING_RADIUS, "Smoothing radius");
 }
 
 ValidationResult ParameterValidator::validate_feature_count(int count) {
-    return validate_range_integer(count, 50, 2000, "Feature count");
+    return validate_range_integer(count, StabilizerConstants::MIN_FEATURES_REQUIRED, 
+                                 StabilizerConstants::MAX_FEATURES_DEFAULT, "Feature count");
 }
 
 ValidationResult ParameterValidator::validate_threshold_value(double threshold, double min_val, double max_val, const char* param_name) {
@@ -244,7 +251,8 @@ ValidationResult ParameterValidator::validate_buffer_size(size_t actual_size, si
 
 // Private helper methods
 bool ParameterValidator::is_valid_video_format(uint32_t format) {
-    return format == VIDEO_FORMAT_NV12 || format == VIDEO_FORMAT_I420;
+    return format == StabilizerConstants::VIDEO_FORMAT_NV12 || 
+           format == StabilizerConstants::VIDEO_FORMAT_I420;
 }
 
 bool ParameterValidator::check_integer_overflow(uint32_t width, uint32_t height) {
@@ -259,8 +267,8 @@ bool ParameterValidator::check_integer_overflow(uint32_t width, uint32_t height)
 
 const char* ParameterValidator::get_format_name(uint32_t format) {
     switch (format) {
-        case VIDEO_FORMAT_NV12: return "NV12";
-        case VIDEO_FORMAT_I420: return "I420";
+        case StabilizerConstants::VIDEO_FORMAT_NV12: return "NV12";
+        case StabilizerConstants::VIDEO_FORMAT_I420: return "I420";
         default: return "Unknown";
     }
 }

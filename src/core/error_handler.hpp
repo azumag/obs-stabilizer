@@ -47,8 +47,8 @@ public:
     // Execute function with OpenCV exception handling
     template<typename Func, typename ReturnType>
     static bool safe_execute_cv(Func&& func, ReturnType& result, 
-                               ErrorCategory category, const char* operation_name) {
-        return OpenCVGuard::execute_or([&]() -> bool {
+                               ErrorCategory category, const char* operation_name) noexcept {
+        return OpenCVGuard::execute_or([func = std::forward<Func>(func), &result, category, operation_name]() -> bool {
             try {
                 result = func();
                 return true;
@@ -60,8 +60,11 @@ public:
             } catch (const std::exception& e) {
                 handle_standard_error(e, category, operation_name);
                 return false;
+            } catch (...) {
+                log_critical_error(category, operation_name, "Unknown exception caught");
+                return false;
             }
-        }, [&]() -> bool {
+        }, [operation_name]() -> bool {
             // Stub mode - always fail gracefully
             log_stub_mode_warning(operation_name);
             return false;
@@ -70,20 +73,23 @@ public:
 
     // Execute function with standard exception handling
     template<typename Func>
-    static bool safe_execute(Func&& func, ErrorCategory category, const char* operation_name) {
+    static bool safe_execute(Func&& func, ErrorCategory category, const char* operation_name) noexcept {
         try {
             func();
             return true;
         } catch (const std::exception& e) {
             handle_standard_error(e, category, operation_name);
             return false;
+        } catch (...) {
+            log_critical_error(category, operation_name, "Unknown exception caught");
+            return false;
         }
     }
 
     // Execute function returning boolean with unified error context
     template<typename Func>
-    static bool safe_execute_bool(Func&& func, ErrorCategory category, const char* operation_name) {
-        return OpenCVGuard::execute_or([&]() -> bool {
+    static bool safe_execute_bool(Func&& func, ErrorCategory category, const char* operation_name) noexcept {
+        return OpenCVGuard::execute_or([func = std::forward<Func>(func), category, operation_name]() -> bool {
             try {
                 return func();
 #if STABILIZER_OPENCV_AVAILABLE
@@ -94,8 +100,11 @@ public:
             } catch (const std::exception& e) {
                 handle_standard_error(e, category, operation_name);
                 return false;
+            } catch (...) {
+                log_critical_error(category, operation_name, "Unknown exception caught");
+                return false;
             }
-        }, [&]() -> bool {
+        }, [operation_name]() -> bool {
             // Stub mode - log and return false
             log_stub_mode_warning(operation_name);
             return false;
@@ -105,6 +114,10 @@ public:
     // Log critical errors with escalation
     static void log_critical_error(ErrorCategory category, const char* operation_name, 
                                   const char* details = nullptr);
+
+    // Log standard errors
+    static void log_error(ErrorCategory category, const char* operation_name, 
+                         const char* details = nullptr);
 
     // Log warnings with context
     static void log_warning(ErrorCategory category, const char* operation_name, 

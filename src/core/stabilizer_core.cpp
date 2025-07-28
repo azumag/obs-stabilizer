@@ -11,6 +11,7 @@ the Free Software Foundation; either version 2 of the License, or
 #include "stabilizer_core.hpp"
 #include "error_handler.hpp"
 #include "parameter_validator.hpp"
+#include "stabilizer_constants.hpp"
 #include "logging_adapter.hpp"
 #include "opencv_raii.hpp"
 #include <chrono>
@@ -68,14 +69,14 @@ TransformResult StabilizerCore::process_frame(frame_t* frame) {
         return result;
     }
     
-    try {
+    bool processing_success = ErrorHandler::safe_execute_bool([&]() -> bool {
         // Unified parameter validation
-        VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_dimensions(frame), result);
+        VALIDATE_AND_RETURN_FALSE_IF_INVALID(ParameterValidator::validate_frame_dimensions(frame));
         
         // Convert frame to grayscale for processing
         cv::Mat current_gray;
         if (get_frame_format(frame) == VIDEO_FORMAT_NV12) {
-            VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_nv12(frame), result);
+            VALIDATE_AND_RETURN_FALSE_IF_INVALID(ParameterValidator::validate_frame_nv12(frame));
             
             // Use Y plane directly
             cv::Mat nv12_y(get_frame_height(frame), get_frame_width(frame), CV_8UC1, 
@@ -83,7 +84,7 @@ TransformResult StabilizerCore::process_frame(frame_t* frame) {
             nv12_y.copyTo(current_gray);
             
         } else if (get_frame_format(frame) == VIDEO_FORMAT_I420) {
-            VALIDATE_AND_RETURN_IF_INVALID(ParameterValidator::validate_frame_i420(frame), result);
+            VALIDATE_AND_RETURN_FALSE_IF_INVALID(ParameterValidator::validate_frame_i420(frame));
             
             // Use Y plane directly
             cv::Mat y_plane(get_frame_height(frame), get_frame_width(frame), CV_8UC1, 
@@ -92,9 +93,9 @@ TransformResult StabilizerCore::process_frame(frame_t* frame) {
             
         } else {
             // Unsupported format
-            STABILIZER_LOG_WARNING( "Unsupported video format for stabilization: %d", get_frame_format(frame));
-            result.success = false;
-            return result;
+            ErrorHandler::log_warning(ErrorCategory::FRAME_PROCESSING, "process_frame",
+                                     "Unsupported video format for stabilization");
+            return false;
         }
         
         // First frame initialization
@@ -102,40 +103,37 @@ TransformResult StabilizerCore::process_frame(frame_t* frame) {
             current_gray.copyTo(previous_gray_);
             
             // Validate frame dimensions for feature detection
-            if (current_gray.rows < 50 || current_gray.cols < 50) {
-                STABILIZER_LOG_WARNING( "Frame too small for reliable feature detection: %dx%d", 
-                        current_gray.cols, current_gray.rows);
-                result.success = false;
-                return result;
+            if (current_gray.rows < StabilizerConstants::MIN_FEATURE_DETECTION_SIZE || 
+                current_gray.cols < StabilizerConstants::MIN_FEATURE_DETECTION_SIZE) {
+                ErrorHandler::log_warning(ErrorCategory::FRAME_PROCESSING, "process_frame",
+                                         "Frame too small for reliable feature detection");
+                return false;
             }
             
             // Detect initial feature points
             if (!detect_features(current_gray)) {
                 status_ = StabilizerStatus::ERROR_RECOVERY;
-                result.success = false;
-                return result;
+                return false;
             }
             
             status_ = StabilizerStatus::ACTIVE;
             STABILIZER_LOG_INFO( "Stabilization initialized with %zu feature points", previous_points_.size());
             result.success = true;
             result.transform_matrix.set_identity();
-            return result;
+            return true;
         }
         
         // Track features and calculate transformation
         if (!track_features(current_gray)) {
             handle_tracking_failure();
-            result.success = false;
-            return result;
+            return false;
         }
         
         // Calculate transformation matrix
         TransformMatrix transform = calculate_transform(previous_points_, current_points_);
         if (transform.is_empty()) {
             handle_tracking_failure();
-            result.success = false;
-            return result;
+            return false;
         }
         
         // Apply smoothing
@@ -147,9 +145,11 @@ TransformResult StabilizerCore::process_frame(frame_t* frame) {
         
         // Check if we need to refresh feature points
         frames_since_detection_++;
-        if (frames_since_detection_ >= active_config_.refresh_threshold || previous_points_.size() < 50) {
+        if (frames_since_detection_ >= active_config_.refresh_threshold || 
+            previous_points_.size() < StabilizerConstants::MIN_FEATURES_REQUIRED) {
             if (!detect_features(current_gray)) {
-                STABILIZER_LOG_WARNING( "Feature refresh failed, continuing with existing points");
+                ErrorHandler::log_warning(ErrorCategory::FEATURE_DETECTION, "process_frame",
+                                         "Feature refresh failed, continuing with existing points");
             } else {
                 frames_since_detection_ = 0;
             }
@@ -169,19 +169,15 @@ TransformResult StabilizerCore::process_frame(frame_t* frame) {
         update_detailed_metrics(result.metrics);
         consecutive_failures_ = 0;
         
-        return result;
-        
-    } catch (const cv::Exception& e) {
-        STABILIZER_LOG_ERROR( "OpenCV error in frame processing: %s", e.what());
+        return true;
+    }, ErrorCategory::FRAME_PROCESSING, "process_frame");
+    
+    if (!processing_success) {
         escalate_error();
         result.success = false;
-        return result;
-    } catch (const std::exception& e) {
-        STABILIZER_LOG_ERROR( "Error in frame processing: %s", e.what());
-        escalate_error();
-        result.success = false;
-        return result;
     }
+    
+    return result;
 }
 
 void StabilizerCore::update_configuration(const StabilizerConfig& config) {
@@ -235,14 +231,16 @@ bool StabilizerCore::detect_features(const cv::Mat& gray_frame) {
         }();
         
         // Adaptive feature detection based on frame resolution
-        int optimal_features = std::max(50, std::min(active_config_.max_features, 
+        int optimal_features = std::max(StabilizerConstants::MIN_FEATURES_REQUIRED, 
+                                      std::min(active_config_.max_features, 
                                       static_cast<int>(gray_frame.rows * gray_frame.cols / 10000)));
         
         cv::goodFeaturesToTrack(aligned_frame_guard.get(), previous_points_, 
                                optimal_features, 
-                               active_config_.min_feature_quality, 10);
+                               active_config_.min_feature_quality, 
+                               StabilizerConstants::MIN_FEATURES_RELIABLE);
         
-        if (previous_points_.size() < 50) {
+        if (previous_points_.size() < StabilizerConstants::MIN_FEATURES_REQUIRED) {
             ErrorHandler::log_warning(ErrorCategory::FEATURE_DETECTION, 
                                     "detect_features", 
                                     "Insufficient feature points detected");
@@ -290,7 +288,7 @@ bool StabilizerCore::track_features(const cv::Mat& gray_frame) {
             }
         }
         
-        if (good_prev.size() < 10) {
+        if (good_prev.size() < StabilizerConstants::MIN_FEATURES_RELIABLE) {
             ErrorHandler::log_warning(ErrorCategory::FEATURE_TRACKING, 
                                     "track_features", 
                                     "Too few good tracking points");
@@ -395,13 +393,14 @@ void StabilizerCore::update_metrics(const TransformResult& result, float process
     // Calculate transform stability (simplified metric)
     double dx = result.transform_matrix.get_translation_x();
     double dy = result.transform_matrix.get_translation_y();
-    current_metrics_.transform_stability = std::max(0.0f, 1.0f - static_cast<float>(sqrt(dx*dx + dy*dy) / 100.0));
+    current_metrics_.transform_stability = std::max(0.0f, 1.0f - 
+        static_cast<float>(sqrt(dx*dx + dy*dy) / StabilizerConstants::MAX_TRANSLATION));
 }
 
 void StabilizerCore::handle_tracking_failure() {
     consecutive_failures_++;
     
-    if (consecutive_failures_ > 5) {
+    if (consecutive_failures_ > StabilizerConstants::ERROR_RECOVERY_THRESHOLD) {
         escalate_error();
     } else {
         // Try to recover by re-detecting features
@@ -415,12 +414,14 @@ void StabilizerCore::handle_tracking_failure() {
 void StabilizerCore::escalate_error() {
     consecutive_failures_++;
     
-    if (consecutive_failures_ > 10) {
+    if (consecutive_failures_ > StabilizerConstants::MAX_CONSECUTIVE_FAILURES) {
         status_ = StabilizerStatus::FAILED;
-        STABILIZER_LOG_ERROR( "Stabilization failed after multiple consecutive errors");
+        ErrorHandler::log_critical_error(ErrorCategory::FEATURE_TRACKING, "escalate_error", 
+                                        "Stabilization failed after multiple consecutive errors");
     } else {
         status_ = StabilizerStatus::DEGRADED;
-        STABILIZER_LOG_WARNING( "Stabilization degraded due to tracking failures");
+        ErrorHandler::log_warning(ErrorCategory::FEATURE_TRACKING, "escalate_error",
+                                 "Stabilization degraded due to tracking failures");
     }
 }
 

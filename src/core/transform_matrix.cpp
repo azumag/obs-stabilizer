@@ -287,10 +287,10 @@ void TransformMatrix::update_fallback_from_opencv() {
         pimpl_->opencv_matrix.rows >= 2 && pimpl_->opencv_matrix.cols >= 3 &&
         pimpl_->opencv_matrix.type() == CV_64F) {
         
-        try {
+        bool extraction_success = ErrorHandler::safe_execute_bool([&]() -> bool {
             // Validate matrix bounds before access
             if (pimpl_->opencv_matrix.rows < 2 || pimpl_->opencv_matrix.cols < 3) {
-                return;
+                return false;
             }
             
             fallback_data_[0] = pimpl_->opencv_matrix.at<double>(0, 0); // a
@@ -309,11 +309,10 @@ void TransformMatrix::update_fallback_from_opencv() {
                 }
             }
             
-            has_fallback_data_ = valid;
-        } catch (const cv::Exception&) {
-            // Matrix access failed - don't update fallback data
-            has_fallback_data_ = false;
-        }
+            return valid;
+        }, ErrorCategory::OPENCV_INTERNAL, "update_fallback_from_opencv");
+        
+        has_fallback_data_ = extraction_success;
     }
 #endif
 }

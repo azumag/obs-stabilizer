@@ -11,6 +11,7 @@ the Free Software Foundation; either version 2 of the License, or
 #include "obs_integration.hpp"
 #include "../core/error_handler.hpp"
 #include "../core/parameter_validator.hpp"
+#include "../core/stabilizer_constants.hpp"
 #include <util/bmem.h>
 #include <algorithm>
 #include <memory>
@@ -37,9 +38,15 @@ void StabilizerFilter::update_settings(obs_data_t* settings) {
     enabled = obs_data_get_bool(settings, "enable_stabilization");
     
     // Core stabilization parameters
-    config.smoothing_radius = std::max(10, std::min(100, (int)obs_data_get_int(settings, "smoothing_radius")));
-    config.max_features = std::max(100, std::min(1000, (int)obs_data_get_int(settings, "max_features")));
-    config.error_threshold = std::max(10.0f, std::min(100.0f, (float)obs_data_get_double(settings, "error_threshold")));
+    config.smoothing_radius = std::max(StabilizerConstants::MIN_SMOOTHING_RADIUS, 
+                                       std::min(StabilizerConstants::MAX_SMOOTHING_RADIUS, 
+                                               (int)obs_data_get_int(settings, "smoothing_radius")));
+    config.max_features = std::max(StabilizerConstants::UIRanges::MIN_UI_FEATURES, 
+                                   std::min(StabilizerConstants::UIRanges::MAX_UI_FEATURES, 
+                                           (int)obs_data_get_int(settings, "max_features")));
+    config.error_threshold = std::max(static_cast<float>(StabilizerConstants::UIRanges::MIN_UI_THRESHOLD), 
+                                      std::min(static_cast<float>(StabilizerConstants::UIRanges::MAX_UI_THRESHOLD), 
+                                              (float)obs_data_get_double(settings, "error_threshold")));
     config.enable_stabilization = enabled;
     
     // Preset system
@@ -79,8 +86,8 @@ void StabilizerFilter::apply_preset_configuration(StabilizerConfig::PresetMode p
     switch (preset) {
         case StabilizerConfig::PresetMode::GAMING:
             // Gaming preset: Fast response, lower quality
-            config.smoothing_radius = 15;
-            config.max_features = 150;
+            config.smoothing_radius = StabilizerConstants::Presets::GAMING_SMOOTHING;
+            config.max_features = StabilizerConstants::Presets::GAMING_FEATURES;
             config.error_threshold = 40.0f;
             config.output_mode = StabilizerConfig::OutputMode::CROP;
             config.min_feature_quality = 0.02f;
@@ -89,9 +96,9 @@ void StabilizerFilter::apply_preset_configuration(StabilizerConfig::PresetMode p
             
         case StabilizerConfig::PresetMode::STREAMING:
             // Streaming preset: Balanced performance and quality
-            config.smoothing_radius = 30;
-            config.max_features = 200;
-            config.error_threshold = 30.0f;
+            config.smoothing_radius = StabilizerConstants::Presets::STREAMING_SMOOTHING;
+            config.max_features = StabilizerConstants::Presets::STREAMING_FEATURES;
+            config.error_threshold = static_cast<float>(StabilizerConstants::Presets::STREAMING_THRESHOLD);
             config.output_mode = StabilizerConfig::OutputMode::PAD;
             config.min_feature_quality = 0.01f;
             config.refresh_threshold = 25;
@@ -99,8 +106,8 @@ void StabilizerFilter::apply_preset_configuration(StabilizerConfig::PresetMode p
             
         case StabilizerConfig::PresetMode::RECORDING:
             // Recording preset: High quality, slower response
-            config.smoothing_radius = 50;
-            config.max_features = 400;
+            config.smoothing_radius = StabilizerConstants::Presets::RECORDING_SMOOTHING;
+            config.max_features = StabilizerConstants::Presets::RECORDING_FEATURES;
             config.error_threshold = 20.0f;
             config.output_mode = StabilizerConfig::OutputMode::SCALE_FIT;
             config.min_feature_quality = 0.005f;
@@ -124,9 +131,9 @@ void StabilizerFilter::set_default_settings(obs_data_t* settings) {
     obs_data_set_default_int(settings, "preset_mode", (int)StabilizerConfig::PresetMode::STREAMING);
     
     // Core parameters (Streaming preset defaults)
-    obs_data_set_default_int(settings, "smoothing_radius", 30);
-    obs_data_set_default_int(settings, "max_features", 200);
-    obs_data_set_default_double(settings, "error_threshold", 30.0);
+    obs_data_set_default_int(settings, "smoothing_radius", StabilizerConstants::DEFAULT_SMOOTHING_RADIUS);
+    obs_data_set_default_int(settings, "max_features", StabilizerConstants::Presets::STREAMING_FEATURES);
+    obs_data_set_default_double(settings, "error_threshold", StabilizerConstants::Presets::STREAMING_THRESHOLD);
     
     // Output mode
     obs_data_set_default_int(settings, "output_mode", (int)StabilizerConfig::OutputMode::PAD);
@@ -274,21 +281,27 @@ obs_properties_t* OBSIntegration::filter_properties(void* data) {
                                                             obs_module_text("Stabilization Parameters"), 
                                                             OBS_GROUP_NORMAL);
     
-    // Smoothing strength slider (10-100)
+    // Smoothing strength slider
     obs_property_t* smoothing_prop = obs_properties_add_int_slider(
-        core_group, "smoothing_radius", obs_module_text("Smoothing Strength"), 10, 100, 5);
+        core_group, "smoothing_radius", obs_module_text("Smoothing Strength"), 
+        StabilizerConstants::UIRanges::MIN_UI_SMOOTHING, 
+        StabilizerConstants::UIRanges::MAX_UI_SMOOTHING, 5);
     obs_property_set_long_description(smoothing_prop, 
         obs_module_text("Number of frames used for transform smoothing. Higher values = smoother but more latency."));
     
-    // Feature points slider (100-1000)
+    // Feature points slider
     obs_property_t* features_prop = obs_properties_add_int_slider(
-        core_group, "max_features", obs_module_text("Feature Points"), 100, 1000, 50);
+        core_group, "max_features", obs_module_text("Feature Points"), 
+        StabilizerConstants::UIRanges::MIN_UI_FEATURES, 
+        StabilizerConstants::UIRanges::MAX_UI_FEATURES, 50);
     obs_property_set_long_description(features_prop,
         obs_module_text("Maximum number of feature points to track. Higher values = more accurate but slower."));
     
-    // Stability threshold slider (10.0-100.0)
+    // Stability threshold slider
     obs_property_t* threshold_prop = obs_properties_add_float_slider(
-        core_group, "error_threshold", obs_module_text("Stability Threshold"), 10.0, 100.0, 5.0);
+        core_group, "error_threshold", obs_module_text("Stability Threshold"), 
+        StabilizerConstants::UIRanges::MIN_UI_THRESHOLD, 
+        StabilizerConstants::UIRanges::MAX_UI_THRESHOLD, 5.0);
     obs_property_set_long_description(threshold_prop,
         obs_module_text("Error threshold for tracking quality. Lower values = stricter quality requirements."));
     
@@ -510,7 +523,10 @@ bool OBSIntegration::validate_transform_matrix(const TransformMatrix& transform)
     double scale = transform.get_scale();
     
     // Reject unreasonable transformations
-    if (std::abs(dx) > 200 || std::abs(dy) > 200 || scale < 0.1 || scale > 3.0) {
+    if (std::abs(dx) > StabilizerConstants::MAX_TRANSLATION_WARN || 
+        std::abs(dy) > StabilizerConstants::MAX_TRANSLATION_WARN || 
+        scale < StabilizerConstants::MIN_SCALE_FACTOR || 
+        scale > StabilizerConstants::MAX_SCALE_FACTOR) {
         ErrorHandler::log_warning(ErrorCategory::VALIDATION, "validate_transform_matrix", 
                                   "Rejecting unreasonable transform: dx=%.2f, dy=%.2f, scale=%.2f", 
                                   dx, dy, scale);

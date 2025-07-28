@@ -17,6 +17,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
 #include <plugin-support.h>
+#include "core/stabilizer_constants.hpp"
 
 const char *PLUGIN_NAME = "@CMAKE_PROJECT_NAME@";
 const char *PLUGIN_VERSION = "@CMAKE_PROJECT_VERSION@";
@@ -26,7 +27,7 @@ void obs_log(int log_level, const char *format, ...)
 	if (!PLUGIN_NAME || !format) return;
 	
 	// Use safe stack allocation for typical log messages
-	const size_t STACK_BUFFER_SIZE = 512;
+	const size_t STACK_BUFFER_SIZE = obs_stabilizer::StabilizerConstants::STACK_BUFFER_SIZE;
 	char stack_buffer[STACK_BUFFER_SIZE];
 	char *template = stack_buffer;
 	

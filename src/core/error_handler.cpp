@@ -43,6 +43,16 @@ void ErrorHandler::log_critical_error(ErrorCategory category, const char* operat
     }
 }
 
+void ErrorHandler::log_error(ErrorCategory category, const char* operation_name, 
+                            const char* details) {
+    const char* category_name = get_category_name(category);
+    if (details) {
+        STABILIZER_LOG_ERROR( "[%s] ERROR: %s - %s", category_name, operation_name, details);
+    } else {
+        STABILIZER_LOG_ERROR( "[%s] ERROR: %s", category_name, operation_name);
+    }
+}
+
 void ErrorHandler::log_warning(ErrorCategory category, const char* operation_name, 
                               const char* details) {
     const char* category_name = get_category_name(category);
