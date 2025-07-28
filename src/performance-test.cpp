@@ -71,7 +71,7 @@ public:
             std::vector<float> errors;
             
             if (!prev_points.empty()) {
-                cv::calcOpticalFlowLK(prev_frame, working_gray, 
+                cv::calcOpticalFlowPyrLK(prev_frame, working_gray, 
                                     prev_points, current_points, status, errors);
                 
                 // Filter good points
