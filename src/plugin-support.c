@@ -22,6 +22,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef HAVE_OBS_HEADERS
+#include <stdio.h>
+#endif
+
 const char *PLUGIN_NAME = "obs-stabilizer";
 const char *PLUGIN_VERSION = "0.1.0";
 
@@ -55,7 +59,13 @@ void obs_log(int log_level, const char *format, ...)
 	
 	va_list args;
 	va_start(args, format);
+#ifdef HAVE_OBS_HEADERS
 	blogva(log_level, template, args);
+#else
+	// Standalone mode - use printf for logging
+	vprintf(template, args);
+	printf("\n");
+#endif
 	va_end(args);
 	
 	if (use_heap) free(template);

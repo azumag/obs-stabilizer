@@ -8,9 +8,16 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 */
 
+#ifdef HAVE_OBS_HEADERS
 #include <obs-module.h>
-#include <plugin-support.h>
 #include "obs/obs_integration.hpp"
+#endif
+
+#include <plugin-support.h>
+
+#ifndef HAVE_OBS_HEADERS
+#include <stdio.h>
+#endif
 
 // OpenCV API compatibility validation
 #ifdef ENABLE_STABILIZATION
@@ -26,6 +33,7 @@ the Free Software Foundation; either version 2 of the License, or
 #endif
 #endif
 
+#ifdef HAVE_OBS_HEADERS
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
@@ -56,3 +64,25 @@ MODULE_EXPORT void obs_module_unload(void)
     // Clean up the OBS integration layer
     obs_stabilizer::OBSIntegration::plugin_unload();
 }
+
+#else // BUILD_STANDALONE_TEST mode
+
+// Standalone test mode entry point for development without OBS
+int main(int argc, char* argv[])
+{
+    printf("OBS Stabilizer Plugin v%s - Standalone Test Mode\n", PLUGIN_VERSION);
+    
+#ifdef ENABLE_STABILIZATION
+    printf("OpenCV version: %s\n", CV_VERSION);
+    printf("Stabilization features: ENABLED\n");
+#else
+    printf("Stabilization features: DISABLED (OpenCV not found)\n");
+#endif
+    
+    printf("Standalone test mode - for development without OBS installation\n");
+    printf("To build as OBS plugin, install OBS headers and rebuild\n");
+    
+    return 0;
+}
+
+#endif

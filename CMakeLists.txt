@@ -66,7 +66,7 @@ else()
     message(WARNING "plugin-support.c not found - plugin may not register properly")
 endif()
 
-# Core source files
+# Core source files (always included)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
     src/plugin-main.cpp
     src/core/stabilizer_core.cpp
@@ -74,8 +74,14 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     src/core/error_handler.cpp
     src/core/parameter_validator.cpp
     src/core/transform_matrix.cpp
-    src/obs/obs_integration.cpp
 )
+
+# OBS-specific source files (only when OBS headers available)
+if(OBS_INCLUDE_DIR)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
+        src/obs/obs_integration.cpp
+    )
+endif()
 
 # Include directories
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
