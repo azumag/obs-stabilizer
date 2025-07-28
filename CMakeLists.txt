@@ -22,8 +22,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -DNDEBUG")
 endif()
 
-# Create plugin library
-add_library(${CMAKE_PROJECT_NAME} SHARED)
+# Create library type based on OBS availability
+if(OBS_INCLUDE_DIR)
+    add_library(${CMAKE_PROJECT_NAME} SHARED)
+    message(STATUS "Building as OBS plugin (shared library)")
+else()
+    add_executable(${CMAKE_PROJECT_NAME})
+    message(STATUS "Building as standalone executable for testing")
+endif()
 
 # Find minimal OBS headers for plugin development
 find_path(OBS_INCLUDE_DIR obs-module.h 

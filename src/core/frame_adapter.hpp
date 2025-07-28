@@ -12,7 +12,7 @@ the Free Software Foundation; either version 2 of the License, or
 
 #include <cstdint>
 
-#ifndef BUILD_STANDALONE
+#ifdef HAVE_OBS_HEADERS
     // OBS plugin mode - use obs_source_frame
     #include <obs-module.h>
     

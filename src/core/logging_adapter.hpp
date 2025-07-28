@@ -10,7 +10,7 @@ the Free Software Foundation; either version 2 of the License, or
 
 #pragma once
 
-#ifndef BUILD_STANDALONE
+#ifdef HAVE_OBS_HEADERS
     // OBS plugin mode - use obs_log
     #include <obs-module.h>
     #define STABILIZER_LOG_INFO(fmt, ...) obs_log(LOG_INFO, fmt, ##__VA_ARGS__)

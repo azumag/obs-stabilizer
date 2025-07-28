@@ -14,7 +14,7 @@ the Free Software Foundation; either version 2 of the License, or
 #include <string>
 #include <functional>
 
-#ifndef BUILD_STANDALONE
+#ifdef HAVE_OBS_HEADERS
 #include <obs-module.h>
 #endif
 
