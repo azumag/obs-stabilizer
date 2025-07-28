@@ -31,30 +31,55 @@ const char *PLUGIN_VERSION = "0.1.0";
 
 void obs_log(int log_level, const char *format, ...)
 {
+	// Enhanced input validation
 	if (!PLUGIN_NAME || !format) return;
+	
+	// Validate format string length to prevent abuse
+	size_t format_len = strlen(format);
+	if (format_len > 2048) {
+		// Format string too long - potential security risk
+		return;
+	}
 	
 	// Use safe stack allocation for typical log messages
 	const size_t STACK_BUFFER_SIZE = 1024; // Safe default buffer size
 	char stack_buffer[STACK_BUFFER_SIZE];
 	char *template = stack_buffer;
 	
-	// Conservative buffer size estimation
-	size_t base_len = strlen(PLUGIN_NAME) + strlen(format) + 10;
-	size_t buffer_size = base_len + 256;
+	// More conservative buffer size calculation with bounds checking
+	size_t plugin_name_len = strlen(PLUGIN_NAME);
+	if (plugin_name_len > 256) plugin_name_len = 256; // Sanity limit
+	
+	// Calculate minimum required buffer size with safety margin
+	size_t min_buffer_size = plugin_name_len + format_len + 32; // Extra space for "[%s] %s" template
+	size_t buffer_size = min_buffer_size + 512; // Additional safety margin
+	
+	// Cap maximum buffer size to prevent excessive memory allocation
+	const size_t MAX_BUFFER_SIZE = 8192;
+	if (buffer_size > MAX_BUFFER_SIZE) {
+		buffer_size = MAX_BUFFER_SIZE;
+	}
 	
 	// Use heap allocation only for very large messages
 	bool use_heap = buffer_size > STACK_BUFFER_SIZE;
 	if (use_heap) {
 		template = malloc(buffer_size);
-		if (!template) return; // Handle allocation failure
+		if (!template) {
+			// Critical memory allocation failure - log error and return gracefully
+			fprintf(stderr, "[%s] CRITICAL: Memory allocation failed for log message (size: %zu)\n", 
+					PLUGIN_NAME, buffer_size);
+			return;
+		}
 	} else {
 		buffer_size = STACK_BUFFER_SIZE;
 	}
 	
+	// Safe template construction with bounds checking
 	int ret = snprintf(template, buffer_size, "[%s] %s", PLUGIN_NAME, format);
 	if (ret < 0 || ret >= (int)buffer_size) {
+		// Template construction failed or was truncated
 		if (use_heap) free(template);
-		return; // Handle formatting error
+		return;
 	}
 	
 	va_list args;

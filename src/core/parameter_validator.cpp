@@ -259,9 +259,20 @@ bool ParameterValidator::check_integer_overflow(uint32_t width, uint32_t height)
     // Check for zero dimensions first (division by zero protection)
     if (width == 0 || height == 0) return true;
     
-    // Check if width * height * 4 (for maximum bytes per pixel) would overflow
-    if (width > UINT32_MAX / height) return true;
-    if ((uint64_t)width * height > SIZE_MAX / 4) return true;
+    // Safe overflow check without potential division by zero
+    // Use 64-bit arithmetic to detect 32-bit overflow
+    uint64_t total_pixels = (uint64_t)width * height;
+    
+    // Check for overflow in pixel count calculation
+    if (total_pixels > UINT32_MAX) return true;
+    
+    // Check for overflow in byte size calculation (4 bytes per pixel maximum)
+    if (total_pixels > SIZE_MAX / 4) return true;
+    
+    // Additional safety check for reasonable frame dimensions
+    if (width > StabilizerConstants::MAX_FRAME_WIDTH || 
+        height > StabilizerConstants::MAX_FRAME_HEIGHT) return true;
+    
     return false;
 }
 

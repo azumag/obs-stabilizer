@@ -33,7 +33,9 @@ enum class ErrorCategory {
     TRANSFORM_CALCULATION,
     MEMORY_ALLOCATION,
     CONFIGURATION,
-    OPENCV_INTERNAL
+    OPENCV_INTERNAL,
+    CLEANUP,
+    VALIDATION
 };
 
 // Centralized error handler for consistent logging and recovery

@@ -8,15 +8,69 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 */
 
-#include "obs_integration.hpp"
+#include "obs_integration.hpp" 
 #include "../core/error_handler.hpp"
 #include "../core/parameter_validator.hpp"
 #include "../core/stabilizer_constants.hpp"
-#include <util/bmem.h>
 #include <algorithm>
 #include <memory>
+#include <cstdlib>
 
 namespace obs_stabilizer {
+
+static bool validate_filter_data_integrity(void* data) {
+    if (!data) return false;
+    
+    // Check pointer alignment (required for safe access)
+    uintptr_t addr = reinterpret_cast<uintptr_t>(data);
+    if (addr % sizeof(void*) != 0) {
+        return false;
+    }
+    
+    // Basic address space validation - avoid obviously invalid pointers
+    // This is a conservative check for user-space addresses
+    if (addr < 0x1000 || addr > 0x7FFFFFFFFFFFULL) {
+        return false;
+    }
+    
+    // For production safety, we'll use a simple approach:
+    // Validate that the pointer size is reasonable and the memory
+    // appears to be in a valid region without complex signal handling
+    
+    try {
+        // Attempt to safely validate the structure
+        // We'll check if the first few bytes look like a valid structure
+        StabilizerFilter* potential_filter = static_cast<StabilizerFilter*>(data);
+        
+        // Check if stabilizer_core appears to be a valid unique_ptr
+        // unique_ptr should never be null in a properly constructed StabilizerFilter
+        if (!potential_filter->stabilizer_core) {
+            return false;
+        }
+        
+        // Validate that the core pointer appears reasonable
+        const void* core_ptr = potential_filter->stabilizer_core.get();
+        if (!core_ptr) {
+            return false;
+        }
+        
+        // Additional validation: check if core pointer is in reasonable address space
+        uintptr_t core_addr = reinterpret_cast<uintptr_t>(core_ptr);
+        if (core_addr < 0x1000 || core_addr > 0x7FFFFFFFFFFFULL) {
+            return false;
+        }
+        
+        // If we reach here, the structure appears to have valid invariants
+        return true;
+        
+    } catch (const std::bad_alloc&) {
+        return false; // Memory issues
+    } catch (const std::exception&) {
+        return false; // Any other standard exception
+    } catch (...) {
+        return false; // Catch any other exceptions (should not happen with proper code)
+    }
+}
 
 // StabilizerFilter Implementation
 
@@ -205,6 +259,12 @@ void OBSIntegration::filter_destroy(void* data) {
     }
     
     ErrorHandler::safe_execute([&]() {
+        // Type-safe validation before casting
+        if (!validate_filter_data_integrity(data)) {
+            ErrorHandler::log_error(ErrorCategory::VALIDATION, "filter_destroy", "Invalid filter data integrity");
+            return;
+        }
+        
         StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
         obs_log(LOG_INFO, "Stabilizer filter destroyed");
         
@@ -216,6 +276,12 @@ void OBSIntegration::filter_destroy(void* data) {
 }
 
 struct obs_source_frame* OBSIntegration::filter_video(void* data, struct obs_source_frame* frame) {
+    // Type-safe validation before casting
+    if (!validate_filter_data_integrity(data)) {
+        ErrorHandler::log_error(ErrorCategory::VALIDATION, "filter_video", "Invalid filter data integrity");
+        return frame;
+    }
+    
     StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
     
     if (!filter || !filter->enabled || !filter->stabilizer_core) {
@@ -233,7 +299,7 @@ struct obs_source_frame* OBSIntegration::filter_video(void* data, struct obs_sou
     // Process frame through stabilization core
     TransformResult result = filter->stabilizer_core->process_frame(frame);
     
-    if (result.success && !result.transform_matrix.empty()) {
+    if (result.success && !result.transform_matrix.is_empty()) {
         // Validate transformation matrix
         if (validate_transform_matrix(result.transform_matrix)) {
             // Apply transformation to frame
@@ -277,13 +343,9 @@ obs_properties_t* OBSIntegration::filter_properties(void* data) {
         obs_module_text("Choose a preset optimized for your use case, or select Custom for manual configuration."));
     
     // Core parameter group (visible when Custom selected or for reference)
-    obs_property_t* core_group = obs_properties_create_group(props, "core_params", 
-                                                            obs_module_text("Stabilization Parameters"), 
-                                                            OBS_GROUP_NORMAL);
-    
     // Smoothing strength slider
     obs_property_t* smoothing_prop = obs_properties_add_int_slider(
-        core_group, "smoothing_radius", obs_module_text("Smoothing Strength"), 
+        props, "smoothing_radius", obs_module_text("Smoothing Strength"), 
         StabilizerConstants::UIRanges::MIN_UI_SMOOTHING, 
         StabilizerConstants::UIRanges::MAX_UI_SMOOTHING, 5);
     obs_property_set_long_description(smoothing_prop, 
@@ -291,7 +353,7 @@ obs_properties_t* OBSIntegration::filter_properties(void* data) {
     
     // Feature points slider
     obs_property_t* features_prop = obs_properties_add_int_slider(
-        core_group, "max_features", obs_module_text("Feature Points"), 
+        props, "max_features", obs_module_text("Feature Points"), 
         StabilizerConstants::UIRanges::MIN_UI_FEATURES, 
         StabilizerConstants::UIRanges::MAX_UI_FEATURES, 50);
     obs_property_set_long_description(features_prop,
@@ -299,14 +361,14 @@ obs_properties_t* OBSIntegration::filter_properties(void* data) {
     
     // Stability threshold slider
     obs_property_t* threshold_prop = obs_properties_add_float_slider(
-        core_group, "error_threshold", obs_module_text("Stability Threshold"), 
+        props, "error_threshold", obs_module_text("Stability Threshold"), 
         StabilizerConstants::UIRanges::MIN_UI_THRESHOLD, 
         StabilizerConstants::UIRanges::MAX_UI_THRESHOLD, 5.0);
     obs_property_set_long_description(threshold_prop,
         obs_module_text("Error threshold for tracking quality. Lower values = stricter quality requirements."));
     
     // Output mode selection
-    obs_property_t* output_mode = obs_properties_add_list(core_group, "output_mode",
+    obs_property_t* output_mode = obs_properties_add_list(props, "output_mode",
                                                          obs_module_text("Edge Handling"), 
                                                          OBS_COMBO_TYPE_LIST, 
                                                          OBS_COMBO_FORMAT_INT);
@@ -316,36 +378,31 @@ obs_properties_t* OBSIntegration::filter_properties(void* data) {
     obs_property_set_long_description(output_mode,
         obs_module_text("How to handle stabilization borders: Crop removes edges, Padding adds black borders, Scale stretches to fit."));
     
-    // Advanced settings (collapsible group)
-    obs_property_t* advanced_group = obs_properties_create_group(props, "advanced_params",
-                                                                obs_module_text("Advanced Settings"),
-                                                                OBS_GROUP_CHECKABLE);
-    
     // Feature quality threshold
     obs_property_t* quality_prop = obs_properties_add_float_slider(
-        advanced_group, "min_feature_quality", obs_module_text("Feature Quality"), 0.001, 0.1, 0.001);
+        props, "min_feature_quality", obs_module_text("Feature Quality"), 0.001, 0.1, 0.001);
     obs_property_set_long_description(quality_prop,
         obs_module_text("Minimum quality threshold for feature detection. Lower values detect more features but may be less stable."));
     
     // Refresh threshold
     obs_property_t* refresh_prop = obs_properties_add_int_slider(
-        advanced_group, "refresh_threshold", obs_module_text("Refresh Threshold"), 10, 50, 5);
+        props, "refresh_threshold", obs_module_text("Refresh Threshold"), 10, 50, 5);
     obs_property_set_long_description(refresh_prop,
         obs_module_text("Number of frames before refreshing feature detection. Lower values = more responsive but higher CPU usage."));
     
     // Adaptive refresh toggle
-    obs_property_t* adaptive_prop = obs_properties_add_bool(advanced_group, "adaptive_refresh", obs_module_text("Adaptive Refresh"));
+    obs_property_t* adaptive_prop = obs_properties_add_bool(props, "adaptive_refresh", obs_module_text("Adaptive Refresh"));
     obs_property_set_long_description(adaptive_prop,
         obs_module_text("Automatically adjust refresh rate based on tracking quality."));
     
     // GPU acceleration toggle (experimental)
-    obs_property_t* gpu_prop = obs_properties_add_bool(advanced_group, "enable_gpu_acceleration", obs_module_text("GPU Acceleration (Experimental)"));
+    obs_property_t* gpu_prop = obs_properties_add_bool(props, "enable_gpu_acceleration", obs_module_text("GPU Acceleration (Experimental)"));
     obs_property_set_long_description(gpu_prop,
         obs_module_text("Enable GPU acceleration for stabilization processing. May not be available on all systems."));
     
     // Processing threads
     obs_property_t* threads_prop = obs_properties_add_int_slider(
-        advanced_group, "processing_threads", obs_module_text("Processing Threads"), 1, 8, 1);
+        props, "processing_threads", obs_module_text("Processing Threads"), 1, 8, 1);
     obs_property_set_long_description(threads_prop,
         obs_module_text("Number of threads to use for stabilization processing. Higher values may improve performance on multi-core systems."));
     
@@ -369,7 +426,7 @@ void OBSIntegration::apply_transform_to_frame(struct obs_source_frame* frame, co
             break;
         default:
             ErrorHandler::log_warning(ErrorCategory::VALIDATION, "apply_transform_to_frame", 
-                                      "Unsupported video format for transformation: %d", frame->format);
+                                      "Unsupported video format for transformation");
             break;
     }
 #endif
@@ -528,8 +585,7 @@ bool OBSIntegration::validate_transform_matrix(const TransformMatrix& transform)
         scale < StabilizerConstants::MIN_SCALE_FACTOR || 
         scale > StabilizerConstants::MAX_SCALE_FACTOR) {
         ErrorHandler::log_warning(ErrorCategory::VALIDATION, "validate_transform_matrix", 
-                                  "Rejecting unreasonable transform: dx=%.2f, dy=%.2f, scale=%.2f", 
-                                  dx, dy, scale);
+                                  "Rejecting unreasonable transform values");
         return false;
     }
     
