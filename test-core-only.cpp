@@ -8,19 +8,10 @@ Tests the core stabilization module without OBS dependencies
 
 // Mock OBS definitions for compilation test
 #define LOG_INFO 300
-#define VIDEO_FORMAT_I420 2
-#define VIDEO_FORMAT_NV12 1
 
 inline void obs_log(int, const char*, ...) { 
     // Mock implementation for testing
 }
-
-struct obs_source_frame {
-    uint32_t width, height;
-    int format;
-    uint8_t* data[4];
-    uint32_t linesize[4];
-};
 
 // Always include the core module (supports both OpenCV and stub modes)
 #include "src/core/stabilizer_core.hpp"

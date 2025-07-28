@@ -72,9 +72,47 @@ OBS Stabilizer provides real-time video stabilization for livestreams and record
 
 - OBS Studio 30.0 or higher
 - CMake 3.28+ 
+- **Ninja build system** (required for CMake presets)
 - Qt6 development libraries
-- C++17 compatible compiler
+- C++17 compatible compiler (Clang, GCC, or MSVC)
 - OpenCV 4.5+ development libraries (4.5-4.8 recommended, 5.x experimental support)
+
+#### macOS Setup
+
+```bash
+# Install required build tools via Homebrew
+brew install ninja cmake pkg-config
+
+# Install OpenCV
+brew install opencv
+
+# Install Qt6 (optional - only needed for advanced UI features)
+brew install qt@6
+```
+
+#### Ubuntu/Linux Setup
+
+```bash
+# Install build tools
+sudo apt update
+sudo apt install ninja-build cmake pkg-config build-essential
+
+# Install OpenCV development libraries
+sudo apt install libopencv-dev
+
+# Install Qt6 development libraries (optional)
+sudo apt install qt6-base-dev
+```
+
+#### Windows Setup
+
+```bash
+# Using chocolatey package manager
+choco install ninja cmake
+
+# Or using vcpkg for dependencies
+vcpkg install opencv qt6-base
+```
 
 ### Building from Source
 
@@ -83,12 +121,70 @@ OBS Stabilizer provides real-time video stabilization for livestreams and record
 git clone https://github.com/azumag/obs-stabilizer.git
 cd obs-stabilizer
 
-# Configure build
+# Configure build (requires Ninja)
 cmake --preset <platform>-ci
 # Available presets: macos-ci, windows-ci-x64, ubuntu-ci-x86_64
 
 # Build the plugin
 cmake --build --preset <platform>-ci
+```
+
+**Note**: If you encounter "Ninja not found" errors, install Ninja using the platform-specific instructions above.
+
+#### Alternative Build (without presets)
+
+If you prefer not to use presets or don't have Ninja installed:
+
+```bash
+# Create build directory
+mkdir build && cd build
+
+# Configure with system default generator (Make on Unix, Visual Studio on Windows)
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+# Build
+cmake --build . --config RelWithDebInfo
+```
+
+### Troubleshooting Build Issues
+
+#### "Ninja not found" Error
+
+```bash
+# macOS - Install via Homebrew
+brew install ninja
+
+# Ubuntu/Linux - Install via package manager
+sudo apt install ninja-build
+
+# Windows - Install via Chocolatey
+choco install ninja
+```
+
+#### "CMAKE_C_COMPILER not set" Error
+
+```bash
+# macOS - Install Xcode Command Line Tools
+xcode-select --install
+
+# Ubuntu/Linux - Install build essentials
+sudo apt install build-essential
+
+# Windows - Install Visual Studio Build Tools or Visual Studio Community
+```
+
+#### OpenCV Not Found
+
+```bash
+# macOS
+brew install opencv
+export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:$PKG_CONFIG_PATH"
+
+# Ubuntu/Linux
+sudo apt install libopencv-dev pkg-config
+
+# Windows - Using vcpkg
+vcpkg install opencv[core,imgproc,features2d]
 ```
 
 ### Testing & Performance Verification

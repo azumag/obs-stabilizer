@@ -9,7 +9,7 @@ echo "=== StabilizerCore Compilation Test ==="
 echo "Testing core module compilation..."
 
 # Compiler settings
-CXX_FLAGS="-std=c++17 -I. -Wall -Wextra"
+CXX_FLAGS="-std=c++17 -I. -Wall -Wextra -DBUILD_STANDALONE"
 
 # Test 1: Compile without OpenCV (stub mode)
 echo ""
