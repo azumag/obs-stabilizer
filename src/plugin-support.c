@@ -17,6 +17,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 */
 
 #include "plugin-support.h"
+#include <stdbool.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
 const char *PLUGIN_NAME = "obs-stabilizer";
 const char *PLUGIN_VERSION = "0.1.0";

@@ -133,10 +133,11 @@ make
 ```
 
 **Build System Changes:**
-- ✅ **Simplified Configuration**: Removed complex OBS Studio build integration
-- ✅ **Plugin-Only Build**: No more OBS dependency conflicts
+- ✅ **Simplified Configuration**: Removed complex OBS Studio source building
+- ✅ **Plugin-Only Build**: Builds plugin without requiring full OBS compilation
 - ✅ **Cross-Platform**: Works with default system generators (Make, Visual Studio, Xcode)
 - ✅ **OpenCV Integration**: Automatic detection with graceful fallback
+- ⚠️ **OBS Headers Required**: Still needs OBS Studio headers for plugin functionality
 
 #### Legacy Build (with presets) - DEPRECATED
 
@@ -176,6 +177,23 @@ xcode-select --install
 sudo apt install build-essential
 
 # Windows - Install Visual Studio Build Tools or Visual Studio Community
+```
+
+#### "OBS headers not found" Warning
+
+The plugin requires OBS Studio headers for full functionality:
+
+```bash
+# macOS - Install OBS Studio (provides headers)
+brew install --cask obs
+# Or build from source for development headers
+
+# Ubuntu/Linux - Install OBS Studio development package
+sudo apt install obs-studio-dev
+# Or: sudo apt install libobs-dev
+
+# Windows - Download OBS Studio and set environment variable
+# Set OBS_STUDIO_PATH to OBS installation directory
 ```
 
 #### "Ninja not found" Error (Legacy builds only)
@@ -418,7 +436,7 @@ GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 - **Issue #74**: Replace assert() with proper test framework ✅ **RESOLVED** (Google Test framework fully implemented with 195+ assertions)
 - **Issue #78**: Replace magic numbers with named constants ✅ **RESOLVED** (StabilizerConstants namespace with type-safe enums, 300+ constants centralized)
 
-**🔧 PRODUCTION-READY CODEBASE WITH COMPLETE TECHNICAL DEBT RESOLUTION** - Core functionality and CI/CD infrastructure fully operational. All major technical debt resolved with unified error handling, centralized constants system, and comprehensive exception safety. Security audit verified (11/11 tests passing). Only Issue #69 remains as low-priority maintainability improvement. The codebase achieves production-ready status with modern C++17/20 patterns.
+**🔧 PRODUCTION-READY CODEBASE WITH SIMPLIFIED BUILD SYSTEM** - Core functionality and CI/CD infrastructure fully operational. Build system completely modernized: eliminated 2,700+ lines of OBS template complexity, replaced with simple 73-line CMakeLists.txt for plugin-only builds. All major technical debt resolved with unified error handling, centralized constants system, and comprehensive exception safety. Security audit verified (11/11 tests passing). The codebase achieves production-ready status with modern C++17/20 patterns and streamlined build process.
 
 ### 🏗️ **CI/CD Infrastructure Status**
 - **Latest Fix**: Code review critical fixes - added missing ErrorHandler::log_error method and improved constant semantics

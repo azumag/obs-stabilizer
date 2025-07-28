@@ -3,7 +3,9 @@ cmake_minimum_required(VERSION 3.16...3.30)
 # OBS Stabilizer Plugin - Simple build configuration
 project(obs-stabilizer VERSION 0.1.0)
 
-# C++ standard
+# Language standards
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -22,6 +24,25 @@ endif()
 
 # Create plugin library
 add_library(${CMAKE_PROJECT_NAME} SHARED)
+
+# Find minimal OBS headers for plugin development
+find_path(OBS_INCLUDE_DIR obs-module.h 
+    PATHS 
+        /usr/include/obs
+        /usr/local/include/obs
+        /opt/homebrew/include/obs
+        $ENV{OBS_STUDIO_PATH}/include
+    DOC "OBS Studio header directory"
+)
+
+if(OBS_INCLUDE_DIR)
+    message(STATUS "Found OBS headers at: ${OBS_INCLUDE_DIR}")
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OBS_INCLUDE_DIR})
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_OBS_HEADERS)
+else()
+    message(WARNING "OBS headers not found. Building as standalone library for testing.")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BUILD_STANDALONE_TEST)
+endif()
 
 # Find OpenCV
 find_package(OpenCV QUIET COMPONENTS core imgproc features2d video calib3d)
