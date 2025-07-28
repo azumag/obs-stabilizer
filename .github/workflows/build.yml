@@ -30,17 +30,26 @@ jobs:
         mkdir -p build
         cd build
         cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
+        cd ../src
+        mkdir -p build-perftest
+        cd build-perftest
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
     
     - name: Build
       run: |
         cd build
+        ninja
+        cd ../src/build-perftest
         ninja
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: obs-stabilizer-ubuntu
-        path: build/src/*
+        path: |
+          build/libobs-stabilizer-standalone.*
+          src/build-perftest/perftest*
+          src/build-perftest/memtest*
 
   build-windows:
     name: Build on Windows
@@ -70,7 +79,8 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: obs-stabilizer-windows
-        path: build/src/RelWithDebInfo/*
+        path: |
+          build/RelWithDebInfo/obs-stabilizer-standalone.*
 
   build-macos:
     name: Build on macOS
@@ -87,14 +97,23 @@ jobs:
         mkdir -p build
         cd build
         cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
+        cd ../src
+        mkdir -p build-perftest
+        cd build-perftest
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
     
     - name: Build
       run: |
         cd build
+        ninja
+        cd ../src/build-perftest
         ninja
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: obs-stabilizer-macos
-        path: build/src/*
+        path: |
+          build/libobs-stabilizer-standalone.*
+          src/build-perftest/perftest*
+          src/build-perftest/memtest*
