@@ -216,7 +216,9 @@ struct obs_source_frame* OBSIntegration::filter_video(void* data, struct obs_sou
     }
     
     // Validate frame data
-    if (!validate_frame_data(frame)) {
+    auto frame_validation = ParameterValidator::validate_frame_basic(frame);
+    if (!frame_validation) {
+        ErrorHandler::log_error(ErrorCategory::VALIDATION, "filter_video", frame_validation.error_message);
         return frame;
     }
     
@@ -478,7 +480,9 @@ void OBSIntegration::apply_transform_generic(struct obs_source_frame* frame,
                                            PlaneProcessor process_planes) {
     SAFE_EXECUTE([&]() {
         // Validate frame data
-        if (!validate_frame_data(frame)) {
+        auto frame_validation = ParameterValidator::validate_frame_basic(frame);
+        if (!frame_validation) {
+            ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_to_frame", frame_validation.error_message);
             return;
         }
         
@@ -493,31 +497,6 @@ void OBSIntegration::apply_transform_generic(struct obs_source_frame* frame,
 
 #endif
 
-bool OBSIntegration::validate_frame_data(struct obs_source_frame* frame) {
-    // Comprehensive input validation
-    if (!frame || !frame->data[0] || frame->width == 0 || frame->height == 0) {
-        ErrorHandler::log_error(ErrorCategory::VALIDATION, "validate_frame_data", 
-                               "Invalid frame data for stabilization");
-        return false;
-    }
-    
-    // Validate frame dimensions and prevent integer overflow
-    if (frame->width > 8192 || frame->height > 8192) {
-        ErrorHandler::log_error(ErrorCategory::VALIDATION, "validate_frame_data", 
-                                "Frame dimensions too large: %ux%u", frame->width, frame->height);
-        return false;
-    }
-    
-    // Validate that width*height won't overflow
-    // Check for overflow before multiplication
-    if (frame->width > 0 && frame->height > SIZE_MAX / frame->width / 4) {
-        ErrorHandler::log_error(ErrorCategory::VALIDATION, "validate_frame_data", 
-                                "Frame size would cause integer overflow");
-        return false;
-    }
-    
-    return true;
-}
 
 bool OBSIntegration::validate_transform_matrix(const TransformMatrix& transform) {
 #ifdef ENABLE_STABILIZATION

@@ -74,7 +74,6 @@ private:
                                       PlaneProcessor process_planes);
     
     // Validation utilities
-    static bool validate_frame_data(struct obs_source_frame* frame);
     static bool validate_transform_matrix(const TransformMatrix& transform);
 };
 
