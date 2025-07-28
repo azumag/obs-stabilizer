@@ -1,0 +1,38 @@
+name: 'Setup Build Environment'
+description: 'Setup common build environment for OBS Stabilizer'
+inputs:
+  platform:
+    description: 'Platform type (ubuntu, windows, macos)'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Ubuntu dependencies
+      if: inputs.platform == 'ubuntu'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          cmake \
+          ninja-build \
+          build-essential \
+          libopencv-dev \
+          pkg-config \
+          qtbase5-dev \
+          qtbase5-dev-tools
+
+    - name: Install macOS dependencies
+      if: inputs.platform == 'macos'
+      shell: bash
+      run: |
+        brew install cmake ninja opencv pkg-config
+
+    - name: Setup MSVC (Windows)
+      if: inputs.platform == 'windows'
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce
+
+    - name: Install OpenCV (Windows)
+      if: inputs.platform == 'windows'
+      shell: powershell
+      run: |
+        vcpkg install opencv:x64-windows

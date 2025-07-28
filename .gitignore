@@ -3,7 +3,7 @@
 # Build directories
 build/
 build-*/
-*build*/
+tmp/builds/
 tests/build*/
 tests/_deps/
 CMakeFiles/
