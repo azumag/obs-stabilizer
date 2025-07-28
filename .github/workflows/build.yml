@@ -33,7 +33,8 @@ jobs:
         cd ../src
         mkdir -p build-perftest
         cd build-perftest
-        cmake .. -f ../CMakeLists-perftest.txt -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cp ../CMakeLists-perftest.txt ./CMakeLists.txt
+        cmake . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
     
     - name: Build
       run: |
@@ -89,7 +90,8 @@ jobs:
         cd ..\src
         mkdir build-perftest
         cd build-perftest
-        cmake .. -f ..\CMakeLists-perftest.txt -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+        copy ..\CMakeLists-perftest.txt .\CMakeLists.txt
+        cmake . -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
     
     - name: Build
       run: |
@@ -138,7 +140,8 @@ jobs:
         cd ../src
         mkdir -p build-perftest
         cd build-perftest
-        cmake .. -f ../CMakeLists-perftest.txt -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        cp ../CMakeLists-perftest.txt ./CMakeLists.txt
+        cmake . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
     
     - name: Build
       run: |

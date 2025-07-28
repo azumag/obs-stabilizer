@@ -11,10 +11,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc features2d video)
 
 # Create performance test executable
-add_executable(perftest performance-test.cpp)
+add_executable(perftest ${CMAKE_SOURCE_DIR}/performance-test.cpp)
 
 # Create memory test executable
-add_executable(memtest memory-test.cpp)
+add_executable(memtest ${CMAKE_SOURCE_DIR}/memory-test.cpp)
 
 # Link OpenCV libraries
 target_link_libraries(perftest ${OpenCV_LIBS})
