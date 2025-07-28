@@ -22,8 +22,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -DNDEBUG")
 endif()
 
-# Create library type based on OBS availability
-if(OBS_INCLUDE_DIR)
+# Build type options
+option(BUILD_STANDALONE "Build as standalone library instead of OBS plugin" OFF)
+
+# Create library type based on BUILD_STANDALONE option or OBS availability
+if(BUILD_STANDALONE)
+    add_library(${CMAKE_PROJECT_NAME} SHARED)
+    message(STATUS "Building as standalone library (BUILD_STANDALONE=ON)")
+elseif(OBS_INCLUDE_DIR)
     add_library(${CMAKE_PROJECT_NAME} SHARED)
     message(STATUS "Building as OBS plugin (shared library)")
 else()
@@ -52,7 +58,10 @@ find_library(OBS_LIBRARY obs
     DOC "OBS Studio library"
 )
 
-if(OBS_INCLUDE_DIR)
+if(BUILD_STANDALONE)
+    message(STATUS "Building standalone - skipping OBS integration")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BUILD_STANDALONE_TEST)
+elseif(OBS_INCLUDE_DIR)
     message(STATUS "Found OBS headers at: ${OBS_INCLUDE_DIR}")
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OBS_INCLUDE_DIR})
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_OBS_HEADERS)
@@ -91,15 +100,16 @@ else()
     message(WARNING "plugin-support.c not found - plugin may not register properly")
 endif()
 
-# Add OBS stub functions when OBS headers are available but libraries are not
-# This prevents symbol conflicts while still providing needed functionality
-if(OBS_INCLUDE_DIR AND NOT OBS_LIBRARY)
+# Add OBS stub functions when needed
+if(BUILD_STANDALONE OR (NOT OBS_INCLUDE_DIR) OR (OBS_INCLUDE_DIR AND NOT OBS_LIBRARY))
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs_stubs.c)
-    message(STATUS "Using OBS stub functions - headers found but no libraries")
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_OBS_STUBS)
-elseif(NOT OBS_INCLUDE_DIR)
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs_stubs.c)
-    message(STATUS "Using OBS stub functions for standalone build")
+    if(BUILD_STANDALONE)
+        message(STATUS "Using OBS stub functions for standalone build")
+    elseif(OBS_INCLUDE_DIR AND NOT OBS_LIBRARY)
+        message(STATUS "Using OBS stub functions - headers found but no libraries")
+    else()
+        message(STATUS "Using OBS stub functions - no OBS installation found")
+    endif()
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE USE_OBS_STUBS)
 else()
     message(STATUS "Full OBS installation found - using system OBS functions")
@@ -115,8 +125,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     src/core/transform_matrix.cpp
 )
 
-# OBS-specific source files (only when OBS headers available)
-if(OBS_INCLUDE_DIR)
+# OBS-specific source files (only when not standalone and OBS headers available)
+if(NOT BUILD_STANDALONE AND OBS_INCLUDE_DIR)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
         src/obs/obs_integration.cpp
     )
@@ -130,7 +140,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 )
 
 # Plugin properties
-if(OBS_INCLUDE_DIR)
+if(NOT BUILD_STANDALONE AND OBS_INCLUDE_DIR AND APPLE)
     # Build as macOS plugin bundle
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES 
         OUTPUT_NAME obs-stabilizer
@@ -141,7 +151,7 @@ if(OBS_INCLUDE_DIR)
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in
     )
 else()
-    # Build as regular executable for testing
+    # Build as regular library/executable for testing
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES 
         OUTPUT_NAME obs-stabilizer
         VERSION ${CMAKE_PROJECT_VERSION}
@@ -149,14 +159,14 @@ else()
 endif()
 
 # Install locale files for plugin bundle
-if(OBS_INCLUDE_DIR AND APPLE)
+if(NOT BUILD_STANDALONE AND OBS_INCLUDE_DIR AND APPLE)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/data/locale/en-US.ini
         DESTINATION ${CMAKE_PROJECT_NAME}.plugin/Contents/Resources/locale
     )
 endif()
 
 # Include macOS plugin fix module
-if(APPLE AND OBS_INCLUDE_DIR)
+if(APPLE AND NOT BUILD_STANDALONE AND OBS_INCLUDE_DIR)
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/macOS-plugin-fix.cmake)
     message(STATUS "Included macOS plugin loading fix")
 endif()
