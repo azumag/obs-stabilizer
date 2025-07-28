@@ -127,6 +127,18 @@ node_modules/
 *.log
 logs/
 
+# Security audit results (keep only latest)
+security/audit-results/security-audit-*.md
+tmp/security-audits/ci-cd-qa-*-20*.md
+security-audit-*.md
+
+# Build artifacts and temporary directories
+tmp/builds/
+tmp/build-artifacts/
+tmp/build-logs/
+tmp/test-*/
+tmp/quality-assurance-report.md
+
 # Coverage reports
 coverage/
 *.gcov

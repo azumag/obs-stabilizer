@@ -8,11 +8,8 @@ set -e
 echo "=== OBS Stabilizer Performance Test ==="
 echo "Building and running performance verification prototype..."
 
-# Navigate to src directory
-cd src
-
 # Clean previous build
-rm -rf ../tmp/builds/build-perftest
+rm -rf tmp/builds/build-perftest
 
 # Configure with CMAKE (try multiple possible cmake locations)
 CMAKE_CMD=""
@@ -32,10 +29,15 @@ fi
 
 # Build the performance test
 echo "Configuring build..."
-$CMAKE_CMD -S . -B ../tmp/builds/build-perftest -f CMakeLists-perftest.txt -DCMAKE_BUILD_TYPE=Release
+# Copy perftest CMakeLists.txt to build directory and configure from there
+mkdir -p tmp/builds/build-perftest
+cp src/CMakeLists-perftest.txt tmp/builds/build-perftest/CMakeLists.txt
+cp src/performance-test.cpp tmp/builds/build-perftest/
+cp src/memory-test.cpp tmp/builds/build-perftest/
+$CMAKE_CMD -S tmp/builds/build-perftest -B tmp/builds/build-perftest -DCMAKE_BUILD_TYPE=Release
 
 echo "Building performance test..."
-$CMAKE_CMD --build ../tmp/builds/build-perftest --config Release
+$CMAKE_CMD --build tmp/builds/build-perftest --config Release
 
 # Run the performance test
 echo ""
@@ -43,14 +45,14 @@ echo "Running performance test..."
 echo "This will test stabilization performance across different resolutions and settings..."
 echo ""
 
-../tmp/builds/build-perftest/perftest
+tmp/builds/build-perftest/perftest
 
 echo ""
 echo "Running memory stability test..."
 echo "This will test for memory leaks during extended operation..."
 echo ""
 
-../tmp/builds/build-perftest/memtest
+tmp/builds/build-perftest/memtest
 
 echo ""
 echo "=== Performance Testing Complete ==="
