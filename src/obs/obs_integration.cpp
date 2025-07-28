@@ -173,7 +173,9 @@ const char* OBSIntegration::filter_get_name(void* unused) {
 }
 
 void* OBSIntegration::filter_create(obs_data_t* settings, obs_source_t* source) {
-    try {
+    void* result = nullptr;
+    
+    ErrorHandler::safe_execute([&]() {
         // Use unique_ptr for exception safety during construction
         auto filter = std::make_unique<StabilizerFilter>();
         
@@ -183,14 +185,10 @@ void* OBSIntegration::filter_create(obs_data_t* settings, obs_source_t* source) 
         obs_log(LOG_INFO, "Stabilizer filter created");
         
         // Release ownership to OBS - OBS will manage lifetime via filter_destroy
-        return filter.release();
-    } catch (const std::exception& e) {
-        obs_log(LOG_ERROR, "Failed to create stabilizer filter: %s", e.what());
-        return nullptr;
-    } catch (...) {
-        obs_log(LOG_ERROR, "Failed to create stabilizer filter: unknown error");
-        return nullptr;
-    }
+        result = filter.release();
+    }, ErrorCategory::INITIALIZATION, "filter_create");
+    
+    return result;
 }
 
 void OBSIntegration::filter_destroy(void* data) {
@@ -199,7 +197,7 @@ void OBSIntegration::filter_destroy(void* data) {
         return;
     }
     
-    try {
+    ErrorHandler::safe_execute([&]() {
         StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
         obs_log(LOG_INFO, "Stabilizer filter destroyed");
         
@@ -207,11 +205,7 @@ void OBSIntegration::filter_destroy(void* data) {
         std::unique_ptr<StabilizerFilter> filter_guard(filter);
         
         // filter_guard will automatically delete filter when going out of scope
-    } catch (const std::exception& e) {
-        obs_log(LOG_ERROR, "Error during filter destruction: %s", e.what());
-    } catch (...) {
-        obs_log(LOG_ERROR, "Unknown error during filter destruction");
-    }
+    }, ErrorCategory::CLEANUP, "filter_destroy");
 }
 
 struct obs_source_frame* OBSIntegration::filter_video(void* data, struct obs_source_frame* frame) {
@@ -368,7 +362,7 @@ void OBSIntegration::apply_transform_to_frame(struct obs_source_frame* frame, co
 
 #ifdef ENABLE_STABILIZATION
 void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const TransformMatrix& transform) {
-    try {
+    ErrorHandler::safe_execute([&]() {
         // Validate frame data
         if (!frame->data[0] || frame->linesize[0] < frame->width) {
             ErrorHandler::log_error(ErrorCategory::VALIDATION, "apply_transform_nv12", 
@@ -413,11 +407,7 @@ void OBSIntegration::apply_transform_nv12(struct obs_source_frame* frame, const 
         
         // Copy transformed UV plane back
         uv_transformed.copyTo(uv_plane);
-        
-    } catch (const cv::Exception& e) {
-        ErrorHandler::log_error(ErrorCategory::FRAME_PROCESSING, "apply_transform_nv12", 
-                               "NV12 transformation failed: %s", e.what());
-    }
+    }, ErrorCategory::FRAME_PROCESSING, "apply_transform_nv12");
 }
 
 void OBSIntegration::apply_transform_i420(struct obs_source_frame* frame, const TransformMatrix& transform) {
