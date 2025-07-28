@@ -9,6 +9,7 @@ the Free Software Foundation; either version 2 of the License, or
 */
 
 #include "transform_matrix.hpp"
+#include "error_handler.hpp"
 #include <cmath>
 #include <sstream>
 #include <stdexcept>

@@ -116,12 +116,34 @@ vcpkg install opencv qt6-base
 
 ### Building from Source
 
+**✅ SIMPLIFIED BUILD SYSTEM** - The plugin now uses a simple, standalone build configuration that builds only the plugin (not OBS Studio).
+
 ```bash
 # Clone the repository
 git clone https://github.com/azumag/obs-stabilizer.git
 cd obs-stabilizer
 
-# Configure build (requires Ninja)
+# Simple build (recommended)
+cmake -B build
+cmake --build build
+
+# Alternative: Direct build in current directory
+cmake .
+make
+```
+
+**Build System Changes:**
+- ✅ **Simplified Configuration**: Removed complex OBS Studio build integration
+- ✅ **Plugin-Only Build**: No more OBS dependency conflicts
+- ✅ **Cross-Platform**: Works with default system generators (Make, Visual Studio, Xcode)
+- ✅ **OpenCV Integration**: Automatic detection with graceful fallback
+
+#### Legacy Build (with presets) - DEPRECATED
+
+The preset-based build system has been replaced with the simplified approach above. If you still need presets:
+
+```bash
+# Configure build (requires Ninja) - LEGACY
 cmake --preset <platform>-ci
 # Available presets: macos-ci, windows-ci-x64, ubuntu-ci-x86_64
 
@@ -129,36 +151,19 @@ cmake --preset <platform>-ci
 cmake --build --preset <platform>-ci
 ```
 
-**Note**: If you encounter "Ninja not found" errors, install Ninja using the platform-specific instructions above.
-
-#### Alternative Build (without presets)
-
-If you prefer not to use presets or don't have Ninja installed:
-
-```bash
-# Create build directory
-mkdir build && cd build
-
-# Configure with system default generator (Make on Unix, Visual Studio on Windows)
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-
-# Build
-cmake --build . --config RelWithDebInfo
-```
-
 ### Troubleshooting Build Issues
 
-#### "Ninja not found" Error
+#### CMake Permission Errors (macOS)
+
+If you encounter "Operation not permitted" errors during configuration:
 
 ```bash
-# macOS - Install via Homebrew
-brew install ninja
+# This is a macOS security restriction with CMake's configure_file
+# The build will still work if you see "OpenCV enabled" in the output
 
-# Ubuntu/Linux - Install via package manager
-sudo apt install ninja-build
-
-# Windows - Install via Chocolatey
-choco install ninja
+# Workaround: Use environment variable to skip strict checks
+GITHUB_ACTIONS=1 cmake -B build
+cmake --build build
 ```
 
 #### "CMAKE_C_COMPILER not set" Error
@@ -173,6 +178,21 @@ sudo apt install build-essential
 # Windows - Install Visual Studio Build Tools or Visual Studio Community
 ```
 
+#### "Ninja not found" Error (Legacy builds only)
+
+The simplified build system no longer requires Ninja. If using legacy presets:
+
+```bash
+# macOS - Install via Homebrew
+brew install ninja
+
+# Ubuntu/Linux - Install via package manager
+sudo apt install ninja-build
+
+# Windows - Install via Chocolatey
+choco install ninja
+```
+
 #### OpenCV Not Found
 
 ```bash
@@ -180,11 +200,29 @@ sudo apt install build-essential
 brew install opencv
 export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:$PKG_CONFIG_PATH"
 
+# If CMake still can't find OpenCV components, use explicit path:
+cmake -DBUILD_STANDALONE=ON -DOpenCV_DIR=/opt/homebrew/lib/cmake/opencv4 -B build-standalone .
+
 # Ubuntu/Linux
 sudo apt install libopencv-dev pkg-config
 
 # Windows - Using vcpkg
 vcpkg install opencv[core,imgproc,features2d]
+```
+
+#### "OpenCV component not found" Error
+
+This error occurs when CMake can't locate OpenCV library files. Try these solutions:
+
+```bash
+# macOS - Check OpenCV installation
+brew list opencv | grep lib | head -5
+
+# If libraries exist, set OpenCV_DIR explicitly:
+cmake -DBUILD_STANDALONE=ON -DOpenCV_DIR=/opt/homebrew/lib/cmake/opencv4 -B build-standalone
+
+# Alternative: Use CI/CD mode to skip strict validation
+GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 ```
 
 ### Testing & Performance Verification
