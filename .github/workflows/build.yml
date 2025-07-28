@@ -47,7 +47,17 @@ jobs:
       run: |
         cd src/build-perftest
         if [ -f "perftest" ]; then
-          timeout 300 ./perftest || echo "Performance test completed with warnings"
+          if timeout 300 ./perftest; then
+            echo "Performance tests passed"
+          else
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 124 ]; then
+              echo "::warning::Performance test timed out after 300 seconds"
+            else
+              echo "::error::Performance test failed with exit code $EXIT_CODE"
+              exit 1
+            fi
+          fi
         fi
     
     - name: Upload artifacts
@@ -77,11 +87,31 @@ jobs:
         mkdir build
         cd build
         cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+        cd ..\src
+        mkdir build-perftest
+        cd build-perftest
+        copy ..\CMakeLists-perftest.txt .\CMakeLists.txt
+        cmake . -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
     
     - name: Build
       run: |
         cd build
         cmake --build . --config RelWithDebInfo
+        cd ..\src\build-perftest
+        cmake --build . --config RelWithDebInfo
+    
+    - name: Run Tests
+      run: |
+        cd src\build-perftest\RelWithDebInfo
+        if (Test-Path "perftest.exe") {
+          $job = Start-Job -ScriptBlock { .\perftest.exe }
+          if (Wait-Job $job -Timeout 300) {
+            Receive-Job $job
+          } else {
+            Stop-Job $job; Remove-Job $job
+            Write-Host "Performance test completed with timeout"
+          }
+        }
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -89,6 +119,8 @@ jobs:
         name: obs-stabilizer-windows
         path: |
           build/RelWithDebInfo/obs-stabilizer-standalone.*
+          src/build-perftest/RelWithDebInfo/perftest*
+          src/build-perftest/RelWithDebInfo/memtest*
 
   build-macos:
     name: Build on macOS
@@ -122,7 +154,17 @@ jobs:
       run: |
         cd src/build-perftest
         if [ -f "perftest" ]; then
-          timeout 300 ./perftest || echo "Performance test completed with warnings"
+          if timeout 300 ./perftest; then
+            echo "Performance tests passed"
+          else
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 124 ]; then
+              echo "::warning::Performance test timed out after 300 seconds"
+            else
+              echo "::error::Performance test failed with exit code $EXIT_CODE"
+              exit 1
+            fi
+          fi
         fi
     
     - name: Upload artifacts
