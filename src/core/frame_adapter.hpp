@@ -15,21 +15,21 @@ the Free Software Foundation; either version 2 of the License, or
 #ifdef HAVE_OBS_HEADERS
     // OBS plugin mode - use obs_source_frame
     #include <obs-module.h>
-    
+
     namespace obs_stabilizer {
         using frame_t = struct obs_source_frame;
-        
+
         // Use OBS video format constants
         using video_format = enum video_format;
-        
+
         inline uint32_t get_frame_width(const frame_t* frame) { return frame->width; }
         inline uint32_t get_frame_height(const frame_t* frame) { return frame->height; }
         inline uint32_t get_frame_format(const frame_t* frame) { return frame->format; }
-        inline uint8_t* get_frame_data(const frame_t* frame, size_t plane) { 
-            return frame->data[plane]; 
+        inline uint8_t* get_frame_data(const frame_t* frame, size_t plane) {
+            return frame->data[plane];
         }
-        inline uint32_t get_frame_linesize(const frame_t* frame, size_t plane) { 
-            return frame->linesize[plane]; 
+        inline uint32_t get_frame_linesize(const frame_t* frame, size_t plane) {
+            return frame->linesize[plane];
         }
     }
 #else
@@ -43,7 +43,7 @@ the Free Software Foundation; either version 2 of the License, or
             VIDEO_FORMAT_BGRX = 5,
             VIDEO_FORMAT_Y800 = 6
         };
-        
+
         struct standalone_frame {
             uint32_t width;
             uint32_t height;
@@ -52,17 +52,17 @@ the Free Software Foundation; either version 2 of the License, or
             uint32_t linesize[8];    // Line sizes for each plane
             uint64_t timestamp;      // Frame timestamp
         };
-        
+
         using frame_t = standalone_frame;
-        
+
         inline uint32_t get_frame_width(const frame_t* frame) { return frame->width; }
         inline uint32_t get_frame_height(const frame_t* frame) { return frame->height; }
         inline uint32_t get_frame_format(const frame_t* frame) { return frame->format; }
-        inline uint8_t* get_frame_data(const frame_t* frame, size_t plane) { 
-            return frame->data[plane]; 
+        inline uint8_t* get_frame_data(const frame_t* frame, size_t plane) {
+            return frame->data[plane];
         }
-        inline uint32_t get_frame_linesize(const frame_t* frame, size_t plane) { 
-            return frame->linesize[plane]; 
+        inline uint32_t get_frame_linesize(const frame_t* frame, size_t plane) {
+            return frame->linesize[plane];
         }
     }
 #endif

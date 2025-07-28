@@ -1,0 +1,92 @@
+name: Quality Assurance
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-coverage:
+    name: Test Coverage Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build build-essential libopencv-dev pkg-config gcovr lcov
+    
+    - name: Configure with coverage
+      run: |
+        mkdir -p tmp/builds/coverage
+        cd tmp/builds/coverage
+        cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage"
+    
+    - name: Build with coverage
+      run: |
+        cd tmp/builds/coverage
+        ninja
+    
+    - name: Run tests with coverage
+      run: |
+        cd tmp/tests
+        mkdir -p ../tmp/builds/test-coverage
+        cmake -S . -B ../tmp/builds/test-coverage -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"
+        cmake --build ../tmp/builds/test-coverage
+        ../tmp/builds/test-coverage/stabilizer_tests
+    
+    - name: Generate coverage report
+      run: |
+        gcovr --root . --html --html-details -o tmp/coverage-report.html
+        gcovr --root . --xml -o tmp/coverage.xml
+        lcov --capture --directory . --output-file tmp/coverage.info
+        lcov --remove tmp/coverage.info '/usr/*' --output-file tmp/coverage.info
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+      with:
+        name: coverage-reports
+        path: |
+          tmp/coverage-report.html
+          tmp/coverage.xml
+          tmp/coverage.info
+
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    
+    - name: Install static analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-tidy iwyu
+        pip install cpplint
+    
+    - name: Run cppcheck
+      run: |
+        mkdir -p tmp/static-analysis
+        cppcheck --enable=all --xml --xml-version=2 --output-file=tmp/static-analysis/cppcheck.xml src/
+        cppcheck --enable=all --template=gcc src/ > tmp/static-analysis/cppcheck.txt 2>&1 || true
+    
+    - name: Run clang-tidy
+      run: |
+        mkdir -p tmp/builds/tidy
+        cd tmp/builds/tidy
+        cmake ../../.. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        cd ../../..
+        run-clang-tidy -p tmp/builds/tidy src/ > tmp/static-analysis/clang-tidy.txt 2>&1 || true
+    
+    - name: Run cpplint
+      run: |
+        find src/ -name "*.cpp" -o -name "*.hpp" | xargs cpplint --output=vs > tmp/static-analysis/cpplint.txt 2>&1 || true
+    
+    - name: Upload static analysis reports
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+      with:
+        name: static-analysis-reports
+        path: tmp/static-analysis/

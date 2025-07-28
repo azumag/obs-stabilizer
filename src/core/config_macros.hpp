@@ -88,7 +88,7 @@ struct FeatureGuard {
     #else
         #define STABILIZER_OPENCV_HEADERS __INCLUDE_LEVEL__
     #endif
-    
+
     // Actual includes (separate from warning suppression for clarity)
     #define STABILIZER_INCLUDE_OPENCV_HEADERS() \
         do { \
@@ -160,16 +160,16 @@ namespace obs_stabilizer {
 namespace config {
     constexpr bool has_opencv = STABILIZER_OPENCV_AVAILABLE;
     constexpr bool has_full_features = STABILIZER_FULL_FEATURES;
-    
+
     // Runtime capability check
     inline bool is_opencv_available() {
         return has_opencv;
     }
-    
+
     inline bool are_features_available() {
         return has_full_features;
     }
-    
+
     // Feature description
     inline const char* get_feature_description() {
         if constexpr (has_opencv) {

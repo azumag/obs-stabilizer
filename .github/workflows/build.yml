@@ -11,167 +11,104 @@ jobs:
     name: Build on Ubuntu
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          cmake \
-          ninja-build \
-          build-essential \
-          libopencv-dev \
-          pkg-config \
-          qtbase5-dev \
-          qtbase5-dev-tools
-    
-    - name: Configure CMake (standalone build)
-      run: |
-        mkdir -p build
-        cd build
-        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
-        cd ../src
-        mkdir -p build-perftest
-        cd build-perftest
-        cp ../CMakeLists-perftest.txt ./CMakeLists.txt
-        cmake . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    
-    - name: Build
-      run: |
-        cd build
-        ninja
-        cd ../src/build-perftest
-        ninja
-    
-    - name: Run Tests
-      run: |
-        cd src/build-perftest
-        if [ -f "perftest" ]; then
-          if timeout 300 ./perftest; then
-            echo "Performance tests passed"
-          else
-            EXIT_CODE=$?
-            if [ $EXIT_CODE -eq 124 ]; then
-              echo "::warning::Performance test timed out after 300 seconds"
-            else
-              echo "::error::Performance test failed with exit code $EXIT_CODE"
-              exit 1
-            fi
-          fi
-        fi
-    
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+    - name: Setup build environment
+      uses: ./.github/actions/setup-build-env
+      with:
+        platform: ubuntu
+
+    - name: Configure CMake
+      uses: ./.github/actions/configure-cmake
+      with:
+        platform: ubuntu
+
+    - name: Run tests
+      uses: ./.github/actions/run-tests
+      with:
+        platform: ubuntu
+
+    - name: Build project
+      uses: ./.github/actions/build-project
+      with:
+        platform: ubuntu
+
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
       with:
         name: obs-stabilizer-ubuntu
         path: |
           build/libobs-stabilizer-standalone.*
-          src/build-perftest/perftest*
-          src/build-perftest/memtest*
+          tmp/builds/build-perftest/perftest*
+          tmp/builds/build-perftest/memtest*
 
   build-windows:
     name: Build on Windows
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup MSVC
-      uses: microsoft/setup-msbuild@v2
-    
-    - name: Install OpenCV
-      run: |
-        vcpkg install opencv:x64-windows
-    
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+    - name: Setup build environment
+      uses: ./.github/actions/setup-build-env
+      with:
+        platform: windows
+
     - name: Configure CMake
-      run: |
-        mkdir build
-        cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
-        cd ..\src
-        mkdir build-perftest
-        cd build-perftest
-        copy ..\CMakeLists-perftest.txt .\CMakeLists.txt
-        cmake . -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
-    
-    - name: Build
-      run: |
-        cd build
-        cmake --build . --config RelWithDebInfo
-        cd ..\src\build-perftest
-        cmake --build . --config RelWithDebInfo
-    
-    - name: Run Tests
-      run: |
-        cd src\build-perftest\RelWithDebInfo
-        if (Test-Path "perftest.exe") {
-          $job = Start-Job -ScriptBlock { .\perftest.exe }
-          if (Wait-Job $job -Timeout 300) {
-            Receive-Job $job
-          } else {
-            Stop-Job $job; Remove-Job $job
-            Write-Host "Performance test completed with timeout"
-          }
-        }
-    
+      uses: ./.github/actions/configure-cmake
+      with:
+        platform: windows
+
+    - name: Run tests
+      uses: ./.github/actions/run-tests
+      with:
+        platform: windows
+
+    - name: Build project
+      uses: ./.github/actions/build-project
+      with:
+        platform: windows
+
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
       with:
         name: obs-stabilizer-windows
         path: |
           build/RelWithDebInfo/obs-stabilizer-standalone.*
-          src/build-perftest/RelWithDebInfo/perftest*
-          src/build-perftest/RelWithDebInfo/memtest*
+          tmp/builds/build-perftest/RelWithDebInfo/perftest*
+          tmp/builds/build-perftest/RelWithDebInfo/memtest*
 
   build-macos:
     name: Build on macOS
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install dependencies
-      run: |
-        brew install cmake ninja opencv pkg-config
-    
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+    - name: Setup build environment
+      uses: ./.github/actions/setup-build-env
+      with:
+        platform: macos
+
     - name: Configure CMake
-      run: |
-        mkdir -p build
-        cd build
-        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
-        cd ../src
-        mkdir -p build-perftest
-        cd build-perftest
-        cp ../CMakeLists-perftest.txt ./CMakeLists.txt
-        cmake . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    
-    - name: Build
-      run: |
-        cd build
-        ninja
-        cd ../src/build-perftest
-        ninja
-    
-    - name: Run Tests
-      run: |
-        cd src/build-perftest
-        if [ -f "perftest" ]; then
-          if timeout 300 ./perftest; then
-            echo "Performance tests passed"
-          else
-            EXIT_CODE=$?
-            if [ $EXIT_CODE -eq 124 ]; then
-              echo "::warning::Performance test timed out after 300 seconds"
-            else
-              echo "::error::Performance test failed with exit code $EXIT_CODE"
-              exit 1
-            fi
-          fi
-        fi
-    
+      uses: ./.github/actions/configure-cmake
+      with:
+        platform: macos
+
+    - name: Run tests
+      uses: ./.github/actions/run-tests
+      with:
+        platform: macos
+
+    - name: Build project
+      uses: ./.github/actions/build-project
+      with:
+        platform: macos
+
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
       with:
         name: obs-stabilizer-macos
         path: |
           build/libobs-stabilizer-standalone.*
-          src/build-perftest/perftest*
-          src/build-perftest/memtest*
+          tmp/builds/build-perftest/perftest*
+          tmp/builds/build-perftest/memtest*
+

@@ -48,7 +48,7 @@ class ErrorHandler {
 public:
     // Execute function with OpenCV exception handling
     template<typename Func, typename ReturnType>
-    static bool safe_execute_cv(Func&& func, ReturnType& result, 
+    static bool safe_execute_cv(Func&& func, ReturnType& result,
                                ErrorCategory category, const char* operation_name) noexcept {
         return OpenCVGuard::execute_or([func = std::forward<Func>(func), &result, category, operation_name]() -> bool {
             try {
@@ -114,15 +114,15 @@ public:
     }
 
     // Log critical errors with escalation
-    static void log_critical_error(ErrorCategory category, const char* operation_name, 
+    static void log_critical_error(ErrorCategory category, const char* operation_name,
                                   const char* details = nullptr);
 
     // Log standard errors
-    static void log_error(ErrorCategory category, const char* operation_name, 
+    static void log_error(ErrorCategory category, const char* operation_name,
                          const char* details = nullptr);
 
     // Log warnings with context
-    static void log_warning(ErrorCategory category, const char* operation_name, 
+    static void log_warning(ErrorCategory category, const char* operation_name,
                            const char* details = nullptr);
 
     // Get error category name for logging
@@ -130,10 +130,10 @@ public:
 
 private:
 #if STABILIZER_OPENCV_AVAILABLE
-    static void handle_opencv_error(const cv::Exception& e, ErrorCategory category, 
+    static void handle_opencv_error(const cv::Exception& e, ErrorCategory category,
                                    const char* operation_name);
 #endif
-    static void handle_standard_error(const std::exception& e, ErrorCategory category, 
+    static void handle_standard_error(const std::exception& e, ErrorCategory category,
                                      const char* operation_name);
     static void log_stub_mode_warning(const char* operation_name);
 };

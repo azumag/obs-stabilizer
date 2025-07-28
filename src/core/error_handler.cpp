@@ -14,18 +14,18 @@ the Free Software Foundation; either version 2 of the License, or
 namespace obs_stabilizer {
 
 #ifdef ENABLE_STABILIZATION
-void ErrorHandler::handle_opencv_error(const cv::Exception& e, ErrorCategory category, 
+void ErrorHandler::handle_opencv_error(const cv::Exception& e, ErrorCategory category,
                                       const char* operation_name) {
     const char* category_name = get_category_name(category);
-    STABILIZER_LOG_ERROR( "[%s] OpenCV error in %s: %s (code: %d, file: %s, line: %d)", 
+    STABILIZER_LOG_ERROR( "[%s] OpenCV error in %s: %s (code: %d, file: %s, line: %d)",
             category_name, operation_name, e.what(), e.code, e.file.c_str(), e.line);
 }
 #endif
 
-void ErrorHandler::handle_standard_error(const std::exception& e, ErrorCategory category, 
+void ErrorHandler::handle_standard_error(const std::exception& e, ErrorCategory category,
                                         const char* operation_name) {
     const char* category_name = get_category_name(category);
-    STABILIZER_LOG_ERROR( "[%s] Standard error in %s: %s", 
+    STABILIZER_LOG_ERROR( "[%s] Standard error in %s: %s",
             category_name, operation_name, e.what());
 }
 
@@ -33,7 +33,7 @@ void ErrorHandler::log_stub_mode_warning(const char* operation_name) {
     STABILIZER_LOG_INFO( "Stub mode: %s skipped (OpenCV not available)", operation_name);
 }
 
-void ErrorHandler::log_critical_error(ErrorCategory category, const char* operation_name, 
+void ErrorHandler::log_critical_error(ErrorCategory category, const char* operation_name,
                                      const char* details) {
     const char* category_name = get_category_name(category);
     if (details) {
@@ -43,7 +43,7 @@ void ErrorHandler::log_critical_error(ErrorCategory category, const char* operat
     }
 }
 
-void ErrorHandler::log_error(ErrorCategory category, const char* operation_name, 
+void ErrorHandler::log_error(ErrorCategory category, const char* operation_name,
                             const char* details) {
     const char* category_name = get_category_name(category);
     if (details) {
@@ -53,7 +53,7 @@ void ErrorHandler::log_error(ErrorCategory category, const char* operation_name,
     }
 }
 
-void ErrorHandler::log_warning(ErrorCategory category, const char* operation_name, 
+void ErrorHandler::log_warning(ErrorCategory category, const char* operation_name,
                               const char* details) {
     const char* category_name = get_category_name(category);
     if (details) {

@@ -8,15 +8,15 @@ set -e
 echo "=== OBS Stabilizer Plugin Build Script ==="
 echo "Building OBS Stabilizer Plugin for macOS..."
 
-# Clean build directory
+# Clean build directory - use consolidated tmp location
 echo "Cleaning build directory..."
-rm -rf build
-mkdir -p build
+rm -rf tmp/builds/build
+mkdir -p tmp/builds/build
 
 # Configure with CMake
 echo "Configuring with CMake..."
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cd tmp/builds/build
+cmake ../../.. -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
 # Build the plugin
 echo "Building plugin..."
@@ -37,7 +37,7 @@ if [ -d "obs-stabilizer.plugin" ]; then
     echo "   sudo rm -f '/Applications/OBS.app/Contents/PlugIns/obs-stabilizer-0.1.0'"
     echo ""
     echo "2. Copy the plugin bundle to OBS:"
-    echo "   sudo cp -r build/obs-stabilizer.plugin '/Applications/OBS.app/Contents/PlugIns/'"
+    echo "   sudo cp -r tmp/builds/build/obs-stabilizer.plugin '/Applications/OBS.app/Contents/PlugIns/'"
     echo ""
     echo "3. Set correct permissions:"
     echo "   sudo chmod -R 755 '/Applications/OBS.app/Contents/PlugIns/obs-stabilizer.plugin'"

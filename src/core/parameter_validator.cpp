@@ -19,19 +19,19 @@ ValidationResult ParameterValidator::validate_frame_basic(frame_t* frame) {
     if (!frame) {
         return ValidationResult(false, "Frame pointer is null");
     }
-    
+
     if (!get_frame_data(frame, 0)) {
         return ValidationResult(false, "Frame data[0] is null");
     }
-    
+
     if (get_frame_width(frame) == 0 || get_frame_height(frame) == 0) {
         return ValidationResult(false, "Frame dimensions are zero");
     }
-    
+
     if (!is_valid_video_format(get_frame_format(frame))) {
         return ValidationResult(false, "Unsupported video format");
     }
-    
+
     return ValidationResult(true);
 }
 
@@ -40,24 +40,24 @@ ValidationResult ParameterValidator::validate_frame_dimensions(frame_t* frame) {
     if (!basic_validation) {
         return basic_validation;
     }
-    
+
     // Validate frame dimensions to prevent integer overflow
-    if (get_frame_width(frame) > StabilizerConstants::MAX_FRAME_WIDTH || 
+    if (get_frame_width(frame) > StabilizerConstants::MAX_FRAME_WIDTH ||
         get_frame_height(frame) > StabilizerConstants::MAX_FRAME_HEIGHT) {
         return ValidationResult(false, "Frame dimensions too large");
     }
-    
+
     // Check for potential integer overflow in size calculations
     if (check_integer_overflow(get_frame_width(frame), get_frame_height(frame))) {
         return ValidationResult(false, "Frame size would cause integer overflow");
     }
-    
-    // Validate minimum size for feature detection  
-    if (get_frame_width(frame) < StabilizerConstants::MIN_FEATURE_DETECTION_SIZE || 
+
+    // Validate minimum size for feature detection
+    if (get_frame_width(frame) < StabilizerConstants::MIN_FEATURE_DETECTION_SIZE ||
         get_frame_height(frame) < StabilizerConstants::MIN_FEATURE_DETECTION_SIZE) {
         return ValidationResult(false, "Frame too small for reliable feature detection");
     }
-    
+
     return ValidationResult(true);
 }
 
@@ -66,23 +66,23 @@ ValidationResult ParameterValidator::validate_frame_nv12(frame_t* frame) {
     if (!basic_validation) {
         return basic_validation;
     }
-    
+
     if (get_frame_format(frame) != StabilizerConstants::VIDEO_FORMAT_NV12) {
         return ValidationResult(false, "Frame is not NV12 format");
     }
-    
+
     // Validate Y plane
     if (get_frame_linesize(frame, 0) < get_frame_width(frame)) {
         return ValidationResult(false, "NV12 Y plane linesize too small");
     }
-    
+
     // Validate UV plane (if present)
     if (get_frame_data(frame, 1)) {
         if (get_frame_linesize(frame, 1) < get_frame_width(frame)) {
             return ValidationResult(false, "NV12 UV plane linesize too small");
         }
     }
-    
+
     return ValidationResult(true);
 }
 
@@ -91,30 +91,30 @@ ValidationResult ParameterValidator::validate_frame_i420(frame_t* frame) {
     if (!basic_validation) {
         return basic_validation;
     }
-    
+
     if (get_frame_format(frame) != StabilizerConstants::VIDEO_FORMAT_I420) {
         return ValidationResult(false, "Frame is not I420 format");
     }
-    
+
     // Validate Y plane
     if (get_frame_linesize(frame, 0) < get_frame_width(frame)) {
         return ValidationResult(false, "I420 Y plane linesize too small");
     }
-    
+
     // Validate U plane
     if (get_frame_data(frame, 1)) {
         if (get_frame_linesize(frame, 1) < get_frame_width(frame) / 2) {
             return ValidationResult(false, "I420 U plane linesize too small");
         }
     }
-    
+
     // Validate V plane
     if (get_frame_data(frame, 2)) {
         if (get_frame_linesize(frame, 2) < get_frame_width(frame) / 2) {
             return ValidationResult(false, "I420 V plane linesize too small");
         }
     }
-    
+
     return ValidationResult(true);
 }
 
@@ -131,11 +131,11 @@ ValidationResult ParameterValidator::validate_matrix_size(const cv::Mat& mat, in
     if (!empty_check) {
         return empty_check;
     }
-    
+
     if (mat.rows < min_rows || mat.cols < min_cols) {
         return ValidationResult(false, matrix_name ? matrix_name : "Matrix size insufficient");
     }
-    
+
     return ValidationResult(true);
 }
 
@@ -144,56 +144,56 @@ ValidationResult ParameterValidator::validate_transform_matrix(const cv::Mat& tr
     if (!size_check) {
         return size_check;
     }
-    
+
     // Validate transform values for reasonableness
     double dx = transform.at<double>(0, 2);
     double dy = transform.at<double>(1, 2);
     double a = transform.at<double>(0, 0);
     double b = transform.at<double>(0, 1);
-    
+
     // Check for NaN/infinite values
     if (std::isnan(dx) || std::isinf(dx) || std::isnan(dy) || std::isinf(dy) ||
         std::isnan(a) || std::isinf(a) || std::isnan(b) || std::isinf(b)) {
         return ValidationResult(false, "Transform contains invalid values (NaN/Inf)");
     }
-    
+
     // Calculate scale with protection against negative values
     double scale_squared = a * a + b * b;
     if (scale_squared < 0.0) {
         return ValidationResult(false, "Transform scale calculation error");
     }
     double scale = std::sqrt(scale_squared);
-    
-    if (std::abs(dx) > StabilizerConstants::MAX_TRANSLATION || 
+
+    if (std::abs(dx) > StabilizerConstants::MAX_TRANSLATION ||
         std::abs(dy) > StabilizerConstants::MAX_TRANSLATION) {
         return ValidationResult(false, "Transform translation values too large");
     }
-    
-    if (scale < StabilizerConstants::MIN_SCALE_FACTOR || 
+
+    if (scale < StabilizerConstants::MIN_SCALE_FACTOR ||
         scale > StabilizerConstants::MAX_SCALE_FACTOR) {
         return ValidationResult(false, "Transform scale values unreasonable");
     }
-    
+
     return ValidationResult(true);
 }
 
-ValidationResult ParameterValidator::validate_feature_points(const std::vector<cv::Point2f>& points, 
+ValidationResult ParameterValidator::validate_feature_points(const std::vector<cv::Point2f>& points,
                                                            size_t min_count, const char* points_name) {
     if (points.size() < min_count) {
         return ValidationResult(false, points_name ? points_name : "Insufficient feature points");
     }
-    
+
     return ValidationResult(true);
 }
 #endif
 
 ValidationResult ParameterValidator::validate_smoothing_radius(int radius) {
-    return validate_range_integer(radius, StabilizerConstants::MIN_SMOOTHING_RADIUS, 
+    return validate_range_integer(radius, StabilizerConstants::MIN_SMOOTHING_RADIUS,
                                  StabilizerConstants::MAX_SMOOTHING_RADIUS, "Smoothing radius");
 }
 
 ValidationResult ParameterValidator::validate_feature_count(int count) {
-    return validate_range_integer(count, StabilizerConstants::MIN_FEATURES_REQUIRED, 
+    return validate_range_integer(count, StabilizerConstants::MIN_FEATURES_REQUIRED,
                                  StabilizerConstants::MAX_FEATURES_DEFAULT, "Feature count");
 }
 
@@ -234,11 +234,11 @@ ValidationResult ParameterValidator::validate_array_access(const void* array, si
     if (!null_check) {
         return null_check;
     }
-    
+
     if (index >= max_size) {
         return ValidationResult(false, array_name ? array_name : "Array index out of bounds");
     }
-    
+
     return ValidationResult(true);
 }
 
@@ -251,28 +251,28 @@ ValidationResult ParameterValidator::validate_buffer_size(size_t actual_size, si
 
 // Private helper methods
 bool ParameterValidator::is_valid_video_format(uint32_t format) {
-    return format == StabilizerConstants::VIDEO_FORMAT_NV12 || 
+    return format == StabilizerConstants::VIDEO_FORMAT_NV12 ||
            format == StabilizerConstants::VIDEO_FORMAT_I420;
 }
 
 bool ParameterValidator::check_integer_overflow(uint32_t width, uint32_t height) {
     // Check for zero dimensions first (division by zero protection)
     if (width == 0 || height == 0) return true;
-    
+
     // Safe overflow check without potential division by zero
     // Use 64-bit arithmetic to detect 32-bit overflow
     uint64_t total_pixels = (uint64_t)width * height;
-    
+
     // Check for overflow in pixel count calculation
     if (total_pixels > UINT32_MAX) return true;
-    
+
     // Check for overflow in byte size calculation (4 bytes per pixel maximum)
     if (total_pixels > SIZE_MAX / 4) return true;
-    
+
     // Additional safety check for reasonable frame dimensions
-    if (width > StabilizerConstants::MAX_FRAME_WIDTH || 
+    if (width > StabilizerConstants::MAX_FRAME_WIDTH ||
         height > StabilizerConstants::MAX_FRAME_HEIGHT) return true;
-    
+
     return false;
 }
 

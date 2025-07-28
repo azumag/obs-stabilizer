@@ -25,25 +25,25 @@ struct obs_source_frame {
 
 void test_core_compilation() {
     using namespace obs_stabilizer;
-    
+
     // Test basic instantiation
     auto core = std::make_unique<StabilizerCore>();
-    
+
     // Test configuration
     StabilizerConfig config;
     config.smoothing_radius = 30;
     config.max_features = 200;
     config.enable_stabilization = true;
-    
+
     // Test initialization (should work even without OpenCV at runtime)
     bool init_result = core->initialize(config);
-    
+
     // Test status query
     StabilizerStatus status = core->get_status();
-    
+
     // Test metrics query
     StabilizerMetrics metrics = core->get_metrics();
-    
+
     std::cout << "✅ StabilizerCore compilation test PASSED" << std::endl;
     std::cout << "   - Configuration: smoothing_radius=" << config.smoothing_radius << std::endl;
     std::cout << "   - Initial status: " << static_cast<int>(status) << std::endl;
@@ -56,7 +56,7 @@ void test_core_compilation() {
 
 void test_obs_integration_compilation() {
     using namespace obs_stabilizer;
-    
+
     // Test static methods exist (compilation only)
     std::cout << "✅ OBSIntegration compilation test PASSED" << std::endl;
     std::cout << "   - All required static methods compile successfully" << std::endl;
@@ -64,24 +64,24 @@ void test_obs_integration_compilation() {
 
 int main() {
     std::cout << "=== OBS Stabilizer Modular Architecture Compilation Test ===" << std::endl;
-    
+
     try {
         #ifdef ENABLE_STABILIZATION
         test_core_compilation();
-        #else 
+        #else
         std::cout << "⚠️  StabilizerCore test SKIPPED (ENABLE_STABILIZATION not defined)" << std::endl;
         #endif
-        
+
         test_obs_integration_compilation();
-        
+
         std::cout << std::endl;
         std::cout << "🎉 ALL COMPILATION TESTS PASSED" << std::endl;
         std::cout << "   - Modular architecture compiles successfully" << std::endl;
         std::cout << "   - Core interfaces are properly defined" << std::endl;
         std::cout << "   - Ready for runtime testing with full dependencies" << std::endl;
-        
+
         return 0;
-        
+
     } catch (const std::exception& e) {
         std::cerr << "❌ COMPILATION TEST FAILED: " << e.what() << std::endl;
         return 1;

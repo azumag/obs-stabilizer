@@ -45,14 +45,14 @@ MODULE_EXPORT const char *obs_module_description(void)
 MODULE_EXPORT bool obs_module_load(void)
 {
     obs_log(LOG_INFO, "Loading OBS Stabilizer Plugin v%s", PLUGIN_VERSION);
-    
+
 #ifdef ENABLE_STABILIZATION
     obs_log(LOG_INFO, "OpenCV version: %s", CV_VERSION);
     obs_log(LOG_INFO, "Stabilization features: ENABLED");
 #else
     obs_log(LOG_WARNING, "Stabilization features: DISABLED (OpenCV not found)");
 #endif
-    
+
     // Initialize the OBS integration layer
     return obs_stabilizer::OBSIntegration::plugin_load();
 }
@@ -60,7 +60,7 @@ MODULE_EXPORT bool obs_module_load(void)
 MODULE_EXPORT void obs_module_unload(void)
 {
     obs_log(LOG_INFO, "Unloading OBS Stabilizer Plugin");
-    
+
     // Clean up the OBS integration layer
     obs_stabilizer::OBSIntegration::plugin_unload();
 }
@@ -71,17 +71,17 @@ MODULE_EXPORT void obs_module_unload(void)
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
     printf("OBS Stabilizer Plugin v%s - Standalone Test Mode\n", PLUGIN_VERSION);
-    
+
 #ifdef ENABLE_STABILIZATION
     printf("OpenCV version: %s\n", CV_VERSION);
     printf("Stabilization features: ENABLED\n");
 #else
     printf("Stabilization features: DISABLED (OpenCV not found)\n");
 #endif
-    
+
     printf("Standalone test mode - for development without OBS installation\n");
     printf("To build as OBS plugin, install OBS headers and rebuild\n");
-    
+
     return 0;
 }
 

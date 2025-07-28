@@ -21,7 +21,7 @@ the Free Software Foundation; either version 2 of the License, or
     // Standalone mode - use printf/fprintf
     #include <cstdio>
     #include <cstdarg>
-    
+
     namespace obs_stabilizer {
         inline void stabilizer_log(const char* level, const char* fmt, ...) {
             va_list args;
@@ -32,7 +32,7 @@ the Free Software Foundation; either version 2 of the License, or
             va_end(args);
         }
     }
-    
+
     #define STABILIZER_LOG_INFO(fmt, ...) obs_stabilizer::stabilizer_log("INFO", fmt, ##__VA_ARGS__)
     #define STABILIZER_LOG_WARNING(fmt, ...) obs_stabilizer::stabilizer_log("WARNING", fmt, ##__VA_ARGS__)
     #define STABILIZER_LOG_ERROR(fmt, ...) obs_stabilizer::stabilizer_log("ERROR", fmt, ##__VA_ARGS__)

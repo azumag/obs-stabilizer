@@ -22,7 +22,7 @@ struct TransformMatrix::Impl {
 #ifdef ENABLE_STABILIZATION
     cv::Mat opencv_matrix;
     bool has_opencv = true;
-    
+
     Impl() : opencv_matrix(cv::Mat::eye(2, 3, CV_64F)), has_opencv(true) {}
     explicit Impl(const cv::Mat& mat) : opencv_matrix(mat.clone()), has_opencv(true) {}
 #else
@@ -31,7 +31,7 @@ struct TransformMatrix::Impl {
 #endif
 };
 
-TransformMatrix::TransformMatrix() 
+TransformMatrix::TransformMatrix()
     : pimpl_(std::make_unique<Impl>())
     , fallback_data_{{1.0, 0.0, 0.0, 1.0, 0.0, 0.0}} // Identity matrix
     , has_fallback_data_(true) {
@@ -110,11 +110,11 @@ bool TransformMatrix::has_opencv_data() const {
 
 bool TransformMatrix::is_identity() const {
     if (!has_fallback_data_) return false;
-    
+
     const double epsilon = 1e-9;
     return (std::abs(fallback_data_[0] - 1.0) < epsilon &&  // a
             std::abs(fallback_data_[1]) < epsilon &&         // b
-            std::abs(fallback_data_[2]) < epsilon &&         // c  
+            std::abs(fallback_data_[2]) < epsilon &&         // c
             std::abs(fallback_data_[3] - 1.0) < epsilon &&  // d
             std::abs(fallback_data_[4]) < epsilon &&         // tx
             std::abs(fallback_data_[5]) < epsilon);          // ty
@@ -122,7 +122,7 @@ bool TransformMatrix::is_identity() const {
 
 bool TransformMatrix::is_valid() const {
     if (!has_fallback_data_) return false;
-    
+
     // Check for NaN or infinite values
     for (double val : fallback_data_) {
         if (std::isnan(val) || std::isinf(val)) {
@@ -151,7 +151,7 @@ double TransformMatrix::get_translation_y() const {
 
 double TransformMatrix::get_scale() const {
     if (!has_fallback_data_) return 1.0;
-    
+
     // Calculate scale from transformation matrix
     double a = fallback_data_[0];
     double b = fallback_data_[1];
@@ -160,7 +160,7 @@ double TransformMatrix::get_scale() const {
 
 double TransformMatrix::get_rotation() const {
     if (!has_fallback_data_) return 0.0;
-    
+
     // Calculate rotation from transformation matrix
     double a = fallback_data_[0];
     double b = fallback_data_[1];
@@ -169,7 +169,7 @@ double TransformMatrix::get_rotation() const {
 
 void TransformMatrix::set_translation(double dx, double dy) {
     if (!has_fallback_data_) reset_to_identity();
-    
+
     fallback_data_[4] = dx;
     fallback_data_[5] = dy;
     update_opencv_from_fallback();
@@ -177,7 +177,7 @@ void TransformMatrix::set_translation(double dx, double dy) {
 
 void TransformMatrix::set_scale(double scale) {
     if (!has_fallback_data_) reset_to_identity();
-    
+
     double current_rotation = get_rotation();
     fallback_data_[0] = scale * std::cos(current_rotation);
     fallback_data_[1] = scale * std::sin(current_rotation);
@@ -188,7 +188,7 @@ void TransformMatrix::set_scale(double scale) {
 
 void TransformMatrix::set_rotation(double radians) {
     if (!has_fallback_data_) reset_to_identity();
-    
+
     double current_scale = get_scale();
     fallback_data_[0] = current_scale * std::cos(radians);
     fallback_data_[1] = current_scale * std::sin(radians);
@@ -222,37 +222,37 @@ TransformMatrix& TransformMatrix::operator*=(const TransformMatrix& other) {
         clear();
         return *this;
     }
-    
+
     // Matrix multiplication for 2x3 affine transformation
     // [a c tx]   [a' c' tx']   [a*a'+b*c'   a*c'+b*d'   a*tx'+b*ty'+tx]
     // [b d ty] * [b' d' ty'] = [b*a'+d*c'   b*c'+d*d'   b*tx'+d*ty'+ty]
-    //                         
+    //
     double a = fallback_data_[0], b = fallback_data_[1];
     double c = fallback_data_[2], d = fallback_data_[3];
     double tx = fallback_data_[4], ty = fallback_data_[5];
-    
+
     double a2 = other.fallback_data_[0], b2 = other.fallback_data_[1];
     double c2 = other.fallback_data_[2], d2 = other.fallback_data_[3];
     double tx2 = other.fallback_data_[4], ty2 = other.fallback_data_[5];
-    
+
     fallback_data_[0] = a * a2 + b * c2;  // new a
     fallback_data_[1] = a * b2 + b * d2;  // new b
     fallback_data_[2] = c * a2 + d * c2;  // new c
     fallback_data_[3] = c * b2 + d * d2;  // new d
     fallback_data_[4] = a * tx2 + b * ty2 + tx;  // new tx
     fallback_data_[5] = c * tx2 + d * ty2 + ty;  // new ty
-    
+
     update_opencv_from_fallback();
     return *this;
 }
 
 bool TransformMatrix::is_reasonable() const {
     if (!is_valid()) return false;
-    
+
     double scale = get_scale();
     double tx = get_translation_x();
     double ty = get_translation_y();
-    
+
     // Check for reasonable transform values
     return (scale >= 0.5 && scale <= 2.0 &&
             std::abs(tx) <= 100.0 &&
@@ -263,9 +263,9 @@ std::string TransformMatrix::to_string() const {
     if (!has_fallback_data_) {
         return "TransformMatrix(empty)";
     }
-    
+
     std::ostringstream oss;
-    oss << "TransformMatrix([" 
+    oss << "TransformMatrix(["
         << fallback_data_[0] << ", " << fallback_data_[2] << ", " << fallback_data_[4] << "; "
         << fallback_data_[1] << ", " << fallback_data_[3] << ", " << fallback_data_[5] << "])";
     return oss.str();
@@ -284,23 +284,23 @@ void TransformMatrix::set_raw_data(const std::array<double, 6>& data) {
 // Private helper methods
 void TransformMatrix::update_fallback_from_opencv() {
 #ifdef ENABLE_STABILIZATION
-    if (pimpl_->has_opencv && !pimpl_->opencv_matrix.empty() && 
+    if (pimpl_->has_opencv && !pimpl_->opencv_matrix.empty() &&
         pimpl_->opencv_matrix.rows >= 2 && pimpl_->opencv_matrix.cols >= 3 &&
         pimpl_->opencv_matrix.type() == CV_64F) {
-        
+
         bool extraction_success = ErrorHandler::safe_execute_bool([&]() -> bool {
             // Validate matrix bounds before access
             if (pimpl_->opencv_matrix.rows < 2 || pimpl_->opencv_matrix.cols < 3) {
                 return false;
             }
-            
+
             fallback_data_[0] = pimpl_->opencv_matrix.at<double>(0, 0); // a
             fallback_data_[1] = pimpl_->opencv_matrix.at<double>(1, 0); // b
             fallback_data_[2] = pimpl_->opencv_matrix.at<double>(0, 1); // c
             fallback_data_[3] = pimpl_->opencv_matrix.at<double>(1, 1); // d
             fallback_data_[4] = pimpl_->opencv_matrix.at<double>(0, 2); // tx
             fallback_data_[5] = pimpl_->opencv_matrix.at<double>(1, 2); // ty
-            
+
             // Validate extracted values
             bool valid = true;
             for (double val : fallback_data_) {
@@ -309,10 +309,10 @@ void TransformMatrix::update_fallback_from_opencv() {
                     break;
                 }
             }
-            
+
             return valid;
         }, ErrorCategory::OPENCV_INTERNAL, "update_fallback_from_opencv");
-        
+
         has_fallback_data_ = extraction_success;
     }
 #endif
@@ -369,15 +369,15 @@ bool is_transform_reasonable(const TransformMatrix& transform) {
 TransformMatrix interpolate(const TransformMatrix& a, const TransformMatrix& b, double t) {
     if (t <= 0.0) return a;
     if (t >= 1.0) return b;
-    
+
     auto data_a = a.get_raw_data();
     auto data_b = b.get_raw_data();
-    
+
     std::array<double, 6> result;
     for (size_t i = 0; i < 6; ++i) {
         result[i] = data_a[i] * (1.0 - t) + data_b[i] * t;
     }
-    
+
     TransformMatrix interpolated;
     interpolated.set_raw_data(result);
     return interpolated;
@@ -387,23 +387,23 @@ TransformMatrix average_transforms(const std::vector<TransformMatrix>& transform
     if (transforms.empty()) {
         return create_identity();
     }
-    
+
     std::array<double, 6> average_data = {{0.0, 0.0, 0.0, 0.0, 0.0, 0.0}};
-    
+
     for (const auto& transform : transforms) {
         auto data = transform.get_raw_data();
         for (size_t i = 0; i < 6; ++i) {
             average_data[i] += data[i];
         }
     }
-    
+
     double count = static_cast<double>(transforms.size());
     if (count > 0.0) {  // Division by zero protection
         for (double& val : average_data) {
             val /= count;
         }
     }
-    
+
     TransformMatrix result;
     result.set_raw_data(average_data);
     return result;

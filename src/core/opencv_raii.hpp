@@ -21,17 +21,17 @@ class CVMatGuard {
 public:
     explicit CVMatGuard(cv::Mat&& mat) : mat_(std::move(mat)) {}
     explicit CVMatGuard(const cv::Mat& mat) : mat_(mat.clone()) {}
-    
-    ~CVMatGuard() { 
+
+    ~CVMatGuard() {
         if (!mat_.empty()) {
-            mat_.release(); 
+            mat_.release();
         }
     }
-    
+
     // Non-copyable but movable
     CVMatGuard(const CVMatGuard&) = delete;
     CVMatGuard& operator=(const CVMatGuard&) = delete;
-    
+
     CVMatGuard(CVMatGuard&& other) noexcept : mat_(std::move(other.mat_)) {}
     CVMatGuard& operator=(CVMatGuard&& other) noexcept {
         if (this != &other) {
@@ -42,12 +42,12 @@ public:
         }
         return *this;
     }
-    
+
     const cv::Mat& get() const { return mat_; }
     cv::Mat& get() { return mat_; }
-    
+
     bool empty() const { return mat_.empty(); }
-    
+
 private:
     cv::Mat mat_;
 };
@@ -55,18 +55,18 @@ private:
 // RAII wrapper for vector of Points
 class CVPointsGuard {
 public:
-    explicit CVPointsGuard(std::vector<cv::Point2f>&& points) 
+    explicit CVPointsGuard(std::vector<cv::Point2f>&& points)
         : points_(std::move(points)) {}
-    
+
     ~CVPointsGuard() {
         points_.clear();
         points_.shrink_to_fit();
     }
-    
+
     // Non-copyable but movable
     CVPointsGuard(const CVPointsGuard&) = delete;
     CVPointsGuard& operator=(const CVPointsGuard&) = delete;
-    
+
     CVPointsGuard(CVPointsGuard&& other) noexcept : points_(std::move(other.points_)) {}
     CVPointsGuard& operator=(CVPointsGuard&& other) noexcept {
         if (this != &other) {
@@ -74,13 +74,13 @@ public:
         }
         return *this;
     }
-    
+
     const std::vector<cv::Point2f>& get() const { return points_; }
     std::vector<cv::Point2f>& get() { return points_; }
-    
+
     size_t size() const { return points_.size(); }
     bool empty() const { return points_.empty(); }
-    
+
 private:
     std::vector<cv::Point2f> points_;
 };

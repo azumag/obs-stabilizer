@@ -13,11 +13,11 @@ jobs:
       release_id: ${{ steps.create_release.outputs.id }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    - uses: actions/checkout@v4
-    
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
     - name: Create Release
       id: create_release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191
       with:
         tag_name: ${{ github.ref_name }}
         name: OBS Stabilizer ${{ github.ref_name }}
@@ -34,38 +34,38 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: obs-stabilizer-linux.tar.gz
-          - os: windows-latest  
+          - os: windows-latest
             asset_name: obs-stabilizer-windows.zip
           - os: macos-latest
             asset_name: obs-stabilizer-macos.tar.gz
     runs-on: ${{ matrix.os }}
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
+    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
     - name: Install dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build build-essential libopencv-dev pkg-config
-    
+
     - name: Install dependencies (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         vcpkg install opencv:x64-windows
-    
+
     - name: Install dependencies (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         brew install cmake ninja opencv pkg-config
-    
+
     - name: Build
       run: |
         mkdir build
         cd build
         cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=ON
         ninja
-    
+
     - name: Package (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -74,7 +74,7 @@ jobs:
         cp README.md LICENSE package/obs-stabilizer/
         cd package
         tar -czf ../obs-stabilizer-linux.tar.gz obs-stabilizer/
-    
+
     - name: Package (Windows)
       if: matrix.os == 'windows-latest'
       run: |
@@ -84,7 +84,7 @@ jobs:
         copy LICENSE package\obs-stabilizer\
         cd package
         powershell Compress-Archive -Path obs-stabilizer -DestinationPath ..\obs-stabilizer-windows.zip
-    
+
     - name: Package (macOS)
       if: matrix.os == 'macos-latest'
       run: |
@@ -94,9 +94,10 @@ jobs:
         cp README.md LICENSE package/obs-stabilizer/
         cd package
         tar -czf ../obs-stabilizer-macos.tar.gz obs-stabilizer/
-    
+
     - name: Upload Release Asset
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191
       with:
         tag_name: ${{ github.ref_name }}
         files: ./${{ matrix.asset_name }}
+

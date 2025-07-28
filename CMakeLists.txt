@@ -29,12 +29,23 @@ option(BUILD_STANDALONE "Build as standalone library instead of OBS plugin" OFF)
 if(BUILD_STANDALONE)
     add_library(${CMAKE_PROJECT_NAME} SHARED)
     message(STATUS "Building as standalone library (BUILD_STANDALONE=ON)")
-elseif(OBS_INCLUDE_DIR)
-    add_library(${CMAKE_PROJECT_NAME} SHARED)
-    message(STATUS "Building as OBS plugin (shared library)")
 else()
-    add_executable(${CMAKE_PROJECT_NAME})
-    message(STATUS "Building as standalone executable for testing")
+    # Try to find OBS headers
+    find_path(OBS_HEADERS_FOUND obs-module.h 
+        PATHS 
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/obs
+            /usr/include/obs
+            /usr/local/include/obs
+        NO_DEFAULT_PATH
+    )
+    
+    if(OBS_HEADERS_FOUND)
+        add_library(${CMAKE_PROJECT_NAME} SHARED)
+        message(STATUS "Building as OBS plugin (OBS headers found)")
+    else()
+        add_executable(${CMAKE_PROJECT_NAME})
+        message(STATUS "Building as standalone executable (no OBS headers found)")
+    endif()
 endif()
 
 # Find minimal OBS headers for plugin development

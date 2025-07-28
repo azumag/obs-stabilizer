@@ -32,17 +32,17 @@ namespace obs_stabilizer {
 struct StabilizerConfig {
     // Core stabilization parameters
     int smoothing_radius = 30;        // Range: 10-100, UI: Slider
-    int max_features = 200;           // Range: 100-1000, UI: Number input  
+    int max_features = 200;           // Range: 100-1000, UI: Number input
     float error_threshold = 30.0f;    // Range: 10.0-100.0, UI: Slider
-    
+
     // User-facing toggles
     bool enable_stabilization = true; // UI: Checkbox
-    
+
     // Advanced parameters (collapsible section)
     float min_feature_quality = 0.01f;  // Range: 0.001-0.1, UI: Advanced slider
     int refresh_threshold = 25;         // Range: 10-50, UI: Advanced number
     bool adaptive_refresh = true;       // UI: Advanced checkbox
-    
+
     // Output options
     enum class OutputMode {
         CROP,           // Crop to remove black borders (default)
@@ -50,7 +50,7 @@ struct StabilizerConfig {
         SCALE_FIT       // Scale to fit, may cause slight distortion
     };
     OutputMode output_mode = OutputMode::CROP; // UI: Radio buttons
-    
+
     // Preset system
     enum class PresetMode {
         CUSTOM,         // User-defined settings
@@ -59,7 +59,7 @@ struct StabilizerConfig {
         RECORDING       // High quality for post-production (slow response)
     };
     PresetMode preset = PresetMode::STREAMING; // UI: Dropdown
-    
+
     // Performance settings
     bool enable_gpu_acceleration = false;  // UI: Advanced checkbox
     int processing_threads = 1;            // Range: 1-8, UI: Advanced slider
@@ -79,13 +79,13 @@ enum class StabilizerStatus {
 struct StabilizerMetrics {
     uint32_t tracked_features = 0;
     float processing_time_ms = 0.0f;
-    
+
     // Enhanced diagnostic metrics
     float feature_detection_time_ms = 0.0f;
     float optical_flow_time_ms = 0.0f;
     float transform_calc_time_ms = 0.0f;
     float smoothing_time_ms = 0.0f;
-    
+
     // Quality metrics
     float tracking_success_rate = 0.0f;
     uint32_t features_lost = 0;
@@ -104,7 +104,7 @@ struct TransformResult {
 
 #ifdef ENABLE_STABILIZATION
 // Core stabilization engine class
-// 
+//
 // THREAD SAFETY NOTES:
 // - This class is designed to be used from the OBS video processing thread
 // - Configuration updates (update_configuration) are thread-safe via config_mutex_
@@ -119,17 +119,17 @@ public:
 
     // Initialize stabilizer with configuration
     bool initialize(const StabilizerConfig& config);
-    
+
     // Process a video frame and return transformation result
     TransformResult process_frame(frame_t* frame);
-    
+
     // Update configuration (thread-safe)
     void update_configuration(const StabilizerConfig& config);
-    
+
     // Get current status and metrics
     StabilizerStatus get_status() const;
     StabilizerMetrics get_metrics() const;
-    
+
     // Reset stabilizer state
     void reset();
 
@@ -138,39 +138,39 @@ private:
     mutable std::mutex config_mutex_;
     StabilizerConfig active_config_;
     std::atomic<bool> config_dirty_{false};
-    
+
     // OpenCV processing state
     std::vector<cv::Point2f> previous_points_;
     std::vector<cv::Point2f> current_points_;
     cv::Mat previous_gray_;
-    
+
     // Transform smoothing
     std::vector<TransformMatrix> transform_history_buffer_;
     size_t history_index_ = 0;
     bool history_filled_ = false;
-    
+
     // Status and metrics
     std::atomic<StabilizerStatus> status_{StabilizerStatus::INACTIVE};
     StabilizerMetrics current_metrics_;
     mutable std::mutex metrics_mutex_;
-    
+
     // Frame tracking state
     int frames_since_detection_ = 0;
     int consecutive_failures_ = 0;
-    
+
     // Internal processing methods
     bool detect_features(const cv::Mat& gray_frame);
     bool track_features(const cv::Mat& gray_frame);
     TransformMatrix calculate_transform(const std::vector<cv::Point2f>& prev_pts,
                                        const std::vector<cv::Point2f>& curr_pts);
-    
+
     // Debug and diagnostic methods
     void update_detailed_metrics(const StabilizerMetrics& frame_metrics);
     void log_performance_breakdown() const;
     TransformMatrix smooth_transform(const TransformMatrix& transform);
     void apply_configuration_if_dirty();
     void update_metrics(const TransformResult& result, float processing_time);
-    
+
     // Error recovery
     void handle_tracking_failure();
     void escalate_error();
@@ -181,10 +181,10 @@ class StabilizerCore {
 public:
     StabilizerCore() = default;
     ~StabilizerCore() = default;
-    
+
     bool initialize(const StabilizerConfig&) { return false; }
-    TransformResult process_frame(frame_t*) { 
-        return TransformResult{false, TransformMatrix{}, StabilizerMetrics{}}; 
+    TransformResult process_frame(frame_t*) {
+        return TransformResult{false, TransformMatrix{}, StabilizerMetrics{}};
     }
     void update_configuration(const StabilizerConfig&) {}
     StabilizerStatus get_status() const { return StabilizerStatus::INACTIVE; }

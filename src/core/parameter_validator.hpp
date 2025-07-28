@@ -25,11 +25,11 @@ namespace obs_stabilizer {
 struct ValidationResult {
     bool is_valid = false;
     const char* error_message = nullptr;
-    
+
     ValidationResult() = default;
     ValidationResult(bool valid) : is_valid(valid) {}
     ValidationResult(bool valid, const char* msg) : is_valid(valid), error_message(msg) {}
-    
+
     operator bool() const { return is_valid; }
 };
 
@@ -41,7 +41,7 @@ public:
     static ValidationResult validate_frame_dimensions(frame_t* frame);
     static ValidationResult validate_frame_nv12(frame_t* frame);
     static ValidationResult validate_frame_i420(frame_t* frame);
-    
+
     // OpenCV matrix validation
 #ifdef ENABLE_STABILIZATION
     static ValidationResult validate_matrix_not_empty(const cv::Mat& mat, const char* matrix_name);
@@ -49,17 +49,17 @@ public:
     static ValidationResult validate_transform_matrix(const cv::Mat& transform);
     static ValidationResult validate_feature_points(const std::vector<cv::Point2f>& points, size_t min_count, const char* points_name);
 #endif
-    
+
     // Configuration parameter validation
     static ValidationResult validate_smoothing_radius(int radius);
     static ValidationResult validate_feature_count(int count);
     static ValidationResult validate_threshold_value(double threshold, double min_val, double max_val, const char* param_name);
-    
+
     // Numeric bounds validation
     static ValidationResult validate_positive_integer(int value, const char* param_name);
     static ValidationResult validate_range_integer(int value, int min_val, int max_val, const char* param_name);
     static ValidationResult validate_range_double(double value, double min_val, double max_val, const char* param_name);
-    
+
     // Memory safety validation
     static ValidationResult validate_pointer_not_null(const void* ptr, const char* ptr_name);
     static ValidationResult validate_array_access(const void* array, size_t index, size_t max_size, const char* array_name);

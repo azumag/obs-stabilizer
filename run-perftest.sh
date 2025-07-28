@@ -12,7 +12,7 @@ echo "Building and running performance verification prototype..."
 cd src
 
 # Clean previous build
-rm -rf build-perftest
+rm -rf ../tmp/builds/build-perftest
 
 # Configure with CMAKE (try multiple possible cmake locations)
 CMAKE_CMD=""
@@ -32,10 +32,10 @@ fi
 
 # Build the performance test
 echo "Configuring build..."
-$CMAKE_CMD -S . -B build-perftest -f CMakeLists-perftest.txt -DCMAKE_BUILD_TYPE=Release
+$CMAKE_CMD -S . -B ../tmp/builds/build-perftest -f CMakeLists-perftest.txt -DCMAKE_BUILD_TYPE=Release
 
 echo "Building performance test..."
-$CMAKE_CMD --build build-perftest --config Release
+$CMAKE_CMD --build ../tmp/builds/build-perftest --config Release
 
 # Run the performance test
 echo ""
@@ -43,14 +43,14 @@ echo "Running performance test..."
 echo "This will test stabilization performance across different resolutions and settings..."
 echo ""
 
-./build-perftest/perftest
+../tmp/builds/build-perftest/perftest
 
 echo ""
 echo "Running memory stability test..."
 echo "This will test for memory leaks during extended operation..."
 echo ""
 
-./build-perftest/memtest
+../tmp/builds/build-perftest/memtest
 
 echo ""
 echo "=== Performance Testing Complete ==="

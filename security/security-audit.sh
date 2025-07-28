@@ -11,8 +11,8 @@ echo "Starting comprehensive security validation..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Create audit results directory
-AUDIT_DIR="$PROJECT_ROOT/security/audit-results"
+# Create audit results directory - consolidated in tmp/
+AUDIT_DIR="$PROJECT_ROOT/tmp/security-audits"
 mkdir -p "$AUDIT_DIR"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 AUDIT_REPORT="$AUDIT_DIR/security-audit-$TIMESTAMP.md"

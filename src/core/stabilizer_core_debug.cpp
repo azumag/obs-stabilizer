@@ -21,7 +21,7 @@ namespace obs_stabilizer {
 
 void StabilizerCore::update_detailed_metrics(const StabilizerMetrics& frame_metrics) {
     std::lock_guard<std::mutex> lock(metrics_mutex_);
-    
+
     // Thread-safe initialization of static variables
     static std::once_flag init_flag;
     static std::mutex metrics_mutex;
@@ -30,34 +30,34 @@ void StabilizerCore::update_detailed_metrics(const StabilizerMetrics& frame_metr
     static float avg_transform_calc = 0.0f;
     static float avg_smoothing = 0.0f;
     static std::atomic<int> frame_count{0};
-    
+
     std::call_once(init_flag, []() {
         // Static variables are zero-initialized, no additional setup needed
     });
-    
+
     frame_count.fetch_add(1, std::memory_order_relaxed);
-    
+
     // Thread-safe update of averages
     std::lock_guard<std::mutex> static_lock(metrics_mutex);
-    
+
     // Exponential moving average with alpha = 0.1
     const float alpha = 0.1f;
     avg_feature_detection = (1.0f - alpha) * avg_feature_detection + alpha * frame_metrics.feature_detection_time_ms;
     avg_optical_flow = (1.0f - alpha) * avg_optical_flow + alpha * frame_metrics.optical_flow_time_ms;
     avg_transform_calc = (1.0f - alpha) * avg_transform_calc + alpha * frame_metrics.transform_calc_time_ms;
     avg_smoothing = (1.0f - alpha) * avg_smoothing + alpha * frame_metrics.smoothing_time_ms;
-    
+
     // Update current metrics with averages
     current_metrics_.feature_detection_time_ms = avg_feature_detection;
     current_metrics_.optical_flow_time_ms = avg_optical_flow;
     current_metrics_.transform_calc_time_ms = avg_transform_calc;
     current_metrics_.smoothing_time_ms = avg_smoothing;
-    
+
     // Log detailed breakdown at configurable intervals based on framerate
     static int log_interval = 300; // Default: 10 seconds at 30fps
     if (frame_count % log_interval == 0) {
         log_performance_breakdown();
-        
+
         // Adaptive interval based on processing time
         if (frame_metrics.processing_time_ms > 16.0f) { // >16ms suggests <60fps
             log_interval = 150; // 5 seconds at 30fps
@@ -69,7 +69,7 @@ void StabilizerCore::update_detailed_metrics(const StabilizerMetrics& frame_metr
 
 void StabilizerCore::log_performance_breakdown() const {
     std::lock_guard<std::mutex> lock(metrics_mutex_);
-    
+
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2);
     ss << "Performance Breakdown: ";
@@ -80,7 +80,7 @@ void StabilizerCore::log_performance_breakdown() const {
     ss << "Total=" << current_metrics_.processing_time_ms << "ms ";
     ss << "Features=" << current_metrics_.tracked_features;
     ss << " Success=" << (current_metrics_.tracking_success_rate * 100.0f) << "%";
-    
+
     STABILIZER_LOG_INFO( "%s", ss.str().c_str());
 }
 

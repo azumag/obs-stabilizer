@@ -54,13 +54,13 @@ namespace Presets {
     constexpr int GAMING_FEATURES = 150;
     constexpr int GAMING_SMOOTHING = 15;
     constexpr double GAMING_THRESHOLD = 40.0;
-    
+
     // Streaming preset (balanced)
     constexpr int STREAMING_FEATURES = 200;
     constexpr int STREAMING_SMOOTHING = 30;
     constexpr double STREAMING_THRESHOLD = 30.0;
-    
-    // Recording preset (high quality)  
+
+    // Recording preset (high quality)
     constexpr int RECORDING_FEATURES = 400;
     constexpr int RECORDING_SMOOTHING = 50;
     constexpr double RECORDING_THRESHOLD = 20.0;
@@ -71,7 +71,7 @@ namespace UIRanges {
     constexpr int MIN_UI_FEATURES = 100;
     constexpr int MAX_UI_FEATURES = 1000;
     constexpr int MIN_UI_SMOOTHING = 10;
-    constexpr int MAX_UI_SMOOTHING = 100; 
+    constexpr int MAX_UI_SMOOTHING = 100;
     constexpr double MIN_UI_THRESHOLD = 10.0;
     constexpr double MAX_UI_THRESHOLD = 100.0;
 }

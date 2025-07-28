@@ -10,7 +10,7 @@ Provides mock OBS functions and structures for unit testing
 
 // Mock OBS logging levels
 #define LOG_ERROR   100
-#define LOG_WARNING 200  
+#define LOG_WARNING 200
 #define LOG_INFO    300
 #define LOG_DEBUG   400
 
@@ -23,14 +23,14 @@ inline void obs_log(int log_level, const char* format, ...) {
         case LOG_INFO:    level_str = "INFO"; break;
         case LOG_DEBUG:   level_str = "DEBUG"; break;
     }
-    
+
     printf("[%s] ", level_str);
-    
+
     va_list args;
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
-    
+
     printf("\n");
 }
 

@@ -24,15 +24,15 @@ function(fix_macos_plugin_binary TARGET)
     if(OpenCV_FOUND)
         # Add OpenCV rpath entries for different package managers (ignore errors as paths may already exist)
         add_custom_command(TARGET ${TARGET} POST_BUILD
-            COMMAND bash -c "${CMAKE_INSTALL_NAME_TOOL} -add_rpath /opt/homebrew/opt/opencv/lib $<TARGET_FILE:${TARGET}> 2>/dev/null || true"
+            COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath /opt/homebrew/opt/opencv/lib "$<TARGET_FILE:${TARGET}>" || true
             COMMENT "Adding Homebrew OpenCV rpath for macOS plugin"
         )
         add_custom_command(TARGET ${TARGET} POST_BUILD
-            COMMAND bash -c "${CMAKE_INSTALL_NAME_TOOL} -add_rpath /usr/local/lib $<TARGET_FILE:${TARGET}> 2>/dev/null || true"
+            COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath /usr/local/lib "$<TARGET_FILE:${TARGET}>" || true
             COMMENT "Adding /usr/local/lib rpath for macOS plugin"
         )
         add_custom_command(TARGET ${TARGET} POST_BUILD
-            COMMAND bash -c "${CMAKE_INSTALL_NAME_TOOL} -add_rpath /opt/local/lib $<TARGET_FILE:${TARGET}> 2>/dev/null || true"
+            COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath /opt/local/lib "$<TARGET_FILE:${TARGET}>" || true
             COMMENT "Adding MacPorts rpath for macOS plugin"
         )
     endif()
