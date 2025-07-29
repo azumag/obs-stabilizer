@@ -1,4 +1,4 @@
-# Test Suite CMakeLists.txt for OBS Stabilizer Plugin
+# Test Suite CMakeLists.txt for OBS Stabilizer Plugin - Simplified Architecture
 cmake_minimum_required(VERSION 3.16)
 
 project(stabilizer_tests)
@@ -21,23 +21,17 @@ endif()
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../core)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../obs)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../include/obs)
 
-# Add test executable with working test files only
+# Add test executable with simplified architecture
 add_executable(stabilizer_tests
     test_main.cpp
     test_exception_safety_isolated.cpp
     
-    # Include source files for testing
-    ../core/stabilizer_core.cpp
-    ../core/stabilizer_core_debug.cpp
-    ../core/error_handler.cpp
-    ../core/parameter_validator.cpp
-    ../core/transform_matrix.cpp
-    ../plugin-support.c
+    # Include simplified source files for testing
+    ../stabilizer.cpp
     ../obs_stubs.c
+    ../plugin-support.c
 )
 
 # Link against Google Test and OpenCV if available
