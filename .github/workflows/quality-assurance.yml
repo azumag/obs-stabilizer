@@ -26,7 +26,11 @@ jobs:
     - name: Install coverage tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcovr lcov
+        sudo apt-get install -y gcovr lcov googletest libgtest-dev
+        cd /usr/src/googletest
+        sudo cmake CMakeLists.txt
+        sudo make
+        sudo cp lib/*.a /usr/lib
     
     - name: Configure and build with coverage
       run: |
