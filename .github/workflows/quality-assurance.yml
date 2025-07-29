@@ -42,10 +42,10 @@ jobs:
     - name: Run tests with coverage
       run: |
         cd tmp/tests
-        mkdir -p ../tmp/builds/test-coverage
-        cmake -S . -B ../tmp/builds/test-coverage -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"
-        cmake --build ../tmp/builds/test-coverage
-        ../tmp/builds/test-coverage/stabilizer_tests
+        mkdir -p ../../tmp/builds/test-coverage
+        cmake -S . -B ../../tmp/builds/test-coverage -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"
+        cmake --build ../../tmp/builds/test-coverage
+        ../../tmp/builds/test-coverage/stabilizer_tests
     
     - name: Generate coverage report
       run: |
