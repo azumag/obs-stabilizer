@@ -72,7 +72,7 @@ else()
         test_transform_smoothing.cpp
         test-ui-implementation.cpp
         # Include only the core stabilizer implementation for testing
-        ../src/core/stabilizer_core.cpp
+        stabilizer_core.cpp
     )
     
     # Link libraries

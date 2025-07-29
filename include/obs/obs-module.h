@@ -179,9 +179,7 @@ void obs_module_unload(void);
     void obs_module_unload(void);
 
 #define OBS_MODULE_USE_DEFAULT_LOCALE(module_name, default_locale) \
-    extern "C" { \
-        MODULE_EXPORT const char *obs_module_name(void) { return module_name; } \
-    }
+    extern "C" MODULE_EXPORT const char *obs_module_name(void) { return module_name; }
 
 #ifdef __cplusplus
 }

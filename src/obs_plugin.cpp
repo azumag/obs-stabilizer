@@ -4,7 +4,7 @@ Architectural simplification following Gemini review requirements
 */
 
 #include <obs-module.h>
-#include "stabilizer.cpp" // Include the core logic
+#include "stabilizer.h"
 
 struct StabilizerFilter {
     VideoStabilizer* stabilizer;

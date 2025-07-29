@@ -3,22 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>files</key>
-	<dict>
-		<key>Resources/locale/en-US.ini</key>
-		<data>
-		oPy39CiSyn5+O1Y8WHNurmrbRqw=
-		</data>
-	</dict>
+	<dict/>
 	<key>files2</key>
-	<dict>
-		<key>Resources/locale/en-US.ini</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			t0eA6DTjscXHiF5SfH556Fx6faleo8IXbzAGfhknemw=
-			</data>
-		</dict>
-	</dict>
+	<dict/>
 	<key>rules</key>
 	<dict>
 		<key>^Resources/</key>

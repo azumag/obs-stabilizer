@@ -13,40 +13,39 @@ function(fix_macos_plugin_binary TARGET)
         set(OUTPUT_NAME ${TARGET})
     endif()
     
-    # Set correct install name for plugin bundle
+    # Set proper install name without self-reference (removes circular dependency)
     add_custom_command(TARGET ${TARGET} POST_BUILD
-        COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id "@loader_path/../MacOS/${OUTPUT_NAME}" 
+        COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id "${OUTPUT_NAME}" 
             "$<TARGET_FILE:${TARGET}>"
-        COMMENT "Fixing install name for macOS plugin bundle"
+        COMMENT "Setting correct install name for macOS plugin"
+    )
+    
+    # Add rpath for OBS framework (plugin needs to find libobs)
+    add_custom_command(TARGET ${TARGET} POST_BUILD
+        COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath "@loader_path/../../../../Frameworks" "$<TARGET_FILE:${TARGET}>" || true
+        COMMENT "Adding rpath for OBS framework"
     )
     
     # Fix OpenCV dependencies if they exist
     if(OpenCV_FOUND)
         # Add OpenCV rpath entries for different package managers (ignore errors as paths may already exist)
-        add_custom_command(TARGET ${TARGET} POST_BUILD
-            COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath /opt/homebrew/opt/opencv/lib "$<TARGET_FILE:${TARGET}>" || true
-            COMMENT "Adding Homebrew OpenCV rpath for macOS plugin"
+        set(OPENCV_RPATHS 
+            "/opt/homebrew/opt/opencv/lib"
+            "/usr/local/lib" 
+            "/opt/local/lib"
         )
-        add_custom_command(TARGET ${TARGET} POST_BUILD
-            COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath /usr/local/lib "$<TARGET_FILE:${TARGET}>" || true
-            COMMENT "Adding /usr/local/lib rpath for macOS plugin"
-        )
-        add_custom_command(TARGET ${TARGET} POST_BUILD
-            COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath /opt/local/lib "$<TARGET_FILE:${TARGET}>" || true
-            COMMENT "Adding MacPorts rpath for macOS plugin"
-        )
+        foreach(RPATH_DIR ${OPENCV_RPATHS})
+            add_custom_command(TARGET ${TARGET} POST_BUILD
+                COMMAND ${CMAKE_INSTALL_NAME_TOOL} -add_rpath "${RPATH_DIR}" "$<TARGET_FILE:${TARGET}>" || true
+                COMMENT "Adding OpenCV rpath: ${RPATH_DIR}"
+            )
+        endforeach()
     endif()
     
     # Sign the plugin binary (ad-hoc signing)
     add_custom_command(TARGET ${TARGET} POST_BUILD
         COMMAND codesign --force --sign - "$<TARGET_FILE:${TARGET}>"
         COMMENT "Code signing macOS plugin binary"
-    )
-    
-    # Verify the fixes
-    add_custom_command(TARGET ${TARGET} POST_BUILD
-        COMMAND otool -L "$<TARGET_FILE:${TARGET}>" | head -5
-        COMMENT "Verifying plugin binary dependencies"
     )
 endfunction()
 

@@ -1,11 +1,23 @@
 # OBS Stabilizer Plugin - .gitignore
 
-# Build directories
+# Build directories - CLAUDE.md compliance: prevent build proliferation
+# YAGNI principle: Only essential build directories allowed
 build/
 build-*/
+!build/  # Allow only the main build directory
+
+# Temporary file consolidation: "一時ファイルは一箇所のディレクトリにまとめよ"
 tmp/builds/
+tmp/builds-archive/
+tmp/builds-archive-root/
+tmp/qa-builds*/
 tests/build*/
 tests/_deps/
+
+# File organization enforcement: STRICT BUILD DIRECTORY LIMITS
+# ALLOWED: build/ (main build only)
+# PROHIBITED: build-* in project root (use tmp/builds/ instead)
+# Archive build directories automatically moved to tmp/builds-archive/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake

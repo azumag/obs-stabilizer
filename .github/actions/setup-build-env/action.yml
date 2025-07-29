@@ -4,9 +4,17 @@ inputs:
   platform:
     description: 'Platform type (ubuntu, windows, macos)'
     required: true
+    default: 'ubuntu'
 runs:
   using: 'composite'
   steps:
+    - name: Validate platform input
+      shell: bash
+      run: |
+        if [[ "${{ inputs.platform }}" != "ubuntu" && "${{ inputs.platform }}" != "windows" && "${{ inputs.platform }}" != "macos" ]]; then
+          echo "Error: Invalid platform '${{ inputs.platform }}'. Must be one of: ubuntu, windows, macos"
+          exit 1
+        fi
     - name: Cache Ubuntu packages
       if: inputs.platform == 'ubuntu'
       uses: actions/cache@v4

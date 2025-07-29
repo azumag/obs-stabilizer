@@ -4,7 +4,8 @@ Architectural simplification following Gemini review requirements
 */
 
 #include <obs-module.h>
-#include "obs_plugin.cpp" // Include OBS integration
+// Forward declaration
+void register_stabilizer_filter();
 
 // Module metadata
 #define PLUGIN_VERSION "0.1.0"
@@ -14,10 +15,6 @@ OBS_MODULE_USE_DEFAULT_LOCALE("obs-stabilizer", "en-US")
 
 MODULE_EXPORT const char* obs_module_description(void) {
     return "Real-time video stabilization plugin for OBS Studio";
-}
-
-MODULE_EXPORT const char* obs_module_name(void) {
-    return "OBS Stabilizer";
 }
 
 MODULE_EXPORT const char* obs_module_author(void) {

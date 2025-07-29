@@ -28,21 +28,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcovr lcov
     
-    - name: Configure with coverage
+    - name: Configure and build with coverage
       run: |
-        mkdir -p tmp/builds/coverage
+        mkdir -p tmp/builds/coverage tmp/tests
         cd tmp/builds/coverage
         cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage"
-    
-    - name: Build with coverage
-      run: |
-        cd tmp/builds/coverage
         ninja
     
     - name: Run tests with coverage
       run: |
-        cd tmp/tests
-        mkdir -p ../../tmp/builds/test-coverage
+        cd src/tests
         cmake -S . -B ../../tmp/builds/test-coverage -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"
         cmake --build ../../tmp/builds/test-coverage
         ../../tmp/builds/test-coverage/stabilizer_tests
@@ -79,26 +74,13 @@ jobs:
     - name: Install static analysis tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y cppcheck clang-tidy iwyu
-        pip install cpplint
+        sudo apt-get install -y cppcheck
     
-    - name: Run cppcheck
+    - name: Run static analysis
       run: |
         mkdir -p tmp/static-analysis
         cppcheck --enable=all --xml --xml-version=2 --output-file=tmp/static-analysis/cppcheck.xml src/
         cppcheck --enable=all --template=gcc src/ > tmp/static-analysis/cppcheck.txt 2>&1 || true
-    
-    - name: Run clang-tidy
-      run: |
-        mkdir -p tmp/builds/tidy
-        cd tmp/builds/tidy
-        cmake ../../.. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-        cd ../../..
-        run-clang-tidy -p tmp/builds/tidy src/ > tmp/static-analysis/clang-tidy.txt 2>&1 || true
-    
-    - name: Run cpplint
-      run: |
-        find src/ -name "*.cpp" -o -name "*.hpp" | xargs cpplint --output=vs > tmp/static-analysis/cpplint.txt 2>&1 || true
     
     - name: Upload static analysis reports
       uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
