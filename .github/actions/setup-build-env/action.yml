@@ -7,6 +7,17 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Cache Ubuntu packages
+      if: inputs.platform == 'ubuntu'
+      uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9
+      with:
+        path: |
+          /var/cache/apt/archives
+          /var/lib/apt/lists
+        key: ubuntu-packages-${{ runner.os }}-${{ hashFiles('.github/actions/setup-build-env/action.yml') }}
+        restore-keys: |
+          ubuntu-packages-${{ runner.os }}-
+
     - name: Install Ubuntu dependencies
       if: inputs.platform == 'ubuntu'
       shell: bash
@@ -21,6 +32,17 @@ runs:
           qtbase5-dev \
           qtbase5-dev-tools
 
+    - name: Cache Homebrew packages
+      if: inputs.platform == 'macos'
+      uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9
+      with:
+        path: |
+          ~/Library/Caches/Homebrew
+          /opt/homebrew/var/homebrew/locks
+        key: homebrew-${{ runner.os }}-${{ hashFiles('.github/actions/setup-build-env/action.yml') }}
+        restore-keys: |
+          homebrew-${{ runner.os }}-
+
     - name: Install macOS dependencies
       if: inputs.platform == 'macos'
       shell: bash
@@ -30,6 +52,23 @@ runs:
     - name: Setup MSVC (Windows)
       if: inputs.platform == 'windows'
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce
+
+    - name: Cache vcpkg packages
+      if: inputs.platform == 'windows'
+      uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9
+      with:
+        path: |
+          C:\vcpkg\installed
+          C:\vcpkg\buildtrees
+        key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/actions/setup-build-env/action.yml') }}
+        restore-keys: |
+          vcpkg-${{ runner.os }}-
+
+    - name: Set VCPKG_ROOT environment variable
+      if: inputs.platform == 'windows'
+      shell: powershell
+      run: |
+        echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
 
     - name: Install OpenCV (Windows)
       if: inputs.platform == 'windows'

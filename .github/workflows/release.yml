@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   release:
     name: Create Release
@@ -43,28 +47,20 @@ jobs:
     steps:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
 
-    - name: Install dependencies (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build build-essential libopencv-dev pkg-config
+    - name: Setup build environment
+      uses: ./.github/actions/setup-build-env
+      with:
+        platform: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || (matrix.os == 'windows-latest' && 'windows' || 'macos') }}
 
-    - name: Install dependencies (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        vcpkg install opencv:x64-windows
+    - name: Configure CMake
+      uses: ./.github/actions/configure-cmake
+      with:
+        platform: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || (matrix.os == 'windows-latest' && 'windows' || 'macos') }}
 
-    - name: Install dependencies (macOS)
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install cmake ninja opencv pkg-config
-
-    - name: Build
-      run: |
-        mkdir build
-        cd build
-        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=ON
-        ninja
+    - name: Build project
+      uses: ./.github/actions/build-project
+      with:
+        platform: ${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || (matrix.os == 'windows-latest' && 'windows' || 'macos') }}
 
     - name: Package (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
