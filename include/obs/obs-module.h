@@ -6,6 +6,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 // Basic OBS types
 typedef struct obs_source obs_source_t;
@@ -122,7 +123,9 @@ struct obs_source_info {
 
 // Function declarations
 void obs_log(int log_level, const char *format, ...);
+void blogva(int log_level, const char *format, va_list args);
 bool obs_register_source(struct obs_source_info *info);
+bool obs_register_source_s(struct obs_source_info *info, size_t size);
 const char *obs_module_text(const char *val);
 
 // OBS data functions

@@ -25,7 +25,7 @@ endif()
 # Find OpenCV
 find_package(OpenCV REQUIRED)
 
-# Find OBS headers (for plugin mode)
+# Find OBS headers and libraries
 find_path(OBS_INCLUDE_DIR obs-module.h 
     PATHS 
         ${CMAKE_CURRENT_SOURCE_DIR}/include/obs
@@ -35,6 +35,22 @@ find_path(OBS_INCLUDE_DIR obs-module.h
     NO_DEFAULT_PATH
 )
 
+# Find OBS library - try multiple approaches for macOS
+if(APPLE AND EXISTS "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
+    # Direct path to macOS framework library
+    set(OBS_LIBRARY "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
+    message(STATUS "Found OBS library at: ${OBS_LIBRARY}")
+else()
+    # Fallback to standard find_library for other platforms
+    find_library(OBS_LIBRARY 
+        NAMES libobs obs
+        PATHS
+            /usr/lib
+            /usr/local/lib
+        NO_DEFAULT_PATH
+    )
+endif()
+
 # Create the plugin library
 add_library(${CMAKE_PROJECT_NAME} SHARED)
 
@@ -43,6 +59,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     src/plugin_main.cpp
     src/obs_plugin.cpp
     src/stabilizer.cpp
+    src/plugin-support.c
 )
 
 # Add stub functions for CI/CD builds without OBS library
@@ -50,10 +67,18 @@ if(NOT OBS_INCLUDE_DIR)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs_stubs.c)
 endif()
 
-# Link libraries
+# Link libraries (OBS library must come before OpenCV)
 target_link_libraries(${CMAKE_PROJECT_NAME} 
     ${OpenCV_LIBS}
 )
+
+# Link OBS library if found
+if(OBS_LIBRARY)
+    target_link_libraries(${CMAKE_PROJECT_NAME} ${OBS_LIBRARY})
+    message(STATUS "Linking with OBS library: ${OBS_LIBRARY}")
+else()
+    message(WARNING "OBS library not found - plugin may not load properly")
+endif()
 
 # Include directories
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
@@ -64,6 +89,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add OBS include directory if found
 if(OBS_INCLUDE_DIR)
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OBS_INCLUDE_DIR})
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_OBS_HEADERS=1)
     message(STATUS "Building with OBS headers from: ${OBS_INCLUDE_DIR}")
 else()
     message(WARNING "OBS headers not found - plugin may not load properly")
