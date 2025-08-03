@@ -116,7 +116,13 @@ void blogva(int log_level, const char *format, va_list args) {
     printf("\n");
 }
 
-// obs_log is already implemented in plugin-support.c
+void obs_log(int log_level, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    blogva(log_level, format, args);
+    va_end(args);
+}
 
 bool obs_register_source(struct obs_source_info *info) {
     // Validate input parameters
