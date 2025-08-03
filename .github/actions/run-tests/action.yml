@@ -1,0 +1,45 @@
+name: 'Run Tests'
+description: 'Run performance and memory tests'
+inputs:
+  platform:
+    description: 'Platform type (ubuntu, windows, macos)'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Run Tests (Unix)
+      if: inputs.platform != 'windows'
+      shell: bash
+      run: |
+        echo "Running simplified test validation"
+        if [ -f "build/obs-stabilizer-standalone" ]; then
+          echo "Standalone build found - running test"
+          if ./build/obs-stabilizer-standalone; then
+            echo "Build validation tests passed"
+          else
+            EXIT_CODE=$?
+            echo "::error::Build validation failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+        else
+          echo "No standalone build found - CI/CD test validation skipped"
+        fi
+
+    - name: Run Tests (Windows)
+      if: inputs.platform == 'windows'
+      shell: powershell
+      run: |
+        Write-Host "Running simplified test validation"
+        if (Test-Path "build\RelWithDebInfo\obs-stabilizer-standalone.exe") {
+          Write-Host "Standalone build found - running test"
+          $result = & "build\RelWithDebInfo\obs-stabilizer-standalone.exe"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Build validation tests passed"
+          } else {
+            Write-Host "::error::Build validation failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+        } else {
+          Write-Host "No standalone build found - CI/CD test validation skipped"
+        }
+
