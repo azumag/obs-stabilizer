@@ -1,0 +1,24 @@
+name: 'Build Project'
+description: 'Build OBS Stabilizer project'
+inputs:
+  platform:
+    description: 'Platform type (ubuntu, windows, macos)'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Build (Unix)
+      if: inputs.platform != 'windows'
+      shell: bash
+      run: |
+        cd build
+        ninja
+        echo "Standalone build completed successfully"
+
+    - name: Build (Windows)
+      if: inputs.platform == 'windows'
+      shell: powershell
+      run: |
+        cd build
+        cmake --build . --config RelWithDebInfo
+        Write-Host "Standalone build completed successfully"
