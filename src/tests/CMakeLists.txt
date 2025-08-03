@@ -31,7 +31,6 @@ add_executable(stabilizer_tests
     # Include simplified source files for testing
     ../stabilizer.cpp
     ../obs_stubs.c
-    ../plugin-support.c
 )
 
 # Link against Google Test and OpenCV if available
