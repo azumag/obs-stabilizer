@@ -1,14 +1,14 @@
 /*
-OBS Stabilizer Plugin - Simplified OBS Integration
+OBS Stabilizer Plugin - Minimal Test Implementation (No OpenCV)
 Architectural simplification following Gemini review requirements
 */
 
 #include <obs-module.h>
-#include "stabilizer.h"
+#include <stdio.h>
 
 struct StabilizerFilter {
-    VideoStabilizer* stabilizer;
-    StabilizerConfig config;
+    bool enabled;
+    int smoothing_radius;
 };
 
 static const char* stabilizer_filter_name(void* unused) {
@@ -17,19 +17,12 @@ static const char* stabilizer_filter_name(void* unused) {
 
 static void* stabilizer_filter_create(obs_data_t* settings, obs_source_t* source) {
     StabilizerFilter* filter = new StabilizerFilter();
-    filter->stabilizer = new VideoStabilizer();
-
-    // Load initial settings
-    filter->config.enable_stabilization = obs_data_get_bool(settings, "enable_stabilization");
-    filter->config.smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
-    filter->config.max_features = (int)obs_data_get_int(settings, "max_features");
-    filter->config.feature_quality = obs_data_get_double(settings, "feature_quality");
-    filter->config.min_distance = obs_data_get_double(settings, "min_distance");
-    filter->config.detection_interval = (int)obs_data_get_int(settings, "detection_interval");
-
-    filter->stabilizer->update_config(filter->config);
     
-    obs_log(LOG_INFO, "Stabilizer filter created");
+    // Load initial settings
+    filter->enabled = obs_data_get_bool(settings, "enable_stabilization");
+    filter->smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
+    
+    printf("[obs-stabilizer] Stabilizer filter created (minimal test version)\n");
     return filter;
 }
 
@@ -37,10 +30,9 @@ static void stabilizer_filter_destroy(void* data) {
     if (!data) return;
     
     StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
-    delete filter->stabilizer;
     delete filter;
     
-    obs_log(LOG_INFO, "Stabilizer filter destroyed");
+    printf("[obs-stabilizer] Stabilizer filter destroyed (minimal test version)\n");
 }
 
 static void stabilizer_filter_update(void* data, obs_data_t* settings) {
@@ -49,14 +41,8 @@ static void stabilizer_filter_update(void* data, obs_data_t* settings) {
     StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
     
     // Update configuration
-    filter->config.enable_stabilization = obs_data_get_bool(settings, "enable_stabilization");
-    filter->config.smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
-    filter->config.max_features = (int)obs_data_get_int(settings, "max_features");
-    filter->config.feature_quality = obs_data_get_double(settings, "feature_quality");
-    filter->config.min_distance = obs_data_get_double(settings, "min_distance");
-    filter->config.detection_interval = (int)obs_data_get_int(settings, "detection_interval");
-    
-    filter->stabilizer->update_config(filter->config);
+    filter->enabled = obs_data_get_bool(settings, "enable_stabilization");
+    filter->smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
 }
 
 static struct obs_source_frame* stabilizer_filter_video(void* data, struct obs_source_frame* frame) {
@@ -64,8 +50,11 @@ static struct obs_source_frame* stabilizer_filter_video(void* data, struct obs_s
     
     StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
     
-    // Process frame for stabilization
-    filter->stabilizer->process_frame(frame);
+    // Minimal test - just pass through the frame
+    // In a real implementation, this would apply stabilization
+    if (filter->enabled) {
+        // Placeholder for stabilization logic
+    }
     
     return frame;
 }
@@ -74,21 +63,7 @@ static obs_properties_t* stabilizer_filter_properties(void* data) {
     obs_properties_t* props = obs_properties_create();
     
     obs_properties_add_bool(props, "enable_stabilization", "Enable Stabilization");
-    
-    obs_properties_add_int_slider(props, "smoothing_radius", "Smoothing Radius", 
-                                  10, 100, 5);
-    
-    obs_properties_add_int_slider(props, "max_features", "Max Features", 
-                                  50, 500, 10);
-    
-    obs_properties_add_float_slider(props, "feature_quality", "Feature Quality", 
-                                    0.001, 0.1, 0.001);
-    
-    obs_properties_add_float_slider(props, "min_distance", "Min Distance", 
-                                    10.0, 100.0, 5.0);
-    
-    obs_properties_add_int_slider(props, "detection_interval", "Detection Interval", 
-                                  5, 30, 1);
+    obs_properties_add_int_slider(props, "smoothing_radius", "Smoothing Radius", 10, 100, 5);
     
     return props;
 }
@@ -96,10 +71,6 @@ static obs_properties_t* stabilizer_filter_properties(void* data) {
 static void stabilizer_filter_defaults(obs_data_t* settings) {
     obs_data_set_default_bool(settings, "enable_stabilization", true);
     obs_data_set_default_int(settings, "smoothing_radius", 30);
-    obs_data_set_default_int(settings, "max_features", 200);
-    obs_data_set_default_double(settings, "feature_quality", 0.01);
-    obs_data_set_default_double(settings, "min_distance", 30.0);
-    obs_data_set_default_int(settings, "detection_interval", 10);
 }
 
 // Filter definition

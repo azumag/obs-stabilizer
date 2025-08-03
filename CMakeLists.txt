@@ -22,92 +22,118 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -DNDEBUG")
 endif()
 
-# Find OpenCV
-find_package(OpenCV REQUIRED)
+# Find OpenCV - Re-enabled to match successful configuration
+find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
 
-# Find OBS headers and libraries
-find_path(OBS_INCLUDE_DIR obs-module.h 
-    PATHS 
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/obs
-        /usr/include/obs
-        /usr/local/include/obs
-        /Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/Headers
-    NO_DEFAULT_PATH
-)
+# Skip Qt6 for now - create Qt-independent minimal plugin
+# This eliminates Qt version conflicts while maintaining plugin functionality
+# find_package(Qt6 6.8 REQUIRED COMPONENTS Core Widgets)
 
-# Find OBS library - try multiple approaches for macOS
-if(APPLE AND EXISTS "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
-    # Direct path to macOS framework library
-    set(OBS_LIBRARY "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
-    message(STATUS "Found OBS library at: ${OBS_LIBRARY}")
-else()
-    # Fallback to standard find_library for other platforms
-    find_library(OBS_LIBRARY 
-        NAMES libobs obs
-        PATHS
-            /usr/lib
-            /usr/local/lib
+# Build options
+option(BUILD_STANDALONE "Build standalone executable for testing" OFF)
+
+# Find OBS headers and libraries - revert to working direct path method
+if(NOT BUILD_STANDALONE)
+    find_path(OBS_INCLUDE_DIR obs-module.h 
+        PATHS 
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/obs
+            /usr/include/obs
+            /usr/local/include/obs
+            /Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/Headers
         NO_DEFAULT_PATH
     )
 endif()
 
-# Create the plugin library
-add_library(${CMAKE_PROJECT_NAME} SHARED)
+# Find OBS library - direct path for macOS framework
+if(NOT BUILD_STANDALONE)
+    if(APPLE AND EXISTS "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
+        set(OBS_LIBRARY "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
+        message(STATUS "Found OBS library at: ${OBS_LIBRARY}")
+    else()
+        # Fallback for other platforms
+        find_library(OBS_LIBRARY NAMES libobs obs PATHS /usr/lib /usr/local/lib NO_DEFAULT_PATH)
+    endif()
+endif()
 
-# Add simplified source files
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
-    src/plugin_main.cpp
-    src/obs_plugin.cpp
-    src/stabilizer.cpp
-    src/plugin-support.c
-)
+# Skip OBS frontend API - not needed for basic video filters
+# Most OBS plugins work without frontend API dependency
+
+# Create the plugin library or standalone executable
+if(BUILD_STANDALONE)
+    add_executable(${CMAKE_PROJECT_NAME}-standalone src/standalone_test.cpp)
+    message(STATUS "Building standalone executable for CI/CD testing")
+else()
+    add_library(${CMAKE_PROJECT_NAME} MODULE)
+endif()
+
+# Set target sources - restore to successful configuration from fix report
+if(NOT BUILD_STANDALONE)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
+        src/plugin_main.cpp
+        src/obs_plugin.cpp
+        src/plugin-support.c
+    )
+endif()
 
 # Add stub functions for CI/CD builds without OBS library
-if(NOT OBS_INCLUDE_DIR)
+if(NOT OBS_INCLUDE_DIR AND NOT BUILD_STANDALONE)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs_stubs.c)
 endif()
 
-# Link libraries (OBS library must come before OpenCV)
-target_link_libraries(${CMAKE_PROJECT_NAME} 
-    ${OpenCV_LIBS}
-)
-
-# Link OBS library if found
-if(OBS_LIBRARY)
-    target_link_libraries(${CMAKE_PROJECT_NAME} ${OBS_LIBRARY})
-    message(STATUS "Linking with OBS library: ${OBS_LIBRARY}")
+# Link OpenCV libraries - Re-enabled to match successful configuration
+if(BUILD_STANDALONE)
+    target_link_libraries(${CMAKE_PROJECT_NAME}-standalone 
+        ${OpenCV_LIBS}
+    )
 else()
-    message(WARNING "OBS library not found - plugin may not load properly")
+    target_link_libraries(${CMAKE_PROJECT_NAME} 
+        ${OpenCV_LIBS}
+    )
+    
+    # Link Qt libraries - TEMPORARILY DISABLED FOR Qt-independent plugin
+    # target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::Core Qt6::Widgets)
+    
+    # Link libraries - direct library reference
+    target_link_libraries(${CMAKE_PROJECT_NAME} ${OBS_LIBRARY})
 endif()
 
-# Include directories
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${OpenCV_INCLUDE_DIRS}
-)
+# Skip OBS frontend API linking - not required for video filters
 
-# Add OBS include directory if found
-if(OBS_INCLUDE_DIR)
-    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OBS_INCLUDE_DIR})
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_OBS_HEADERS=1)
-    message(STATUS "Building with OBS headers from: ${OBS_INCLUDE_DIR}")
+# Include directories
+if(BUILD_STANDALONE)
+    target_include_directories(${CMAKE_PROJECT_NAME}-standalone PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
 else()
-    message(WARNING "OBS headers not found - plugin may not load properly")
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+    
+    # Add OBS include directory if found  
+    if(OBS_INCLUDE_DIR)
+        target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OBS_INCLUDE_DIR})
+        target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_OBS_HEADERS=1)
+        message(STATUS "Building with OBS headers from: ${OBS_INCLUDE_DIR}")
+    endif()
 endif()
 
 # Plugin properties
-set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
-    PREFIX ""
-    SUFFIX ""
-    OUTPUT_NAME "obs-stabilizer"
-)
+if(NOT BUILD_STANDALONE)
+    set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
+        PREFIX ""
+        SUFFIX ""
+        OUTPUT_NAME "test-stabilizer"
+    )
+endif()
 
 # Platform-specific settings
-if(APPLE)
+if(APPLE AND NOT BUILD_STANDALONE)
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
         BUNDLE TRUE
         BUNDLE_EXTENSION "plugin"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
+        INSTALL_RPATH "@loader_path/../Frameworks;@executable_path/../Frameworks;/Applications/OBS.app/Contents/Frameworks"
+        BUILD_WITH_INSTALL_RPATH TRUE
     )
     
     # Apply macOS plugin fixes
