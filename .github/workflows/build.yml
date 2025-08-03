@@ -112,4 +112,3 @@ jobs:
           retention-days: 30
           path: |
             build/obs-stabilizer-standalone
-
