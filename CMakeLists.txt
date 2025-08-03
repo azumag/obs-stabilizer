@@ -22,8 +22,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -DNDEBUG")
 endif()
 
-# Find OpenCV - Re-enabled to match successful configuration
-find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
+# Find OpenCV - DISABLED for minimal plugin to eliminate loading issues
+# find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
 
 # Skip Qt6 for now - create Qt-independent minimal plugin
 # This eliminates Qt version conflicts while maintaining plugin functionality
