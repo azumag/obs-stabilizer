@@ -4,6 +4,7 @@ Provides compatibility layer for OBS API differences
 */
 
 #include <stdarg.h>
+#include <stdbool.h>
 
 #ifdef HAVE_OBS_HEADERS
 #include <obs-module.h>
