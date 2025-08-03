@@ -80,21 +80,23 @@ if(NOT OBS_INCLUDE_DIR AND NOT BUILD_STANDALONE)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs_stubs.c)
 endif()
 
-# Link OpenCV libraries - Re-enabled to match successful configuration
+# Link OpenCV libraries - TEMPORARILY DISABLED for minimal plugin test
 if(BUILD_STANDALONE)
     target_link_libraries(${CMAKE_PROJECT_NAME}-standalone 
         ${OpenCV_LIBS}
     )
 else()
-    target_link_libraries(${CMAKE_PROJECT_NAME} 
-        ${OpenCV_LIBS}
-    )
+    # target_link_libraries(${CMAKE_PROJECT_NAME} 
+    #     ${OpenCV_LIBS}
+    # )
     
     # Link Qt libraries - TEMPORARILY DISABLED FOR Qt-independent plugin
     # target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::Core Qt6::Widgets)
     
-    # Link libraries - direct library reference
-    target_link_libraries(${CMAKE_PROJECT_NAME} ${OBS_LIBRARY})
+    # Link libraries - only if OBS_LIBRARY is found
+    if(OBS_LIBRARY)
+        target_link_libraries(${CMAKE_PROJECT_NAME} ${OBS_LIBRARY})
+    endif()
 endif()
 
 # Skip OBS frontend API linking - not required for video filters
