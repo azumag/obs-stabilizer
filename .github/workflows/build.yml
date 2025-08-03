@@ -43,9 +43,7 @@ jobs:
           name: obs-stabilizer-ubuntu-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/libobs-stabilizer-standalone.*
-            tmp/builds/build-perftest/perftest*
-            tmp/builds/build-perftest/memtest*
+            build/obs-stabilizer-standalone
 
   build-windows:
     name: Build on Windows
@@ -79,9 +77,7 @@ jobs:
           name: obs-stabilizer-windows-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/RelWithDebInfo/obs-stabilizer-standalone.*
-            tmp/builds/build-perftest/RelWithDebInfo/perftest*
-            tmp/builds/build-perftest/RelWithDebInfo/memtest*
+            build/RelWithDebInfo/obs-stabilizer-standalone.exe
 
   build-macos:
     name: Build on macOS
@@ -115,7 +111,5 @@ jobs:
           name: obs-stabilizer-macos-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/libobs-stabilizer-standalone.*
-            tmp/builds/build-perftest/perftest*
-            tmp/builds/build-perftest/memtest*
+            build/obs-stabilizer-standalone
 

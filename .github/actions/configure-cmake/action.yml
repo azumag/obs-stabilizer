@@ -14,11 +14,7 @@ runs:
         mkdir -p build
         cd build
         cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
-        cd ../tmp/builds
-        mkdir -p build-perftest
-        cd build-perftest
-        cp ../../src/CMakeLists-perftest.txt ./CMakeLists.txt
-        cmake . -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        echo "CMake configuration completed for standalone build"
 
     - name: Configure CMake (Windows)
       if: inputs.platform == 'windows'
@@ -27,9 +23,5 @@ runs:
         mkdir build
         cd build
         cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON -DCMAKE_TOOLCHAIN_FILE=${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
-        cd ..\tmp\builds
-        mkdir build-perftest
-        cd build-perftest
-        copy ..\..\src\CMakeLists-perftest.txt .\CMakeLists.txt
-        cmake . -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE=${env:VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
+        Write-Host "CMake configuration completed for standalone build"
 
