@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<results version="2">
+    <cppcheck version="2.17.1"/>
+    <errors>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="6" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/features2d.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/features2d.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="7" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/video/tracking.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/video/tracking.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="8" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;chrono&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;chrono&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="9" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;vector&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;vector&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="10" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="11" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;iomanip&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;iomanip&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="12" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;thread&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;thread&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="13" column="0"/>
+        </error>
+        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/memory-test.cpp">
+            <location file="src/memory-test.cpp" line="0" column="0"/>
+        </error>
+        <error id="useInitializationList" severity="performance" msg="Variable &apos;accumulated_transform&apos; is assigned in constructor body. Consider performing initialization in initialization list." verbose="When an object of a class is created, the constructors of all member variables are called consecutively in the order the variables are declared, even if you don&apos;t explicitly write them to the initialization list. You could avoid assigning &apos;accumulated_transform&apos; a value by passing the value to the constructor in the initialization list." cwe="398" file0="src/memory-test.cpp">
+            <location file="src/memory-test.cpp" line="82" column="9"/>
+            <symbol>accumulated_transform</symbol>
+        </error>
+        <error id="noExplicitConstructor" severity="style" msg="Class &apos;StabilizationMemoryTest&apos; has a constructor with 1 argument that is not explicit." verbose="Class &apos;StabilizationMemoryTest&apos; has a constructor with 1 argument that is not explicit. Such, so called &quot;Converting constructors&quot;, should in general be explicit for type safety reasons as that prevents unintended implicit conversions." cwe="398" file0="src/memory-test.cpp">
+            <location file="src/memory-test.cpp" line="80" column="5"/>
+            <symbol>StabilizationMemoryTest</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;current_points&apos; can be reduced." verbose="The scope of the variable &apos;current_points&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/memory-test.cpp">
+            <location file="src/memory-test.cpp" line="108" column="38"/>
+            <symbol>current_points</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;status&apos; can be reduced." verbose="The scope of the variable &apos;status&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/memory-test.cpp">
+            <location file="src/memory-test.cpp" line="109" column="32"/>
+            <symbol>status</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;errors&apos; can be reduced." verbose="The scope of the variable &apos;errors&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/memory-test.cpp">
+            <location file="src/memory-test.cpp" line="110" column="32"/>
+            <symbol>errors</symbol>
+        </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/memory-test.cpp">
+            <location file="src/memory-test.cpp" line="148" column="38"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;windows.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;windows.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="21" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;psapi.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;psapi.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="22" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;mach/mach.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;mach/mach.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="16" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;fstream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;fstream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="18" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;sstream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;sstream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/memory-test.cpp" line="19" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/minimal_plugin_main.cpp" line="6" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/minimal_plugin_main.cpp" line="7" column="0"/>
+        </error>
+        <error id="unknownMacro" severity="error" msg="There is an unknown macro here somewhere. Configuration is required. If OBS_DECLARE_MODULE is a macro then please configure it." verbose="There is an unknown macro here somewhere. Configuration is required. If OBS_DECLARE_MODULE is a macro then please configure it." file0="src/minimal_plugin_main.cpp">
+            <location file="src/minimal_plugin_main.cpp" line="12" column="1"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin-support.h" line="25" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdlib.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdlib.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin-support.h" line="26" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin-support.h" line="27" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;string.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;string.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin-support.h" line="28" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_module_exports.c" line="14" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_module_exports.c" line="10" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_plugin.cpp" line="6" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_plugin.cpp" line="7" column="0"/>
+        </error>
+        <error id="constParameterCallback" severity="style" msg="Parameter &apos;unused&apos; can be declared as pointer to const. However it seems that &apos;stabilizer_filter_name&apos; is a callback function, if &apos;unused&apos; is declared with const you might also need to cast function pointer(s)." verbose="Parameter &apos;unused&apos; can be declared as pointer to const. However it seems that &apos;stabilizer_filter_name&apos; is a callback function, if &apos;unused&apos; is declared with const you might also need to cast function pointer(s)." cwe="398" file0="src/obs_plugin.cpp">
+            <location file="src/obs_plugin.cpp" line="14" column="49" info="Parameter &apos;unused&apos; can be declared as pointer to const"/>
+            <location file="src/obs_plugin.cpp" line="81" column="17" info="You might need to cast the function pointer here"/>
+            <symbol>unused</symbol>
+        </error>
+        <error id="constVariablePointer" severity="style" msg="Variable &apos;filter&apos; can be declared as pointer to const" verbose="Variable &apos;filter&apos; can be declared as pointer to const" cwe="398" file0="src/obs_plugin.cpp">
+            <location file="src/obs_plugin.cpp" line="51" column="23" info="Variable &apos;filter&apos; can be declared as pointer to const"/>
+            <symbol>filter</symbol>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_stubs.c" line="11" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdlib.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdlib.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_stubs.c" line="12" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_stubs.c" line="13" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;string.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;string.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_stubs.c" line="14" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_stubs.c" line="15" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdint.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdint.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_stubs.c" line="16" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;ctype.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;ctype.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/obs_stubs.c" line="17" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdint.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdint.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="include/obs/obs-module.h" line="7" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="include/obs/obs-module.h" line="8" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="include/obs/obs-module.h" line="9" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stddef.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stddef.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="include/obs/obs-module.h" line="122" column="0"/>
+        </error>
+        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="0" column="0"/>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;info&apos; can be declared as pointer to const" verbose="Parameter &apos;info&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="127" column="50" info="Parameter &apos;info&apos; can be declared as pointer to const"/>
+            <symbol>info</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="145" column="36" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="156" column="34" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="170" column="40" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="180" column="45" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="186" column="44" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="192" column="43" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="198" column="46" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;data&apos; can be declared as pointer to const" verbose="Parameter &apos;data&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="204" column="46" info="Parameter &apos;data&apos; can be declared as pointer to const"/>
+            <symbol>data</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;props&apos; can be declared as pointer to const" verbose="Parameter &apos;props&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="224" column="59" info="Parameter &apos;props&apos; can be declared as pointer to const"/>
+            <symbol>props</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;props&apos; can be declared as pointer to const" verbose="Parameter &apos;props&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="231" column="58" info="Parameter &apos;props&apos; can be declared as pointer to const"/>
+            <symbol>props</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;props&apos; can be declared as pointer to const" verbose="Parameter &apos;props&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="238" column="65" info="Parameter &apos;props&apos; can be declared as pointer to const"/>
+            <symbol>props</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;props&apos; can be declared as pointer to const" verbose="Parameter &apos;props&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="245" column="67" info="Parameter &apos;props&apos; can be declared as pointer to const"/>
+            <symbol>props</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;props&apos; can be declared as pointer to const" verbose="Parameter &apos;props&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="252" column="59" info="Parameter &apos;props&apos; can be declared as pointer to const"/>
+            <symbol>props</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;props&apos; can be declared as pointer to const" verbose="Parameter &apos;props&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="259" column="63" info="Parameter &apos;props&apos; can be declared as pointer to const"/>
+            <symbol>props</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;prop&apos; can be declared as pointer to const" verbose="Parameter &apos;prop&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="266" column="50" info="Parameter &apos;prop&apos; can be declared as pointer to const"/>
+            <symbol>prop</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;prop&apos; can be declared as pointer to const" verbose="Parameter &apos;prop&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="272" column="53" info="Parameter &apos;prop&apos; can be declared as pointer to const"/>
+            <symbol>prop</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;prop&apos; can be declared as pointer to const" verbose="Parameter &apos;prop&apos; can be declared as pointer to const" cwe="398" file0="src/obs_stubs.c">
+            <location file="src/obs_stubs.c" line="278" column="56" info="Parameter &apos;prop&apos; can be declared as pointer to const"/>
+            <symbol>prop</symbol>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/performance-test.cpp" line="6" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/features2d.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/features2d.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/performance-test.cpp" line="7" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/video/tracking.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/video/tracking.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/performance-test.cpp" line="8" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;chrono&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;chrono&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/performance-test.cpp" line="9" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;vector&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;vector&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/performance-test.cpp" line="10" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/performance-test.cpp" line="11" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;iomanip&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;iomanip&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/performance-test.cpp" line="12" column="0"/>
+        </error>
+        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="0" column="0"/>
+        </error>
+        <error id="useInitializationList" severity="performance" msg="Variable &apos;accumulated_transform&apos; is assigned in constructor body. Consider performing initialization in initialization list." verbose="When an object of a class is created, the constructors of all member variables are called consecutively in the order the variables are declared, even if you don&apos;t explicitly write them to the initialization list. You could avoid assigning &apos;accumulated_transform&apos; a value by passing the value to the constructor in the initialization list." cwe="398" file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="33" column="9"/>
+            <symbol>accumulated_transform</symbol>
+        </error>
+        <error id="noExplicitConstructor" severity="style" msg="Class &apos;StabilizationProfiler&apos; has a constructor with 1 argument that is not explicit." verbose="Class &apos;StabilizationProfiler&apos; has a constructor with 1 argument that is not explicit. Such, so called &quot;Converting constructors&quot;, should in general be explicit for type safety reasons as that prevents unintended implicit conversions." cwe="398" file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="31" column="5"/>
+            <symbol>StabilizationProfiler</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;current_points&apos; can be reduced." verbose="The scope of the variable &apos;current_points&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="69" column="38"/>
+            <symbol>current_points</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;status&apos; can be reduced." verbose="The scope of the variable &apos;status&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="70" column="32"/>
+            <symbol>status</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;errors&apos; can be reduced." verbose="The scope of the variable &apos;errors&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="71" column="32"/>
+            <symbol>errors</symbol>
+        </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="109" column="38"/>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;time&apos; is assigned a value that is never used." verbose="Variable &apos;time&apos; is assigned a value that is never used." cwe="563" file0="src/performance-test.cpp">
+            <location file="src/performance-test.cpp" line="253" column="29"/>
+            <symbol>time</symbol>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdarg.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin-support.c" line="6" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdbool.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin-support.c" line="7" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin-support.c" line="10" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin_main.cpp" line="6" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/plugin_main.cpp" line="7" column="0"/>
+        </error>
+        <error id="unknownMacro" severity="error" msg="There is an unknown macro here somewhere. Configuration is required. If OBS_DECLARE_MODULE is a macro then please configure it." verbose="There is an unknown macro here somewhere. Configuration is required. If OBS_DECLARE_MODULE is a macro then please configure it." file0="src/plugin_main.cpp">
+            <location file="src/plugin_main.cpp" line="14" column="1"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;obs-module.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/stabilizer.h" line="7" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/stabilizer.h" line="8" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;vector&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;vector&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/stabilizer.h" line="9" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;chrono&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;chrono&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/stabilizer.cpp" line="7" column="0"/>
+        </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/stabilizer.cpp">
+            <location file="src/stabilizer.cpp" line="71" column="18"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/standalone_test.cpp" line="1" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety.cpp" line="9" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdexcept&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdexcept&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety.cpp" line="10" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;memory&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;memory&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety.cpp" line="11" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;cstdint&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;cstdint&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety.cpp" line="12" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;signal.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;signal.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety.cpp" line="13" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;setjmp.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;setjmp.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety.cpp" line="14" column="0"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;../obs/obs_integration.hpp&quot; not found." verbose="Include file: &quot;../obs/obs_integration.hpp&quot; not found.">
+            <location file="src/tests/test_exception_safety.cpp" line="17" column="0"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;../core/error_handler.hpp&quot; not found." verbose="Include file: &quot;../core/error_handler.hpp&quot; not found.">
+            <location file="src/tests/test_exception_safety.cpp" line="18" column="0"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;../core/parameter_validator.hpp&quot; not found." verbose="Include file: &quot;../core/parameter_validator.hpp&quot; not found.">
+            <location file="src/tests/test_exception_safety.cpp" line="19" column="0"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;../core/stabilizer_core.hpp&quot; not found." verbose="Include file: &quot;../core/stabilizer_core.hpp&quot; not found.">
+            <location file="src/tests/test_exception_safety.cpp" line="20" column="0"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;FakeStabilizerFilter::source&apos; is never used." verbose="struct member &apos;FakeStabilizerFilter::source&apos; is never used." cwe="563" file0="src/tests/test_exception_safety.cpp">
+            <location file="src/tests/test_exception_safety.cpp" line="210" column="15"/>
+            <symbol>FakeStabilizerFilter::source</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;FakeStabilizerFilter::enabled&apos; is never used." verbose="struct member &apos;FakeStabilizerFilter::enabled&apos; is never used." cwe="563" file0="src/tests/test_exception_safety.cpp">
+            <location file="src/tests/test_exception_safety.cpp" line="211" column="14"/>
+            <symbol>FakeStabilizerFilter::enabled</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;caught_exception&apos; is assigned a value that is never used." verbose="Variable &apos;caught_exception&apos; is assigned a value that is never used." cwe="563" file0="src/tests/test_exception_safety.cpp">
+            <location file="src/tests/test_exception_safety.cpp" line="258" column="27"/>
+            <symbol>caught_exception</symbol>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety.cpp" line="23" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="9" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdexcept&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdexcept&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="10" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;memory&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;memory&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="11" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;thread&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;thread&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="12" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;atomic&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;atomic&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="13" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;cstring&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;cstring&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="14" column="0"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;../obs/obs_integration.cpp&quot; not found." verbose="Include file: &quot;../obs/obs_integration.cpp&quot; not found.">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="120" column="0"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::id&apos; is never used." verbose="struct member &apos;obs_source_info::id&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="30" column="21"/>
+            <symbol>obs_source_info::id</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::type&apos; is never used." verbose="struct member &apos;obs_source_info::type&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="31" column="30"/>
+            <symbol>obs_source_info::type</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::output_flags&apos; is never used." verbose="struct member &apos;obs_source_info::output_flags&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="32" column="18"/>
+            <symbol>obs_source_info::output_flags</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::get_name&apos; is never used." verbose="struct member &apos;obs_source_info::get_name&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="33" column="23"/>
+            <symbol>obs_source_info::get_name</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::create&apos; is never used." verbose="struct member &apos;obs_source_info::create&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="34" column="17"/>
+            <symbol>obs_source_info::create</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::destroy&apos; is never used." verbose="struct member &apos;obs_source_info::destroy&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="35" column="16"/>
+            <symbol>obs_source_info::destroy</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::filter_video&apos; is never used." verbose="struct member &apos;obs_source_info::filter_video&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="36" column="36"/>
+            <symbol>obs_source_info::filter_video</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::update&apos; is never used." verbose="struct member &apos;obs_source_info::update&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="37" column="16"/>
+            <symbol>obs_source_info::update</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::get_properties&apos; is never used." verbose="struct member &apos;obs_source_info::get_properties&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="38" column="29"/>
+            <symbol>obs_source_info::get_properties</symbol>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;obs_source_info::get_defaults&apos; is never used." verbose="struct member &apos;obs_source_info::get_defaults&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_complete.cpp">
+            <location file="src/tests/test_exception_safety_complete.cpp" line="39" column="16"/>
+            <symbol>obs_source_info::get_defaults</symbol>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="10" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdexcept&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdexcept&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="11" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;memory&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;memory&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="12" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;cstdint&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;cstdint&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="13" column="0"/>
+        </error>
+        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/tests/test_exception_safety_isolated.cpp">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="0" column="0"/>
+        </error>
+        <error id="useInitializationList" severity="performance" msg="Variable &apos;stabilizer_core&apos; is assigned in constructor body. Consider performing initialization in initialization list." verbose="When an object of a class is created, the constructors of all member variables are called consecutively in the order the variables are declared, even if you don&apos;t explicitly write them to the initialization list. You could avoid assigning &apos;stabilizer_core&apos; a value by passing the value to the constructor in the initialization list." cwe="398" file0="src/tests/test_exception_safety_isolated.cpp">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="39" column="9"/>
+            <symbol>stabilizer_core</symbol>
+        </error>
+        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;!core_ptr&apos; is always false" verbose="Condition &apos;!core_ptr&apos; is always false" cwe="570" file0="src/tests/test_exception_safety_isolated.cpp">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="70" column="13" info="Condition &apos;!core_ptr&apos; is always false"/>
+        </error>
+        <error id="unusedStructMember" severity="style" msg="struct member &apos;FakeStabilizerFilter::config&apos; is never used." verbose="struct member &apos;FakeStabilizerFilter::config&apos; is never used." cwe="563" file0="src/tests/test_exception_safety_isolated.cpp">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="181" column="26"/>
+            <symbol>FakeStabilizerFilter::config</symbol>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;gtest/gtest.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_main.cpp" line="6" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;iostream&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_main.cpp" line="7" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;opencv2/opencv.hpp&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="src/tests/test_main.cpp" line="30" column="0"/>
+        </error>
+        <error id="ctuOneDefinitionRuleViolation" severity="error" msg="The one definition rule is violated, different classes/structs have the same name &apos;StabilizerTestEnvironment&apos;" verbose="The one definition rule is violated, different classes/structs have the same name &apos;StabilizerTestEnvironment&apos;" cwe="758" file0="src/tests/test_main.cpp">
+            <location file="src/tests/test_main.cpp" line="33" column="1"/>
+            <location file="src/tests/test_main.cpp" line="11" column="1"/>
+            <symbol>StabilizerTestEnvironment</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_module_name&apos; is never used." verbose="The function &apos;obs_module_name&apos; is never used." cwe="561">
+            <location file="src/obs_module_exports.c" line="28" column="0"/>
+            <symbol>obs_module_name</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_module_description&apos; is never used." verbose="The function &apos;obs_module_description&apos; is never used." cwe="561">
+            <location file="src/obs_module_exports.c" line="37" column="0"/>
+            <symbol>obs_module_description</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_module_load&apos; is never used." verbose="The function &apos;obs_module_load&apos; is never used." cwe="561">
+            <location file="src/obs_module_exports.c" line="46" column="0"/>
+            <symbol>obs_module_load</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_module_text&apos; is never used." verbose="The function &apos;obs_module_text&apos; is never used." cwe="561">
+            <location file="src/obs_module_exports.c" line="57" column="0"/>
+            <symbol>obs_module_text</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_module_unload&apos; is never used." verbose="The function &apos;obs_module_unload&apos; is never used." cwe="561">
+            <location file="src/obs_module_exports.c" line="67" column="0"/>
+            <symbol>obs_module_unload</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;register_stabilizer_filter&apos; is never used." verbose="The function &apos;register_stabilizer_filter&apos; is never used." cwe="561">
+            <location file="src/obs_plugin.cpp" line="90" column="0"/>
+            <symbol>register_stabilizer_filter</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_data_get_double&apos; is never used." verbose="The function &apos;obs_data_get_double&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="170" column="0"/>
+            <symbol>obs_data_get_double</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_data_get_string&apos; is never used." verbose="The function &apos;obs_data_get_string&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="180" column="0"/>
+            <symbol>obs_data_get_string</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_data_set_default_double&apos; is never used." verbose="The function &apos;obs_data_set_default_double&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="198" column="0"/>
+            <symbol>obs_data_set_default_double</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_data_set_default_string&apos; is never used." verbose="The function &apos;obs_data_set_default_string&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="204" column="0"/>
+            <symbol>obs_data_set_default_string</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_properties_destroy&apos; is never used." verbose="The function &apos;obs_properties_destroy&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="216" column="0"/>
+            <symbol>obs_properties_destroy</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_properties_add_int&apos; is never used." verbose="The function &apos;obs_properties_add_int&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="231" column="0"/>
+            <symbol>obs_properties_add_int</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_properties_add_float_slider&apos; is never used." verbose="The function &apos;obs_properties_add_float_slider&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="245" column="0"/>
+            <symbol>obs_properties_add_float_slider</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_properties_add_list&apos; is never used." verbose="The function &apos;obs_properties_add_list&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="252" column="0"/>
+            <symbol>obs_properties_add_list</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_properties_create_group&apos; is never used." verbose="The function &apos;obs_properties_create_group&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="259" column="0"/>
+            <symbol>obs_properties_create_group</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_property_list_add_int&apos; is never used." verbose="The function &apos;obs_property_list_add_int&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="266" column="0"/>
+            <symbol>obs_property_list_add_int</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_property_list_add_string&apos; is never used." verbose="The function &apos;obs_property_list_add_string&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="272" column="0"/>
+            <symbol>obs_property_list_add_string</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;obs_property_set_long_description&apos; is never used." verbose="The function &apos;obs_property_set_long_description&apos; is never used." cwe="561">
+            <location file="src/obs_stubs.c" line="278" column="0"/>
+            <symbol>obs_property_set_long_description</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;update_config&apos; is never used." verbose="The function &apos;update_config&apos; is never used." cwe="561">
+            <location file="src/stabilizer.cpp" line="130" column="0"/>
+            <symbol>update_config</symbol>
+        </error>
+        <error id="unusedFunction" severity="style" msg="The function &apos;update_configuration&apos; is never used." verbose="The function &apos;update_configuration&apos; is never used." cwe="561">
+            <location file="src/tests/test_exception_safety_isolated.cpp" line="29" column="0"/>
+            <symbol>update_configuration</symbol>
+        </error>
+        <error id="checkersReport" severity="information" msg="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)" verbose="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)"/>
+    </errors>
+</results>

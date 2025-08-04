@@ -1,8 +1,8 @@
 {
   "hooks": [
     {
-      "launch": null,
-      "prompt": "obsを起動し、ログファイルを確認してプラグインが読み込まれていることを確認せよ。他のプラグインは読み込めることが確認できているので、読み込めなかったとしたらビルドの問題である。読み込みが確認できたときのみ WORKFLOW_OBS_CHECKED とだけ表示せよ。"
+      "launch": "WORKFLOW_CLAUDE_RECALL",
+      "prompt": "osascriptでobsを修了し、open でobsを起動し、ログファイルを確認してプラグインが読み込まれていることを確認せよ。他のプラグインは読み込めることが確認できているので、読み込めなかったとしたらビルドの問題である。修正せよ。適切にsubagentを使え。確認できたときのみ WORKFLOW_OBS_CHECKED とだけ表示せよ。"
     },
     {
       "launch": "WORKFLOW_README_UPDATE",
@@ -27,11 +27,11 @@
       "prompt": "git pushを実行してください。pushが完了したら WORKFLOW_PUSHED とだけ表示せよ。"
     },
     {
-      "launch": "WORKFLOW_OBS_CHECKED",
-      "prompt": "CLAUDE.md を再確認せよ。再確認後、 WORKFLOW_CLAUDE_RECALL とだけ表示せよ。"
+      "launch": null,
+      "prompt": "CLAUDE.md を全行確認せよ。現在の作業内容がこれに反している場合は修正せよ。再確認後、 こORKFLOW_CLAUDE_RECALL とだけ表示せよ。"
     },
     {
-      "commentout": "WORKFLOW_CLAUDE_RECALL",
+      "launch": "WORKFLOW_OBS_CHECKED",
       "prompt": "subagentを使い、github の issue を確認し、コードベース上の TODO や、問題点を解析して必要な場合は新しい issue を作成せよ。解決済みと思われるものは「解決済み」ラベルをつけよ。特に技術的負債の解消を最優先に考えよ。終わったら WORKFLOW_ISSUE_CHECKED とだけ表示せよ。"
     },
     {
@@ -39,7 +39,7 @@
       "prompt": "CI/CD の現現在の状態確認し、問題があれば修正せよ。CI/CD が正常に動作していることを確認したら WORKFLOW_CI_CD_CHECKED とだけ表示せよ。"
     },
     {
-      "launch": "WORKFLOW_CLAUDE_RECALL",
+      "launch": "WORKFLOW_CI_CD_CHECKED",
       "path":"/Users/azumag/work/cc-hooks-workflow/workflow.sh",
       "args": ["--stop"]
     }
