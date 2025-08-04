@@ -1,5 +1,0 @@
-# ninja log v7
-1	101	1754270573712825806	CMakeFiles/obs-stabilizer.dir/src/plugin-support.c.o	dacc56239de3c9c5
-1	102	1754270573712560146	CMakeFiles/obs-stabilizer.dir/src/plugin_main.cpp.o	5c3384ad4e3b9706
-1	104	1754270573712728642	CMakeFiles/obs-stabilizer.dir/src/obs_plugin.cpp.o	6e7bea1643c6686a
-104	178	1754270573815670689	test-stabilizer.plugin/Contents/MacOS/test-stabilizer	2bca4266d9260747

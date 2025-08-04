@@ -1,12 +1,19 @@
 /*
-OBS Stabilizer Plugin - Simplified Entry Point
-Architectural simplification following Gemini review requirements
+OBS Stabilizer Plugin - Video Filter Implementation
+Real-time video stabilization using OpenCV
 */
 
 #include <obs-module.h>
 #include <stdio.h>
-// Forward declaration
-void register_stabilizer_filter();
+
+// Forward declaration for filter registration
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void register_stabilizer_filter(void);
+#ifdef __cplusplus
+}
+#endif
 
 // Module metadata
 #define PLUGIN_VERSION "0.1.0"
@@ -27,7 +34,10 @@ MODULE_EXPORT const char* obs_module_author(void) {
 }
 
 MODULE_EXPORT bool obs_module_load(void) {
-    // CRITICAL: Reduce to absolute minimum for plugin discovery test
+    // Register the video stabilizer filter
+    register_stabilizer_filter();
+    printf("[obs-stabilizer] Video stabilizer filter registered\n");
+    fflush(stdout);
     return true;
 }
 

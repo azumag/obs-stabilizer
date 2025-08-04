@@ -1,203 +1,3 @@
-Checking src/core/error_handler.cpp ...
-src/core/logging_adapter.hpp:22:0: warning: Include file: <cstdio> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-    #include <cstdio>
-^
-src/core/logging_adapter.hpp:23:0: warning: Include file: <cstdarg> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-    #include <cstdarg>
-^
-src/core/config_macros.hpp:14:0: warning: Include file: <type_traits> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <type_traits>
-^
-src/core/error_handler.hpp:14:0: warning: Include file: <string> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <string>
-^
-src/core/error_handler.hpp:15:0: warning: Include file: <functional> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <functional>
-^
-src/core/error_handler.hpp:53:39: warning: Return value 'OpenCVGuard::execute_or([func=std::forward<Func>(func),&result,category,operation_name]()->bool{try{result=func();return true;}catch(const std::exception&e){handle_standard_error(e,category,operation_name);return false;}catch(...){log_critical_error(category,operation_name,"Unknown exception caught");return false;}},[operation_name]()->bool{log_stub_mode_warning(operation_name);return false;}())' is always false [knownConditionTrueFalse]
-        return OpenCVGuard::execute_or([func = std::forward<Func>(func), &result, category, operation_name]() -> bool {
-                                      ^
-src/core/error_handler.hpp:73:10: note: Calling function '[' returns 0
-        }());
-         ^
-src/core/error_handler.hpp:53:39: note: Calling function 'execute_or' returns 0
-        return OpenCVGuard::execute_or([func = std::forward<Func>(func), &result, category, operation_name]() -> bool {
-                                      ^
-src/core/error_handler.hpp:53:39: note: Return value 'OpenCVGuard::execute_or([func=std::forward<Func>(func),&result,category,operation_name]()->bool{try{result=func();return true;}catch(const std::exception&e){handle_standard_error(e,category,operation_name);return false;}catch(...){log_critical_error(category,operation_name,"Unknown exception caught");return false;}},[operation_name]()->bool{log_stub_mode_warning(operation_name);return false;}())' is always false
-        return OpenCVGuard::execute_or([func = std::forward<Func>(func), &result, category, operation_name]() -> bool {
-                                      ^
-src/core/error_handler.hpp:94:39: warning: Return value 'OpenCVGuard::execute_or([func=std::forward<Func>(func),category,operation_name]()->bool{try{return func();}catch(const std::exception&e){handle_standard_error(e,category,operation_name);return false;}catch(...){log_critical_error(category,operation_name,"Unknown exception caught");return false;}},[operation_name]()->bool{log_stub_mode_warning(operation_name);return false;}())' is always false [knownConditionTrueFalse]
-        return OpenCVGuard::execute_or([func = std::forward<Func>(func), category, operation_name]() -> bool {
-                                      ^
-src/core/error_handler.hpp:113:10: note: Calling function '[' returns 0
-        }());
-         ^
-src/core/error_handler.hpp:94:39: note: Calling function 'execute_or' returns 0
-        return OpenCVGuard::execute_or([func = std::forward<Func>(func), category, operation_name]() -> bool {
-                                      ^
-src/core/error_handler.hpp:94:39: note: Return value 'OpenCVGuard::execute_or([func=std::forward<Func>(func),category,operation_name]()->bool{try{return func();}catch(const std::exception&e){handle_standard_error(e,category,operation_name);return false;}catch(...){log_critical_error(category,operation_name,"Unknown exception caught");return false;}},[operation_name]()->bool{log_stub_mode_warning(operation_name);return false;}())' is always false
-        return OpenCVGuard::execute_or([func = std::forward<Func>(func), category, operation_name]() -> bool {
-                                      ^
-src/core/error_handler.hpp:22:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/opencv.hpp>
-^
-Checking src/core/error_handler.cpp: ENABLE_STABILIZATION...
-src/core/logging_adapter.hpp:15:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-    #include <obs-module.h>
-^
-src/core/error_handler.hpp:18:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <obs-module.h>
-^
-Checking src/core/error_handler.cpp: HAVE_OBS_HEADERS...
-Checking src/core/error_handler.cpp: _MSC_VER...
-Checking src/core/error_handler.cpp: __GNUC__;__clang__...
-1/11 files checked 3% done
-Checking src/core/parameter_validator.cpp ...
-src/core/frame_adapter.hpp:13:0: warning: Include file: <cstdint> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <cstdint>
-^
-src/core/parameter_validator.hpp:15:0: warning: Include file: <cstdint> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <cstdint>
-^
-src/core/parameter_validator.hpp:16:0: warning: Include file: <vector> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <vector>
-^
-src/core/stabilizer_constants.hpp:13:0: warning: Include file: <cstdint> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <cstdint>
-^
-src/core/parameter_validator.cpp:13:0: warning: Include file: <cmath> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <cmath>
-^
-src/core/parameter_validator.cpp:14:0: warning: Include file: <climits> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <climits>
-^
-src/core/parameter_validator.cpp:0:0: warning: Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches. [normalCheckLevelMaxBranches]
-
-^
-src/core/parameter_validator.hpp:72:24: warning: Unused private function: 'ParameterValidator::get_format_name' [unusedPrivateFunction]
-    static const char* get_format_name(uint32_t format);
-                       ^
-src/core/parameter_validator.hpp:30:5: warning: Struct 'ValidationResult' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
-    ValidationResult(bool valid) : is_valid(valid) {}
-    ^
-src/core/parameter_validator.cpp:18:68: warning: Parameter 'frame' can be declared as pointer to const [constParameterPointer]
-ValidationResult ParameterValidator::validate_frame_basic(frame_t* frame) {
-                                                                   ^
-src/core/parameter_validator.hpp:19:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/opencv.hpp>
-^
-Checking src/core/parameter_validator.cpp: ENABLE_STABILIZATION...
-src/core/frame_adapter.hpp:17:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-    #include <obs-module.h>
-^
-Checking src/core/parameter_validator.cpp: HAVE_OBS_HEADERS...
-2/11 files checked 12% done
-Checking src/core/stabilizer_core.cpp ...
-src/core/transform_matrix.hpp:13:0: warning: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <memory>
-^
-src/core/transform_matrix.hpp:14:0: warning: Include file: <array> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <array>
-^
-src/core/transform_matrix.hpp:15:0: warning: Include file: <vector> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <vector>
-^
-src/core/transform_matrix.hpp:16:0: warning: Include file: <atomic> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <atomic>
-^
-src/core/transform_matrix.hpp:17:0: warning: Include file: <mutex> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <mutex>
-^
-src/core/stabilizer_core.hpp:21:0: warning: Include file: <vector> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <vector>
-^
-src/core/stabilizer_core.hpp:22:0: warning: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <memory>
-^
-src/core/stabilizer_core.hpp:23:0: warning: Include file: <atomic> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <atomic>
-^
-src/core/stabilizer_core.hpp:24:0: warning: Include file: <mutex> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <mutex>
-^
-src/core/stabilizer_core.cpp:17:0: warning: Include file: <chrono> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <chrono>
-^
-src/core/stabilizer_core.cpp:18:0: warning: Include file: <algorithm> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <algorithm>
-^
-src/core/transform_matrix.hpp:20:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/opencv.hpp>
-^
-src/core/stabilizer_core.hpp:16:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/opencv.hpp>
-^
-src/core/stabilizer_core.hpp:17:0: warning: Include file: <opencv2/features2d.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/features2d.hpp>
-^
-src/core/stabilizer_core.hpp:18:0: warning: Include file: <opencv2/video/tracking.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/video/tracking.hpp>
-^
-src/core/opencv_raii.hpp:14:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/opencv.hpp>
-^
-src/core/opencv_raii.hpp:15:0: warning: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <memory>
-^
-Checking src/core/stabilizer_core.cpp: ENABLE_STABILIZATION...
-src/core/stabilizer_core.cpp:25:5: warning: Variable 'status_' is assigned in constructor body. Consider performing initialization in initialization list. [useInitializationList]
-    status_ = StabilizerStatus::INACTIVE;
-    ^
-Checking src/core/stabilizer_core.cpp: HAVE_OBS_HEADERS...
-Checking src/core/stabilizer_core.cpp: _MSC_VER...
-Checking src/core/stabilizer_core.cpp: __GNUC__;__clang__...
-3/11 files checked 27% done
-Checking src/core/stabilizer_core_debug.cpp ...
-src/core/stabilizer_core_debug.cpp:13:0: warning: Include file: <iomanip> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <iomanip>
-^
-src/core/stabilizer_core_debug.cpp:14:0: warning: Include file: <sstream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <sstream>
-^
-src/core/stabilizer_core_debug.cpp:15:0: warning: Include file: <mutex> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <mutex>
-^
-src/core/stabilizer_core_debug.cpp:16:0: warning: Include file: <atomic> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <atomic>
-^
-Checking src/core/stabilizer_core_debug.cpp: ENABLE_STABILIZATION...
-Checking src/core/stabilizer_core_debug.cpp: HAVE_OBS_HEADERS...
-4/11 files checked 30% done
-Checking src/core/transform_matrix.cpp ...
-src/core/transform_matrix.cpp:13:0: warning: Include file: <cmath> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <cmath>
-^
-src/core/transform_matrix.cpp:14:0: warning: Include file: <sstream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <sstream>
-^
-src/core/transform_matrix.cpp:15:0: warning: Include file: <stdexcept> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <stdexcept>
-^
-src/core/transform_matrix.cpp:16:0: warning: Include file: <numeric> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <numeric>
-^
-src/core/transform_matrix.hpp:90:27: warning: Function 'get_raw_data()' should return member 'fallback_data_' by const reference. [returnByReference]
-    std::array<double, 6> get_raw_data() const; // [a, b, c, d, tx, ty] for 2x3 affine
-                          ^
-src/core/transform_matrix.cpp:127:5: warning: Consider using std::all_of or std::none_of algorithm instead of a raw loop. [useStlAlgorithm]
-    for (double val : fallback_data_) {
-    ^
-src/core/transform_matrix.cpp:403:17: warning: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
-            val /= count;
-                ^
-Checking src/core/transform_matrix.cpp: ENABLE_STABILIZATION...
-src/core/transform_matrix.cpp:307:57: warning: Consider using std::any_of algorithm instead of a raw loop. [useStlAlgorithm]
-                if (std::isnan(val) || std::isinf(val)) {
-                                                        ^
-Checking src/core/transform_matrix.cpp: HAVE_OBS_HEADERS...
-Checking src/core/transform_matrix.cpp: _MSC_VER...
-Checking src/core/transform_matrix.cpp: __GNUC__;__clang__...
-5/11 files checked 42% done
 Checking src/memory-test.cpp ...
 src/memory-test.cpp:6:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <opencv2/opencv.hpp>
@@ -262,49 +62,59 @@ src/memory-test.cpp:19:0: warning: Include file: <sstream> not found. Please not
 #include <sstream>
 ^
 Checking src/memory-test.cpp: __linux__...
-6/11 files checked 52% done
-Checking src/obs/obs_integration.cpp ...
-src/obs/obs_integration.hpp:13:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+1/15 files checked 11% done
+Checking src/minimal_plugin_main.cpp ...
+src/minimal_plugin_main.cpp:6:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <obs-module.h>
 ^
-src/obs/obs_integration.cpp:15:0: warning: Include file: <algorithm> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <algorithm>
+src/minimal_plugin_main.cpp:7:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdio.h>
 ^
-src/obs/obs_integration.cpp:16:0: warning: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <memory>
+src/minimal_plugin_main.cpp:12:1: warning: There is an unknown macro here somewhere. Configuration is required. If OBS_DECLARE_MODULE is a macro then please configure it. [unknownMacro]
+OBS_DECLARE_MODULE()
 ^
-src/obs/obs_integration.cpp:17:0: warning: Include file: <cstdlib> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <cstdlib>
+2/15 files checked 12% done
+Checking src/obs_module_exports.c ...
+src/plugin-support.h:25:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdio.h>
 ^
-src/obs/obs_integration.cpp:0:0: warning: Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches. [normalCheckLevelMaxBranches]
-
+src/plugin-support.h:26:0: warning: Include file: <stdlib.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdlib.h>
 ^
-src/obs/obs_integration.cpp:78:5: warning: Variable 'stabilizer_core' is assigned in constructor body. Consider performing initialization in initialization list. [useInitializationList]
-    stabilizer_core = std::make_unique<StabilizerCore>();
-    ^
-src/obs/obs_integration.cpp:81:5: warning: Variable 'config' is assigned in constructor body. Consider performing initialization in initialization list. [useInitializationList]
-    config = StabilizerConfig{};
-    ^
-src/obs/obs_integration.cpp:53:13: warning: Condition '!core_ptr' is always false [knownConditionTrueFalse]
-        if (!core_ptr) {
-            ^
-src/obs/obs_integration.cpp:285:23: warning: Variable 'filter' can be declared as pointer to const [constVariablePointer]
+src/plugin-support.h:27:0: warning: Include file: <stdarg.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdarg.h>
+^
+src/plugin-support.h:28:0: warning: Include file: <string.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <string.h>
+^
+src/obs_module_exports.c:14:0: warning: Include file: <stdbool.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdbool.h>
+^
+src/obs_module_exports.c:10:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <obs-module.h>
+^
+Checking src/obs_module_exports.c: HAVE_OBS_HEADERS...
+3/15 files checked 14% done
+Checking src/obs_plugin.cpp ...
+src/obs_plugin.cpp:6:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <obs-module.h>
+^
+src/obs_plugin.cpp:7:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdio.h>
+^
+src/obs_plugin.cpp:14:49: warning: Parameter 'unused' can be declared as pointer to const. However it seems that 'stabilizer_filter_name' is a callback function, if 'unused' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+static const char* stabilizer_filter_name(void* unused) {
+                                                ^
+src/obs_plugin.cpp:81:17: note: You might need to cast the function pointer here
+    .get_name = stabilizer_filter_name,
+                ^
+src/obs_plugin.cpp:14:49: note: Parameter 'unused' can be declared as pointer to const
+static const char* stabilizer_filter_name(void* unused) {
+                                                ^
+src/obs_plugin.cpp:51:23: warning: Variable 'filter' can be declared as pointer to const [constVariablePointer]
     StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
                       ^
-src/obs/obs_integration.cpp:417:72: warning: Parameter 'frame' can be declared as pointer to const [constParameterPointer]
-void OBSIntegration::apply_transform_to_frame(struct obs_source_frame* frame, const TransformMatrix& transform) {
-                                                                       ^
-src/obs/obs_integration.hpp:17:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/opencv.hpp>
-^
-Checking src/obs/obs_integration.cpp: ENABLE_STABILIZATION...
-src/obs/obs_integration.hpp:72:17: warning: Unused private function: 'OBSIntegration::apply_transform_generic' [unusedPrivateFunction]
-    static void apply_transform_generic(struct obs_source_frame* frame,
-                ^
-Checking src/obs/obs_integration.cpp: HAVE_OBS_HEADERS...
-Checking src/obs/obs_integration.cpp: _MSC_VER...
-Checking src/obs/obs_integration.cpp: __GNUC__;__clang__...
-7/11 files checked 75% done
+4/15 files checked 17% done
 Checking src/obs_stubs.c ...
 src/obs_stubs.c:11:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <stdio.h>
@@ -333,68 +143,71 @@ include/obs/obs-module.h:7:0: warning: Include file: <stdint.h> not found. Pleas
 include/obs/obs-module.h:8:0: warning: Include file: <stdbool.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <stdbool.h>
 ^
-include/obs/obs-module.h:121:0: warning: Include file: <stddef.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+include/obs/obs-module.h:9:0: warning: Include file: <stdarg.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdarg.h>
+^
+include/obs/obs-module.h:122:0: warning: Include file: <stddef.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <stddef.h>
 ^
 src/obs_stubs.c:0:0: warning: Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches. [normalCheckLevelMaxBranches]
 
 ^
-src/obs_stubs.c:121:50: warning: Parameter 'info' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:127:50: warning: Parameter 'info' can be declared as pointer to const [constParameterPointer]
 bool obs_register_source(struct obs_source_info *info) {
                                                  ^
-src/obs_stubs.c:139:36: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:145:36: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 bool obs_data_get_bool(obs_data_t *data, const char *name) {
                                    ^
-src/obs_stubs.c:150:34: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:156:34: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 int obs_data_get_int(obs_data_t *data, const char *name) {
                                  ^
-src/obs_stubs.c:164:40: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:170:40: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 double obs_data_get_double(obs_data_t *data, const char *name) {
                                        ^
-src/obs_stubs.c:174:45: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:180:45: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 const char *obs_data_get_string(obs_data_t *data, const char *name) {
                                             ^
-src/obs_stubs.c:180:44: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:186:44: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 void obs_data_set_default_bool(obs_data_t *data, const char *name, bool val) {
                                            ^
-src/obs_stubs.c:186:43: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:192:43: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 void obs_data_set_default_int(obs_data_t *data, const char *name, int val) {
                                           ^
-src/obs_stubs.c:192:46: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:198:46: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 void obs_data_set_default_double(obs_data_t *data, const char *name, double val) {
                                              ^
-src/obs_stubs.c:198:46: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:204:46: warning: Parameter 'data' can be declared as pointer to const [constParameterPointer]
 void obs_data_set_default_string(obs_data_t *data, const char *name, const char *val) {
                                              ^
-src/obs_stubs.c:218:59: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:224:59: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
 obs_property_t *obs_properties_add_bool(obs_properties_t *props, const char *name, const char *description) {
                                                           ^
-src/obs_stubs.c:225:58: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:231:58: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
 obs_property_t *obs_properties_add_int(obs_properties_t *props, const char *name, const char *description, int min, int max, int step) {
                                                          ^
-src/obs_stubs.c:232:65: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:238:65: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
 obs_property_t *obs_properties_add_int_slider(obs_properties_t *props, const char *name, const char *description, int min, int max, int step) {
                                                                 ^
-src/obs_stubs.c:239:67: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:245:67: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
 obs_property_t *obs_properties_add_float_slider(obs_properties_t *props, const char *name, const char *description, double min, double max, double step) {
                                                                   ^
-src/obs_stubs.c:246:59: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:252:59: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
 obs_property_t *obs_properties_add_list(obs_properties_t *props, const char *name, const char *description, enum obs_combo_type type, enum obs_combo_format format) {
                                                           ^
-src/obs_stubs.c:253:63: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:259:63: warning: Parameter 'props' can be declared as pointer to const [constParameterPointer]
 obs_property_t *obs_properties_create_group(obs_properties_t *props, const char *name, const char *description, enum obs_group_type type) {
                                                               ^
-src/obs_stubs.c:260:50: warning: Parameter 'prop' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:266:50: warning: Parameter 'prop' can be declared as pointer to const [constParameterPointer]
 size_t obs_property_list_add_int(obs_property_t *prop, const char *name, int val) {
                                                  ^
-src/obs_stubs.c:266:53: warning: Parameter 'prop' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:272:53: warning: Parameter 'prop' can be declared as pointer to const [constParameterPointer]
 size_t obs_property_list_add_string(obs_property_t *prop, const char *name, const char *val) {
                                                     ^
-src/obs_stubs.c:272:56: warning: Parameter 'prop' can be declared as pointer to const [constParameterPointer]
+src/obs_stubs.c:278:56: warning: Parameter 'prop' can be declared as pointer to const [constParameterPointer]
 void obs_property_set_long_description(obs_property_t *prop, const char *long_description) {
                                                        ^
 Checking src/obs_stubs.c: _WIN32...
-8/11 files checked 84% done
+5/15 files checked 26% done
 Checking src/performance-test.cpp ...
 src/performance-test.cpp:6:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <opencv2/opencv.hpp>
@@ -441,153 +254,268 @@ src/performance-test.cpp:109:38: warning: Consider using std::accumulate algorit
 src/performance-test.cpp:253:29: warning: Variable 'time' is assigned a value that is never used. [unreadVariable]
                 double time = profiler.processFrame(frame);
                             ^
-9/11 files checked 95% done
-Checking src/plugin-main.cpp ...
-src/plugin-main.cpp:16:0: warning: Include file: <plugin-support.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <plugin-support.h>
-^
-src/plugin-main.cpp:19:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <stdio.h>
-^
-src/plugin-main.cpp:24:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <opencv2/opencv.hpp>
-^
-src/plugin-main.cpp:12:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <obs-module.h>
-^
-Checking src/plugin-main.cpp: HAVE_OBS_HEADERS...
-src/plugin-main.cpp:37:1: warning: There is an unknown macro here somewhere. Configuration is required. If OBS_DECLARE_MODULE is a macro then please configure it. [unknownMacro]
-OBS_DECLARE_MODULE()
-^
-10/11 files checked 97% done
+6/15 files checked 37% done
 Checking src/plugin-support.c ...
-src/plugin-support.h:25:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <stdio.h>
-^
-src/plugin-support.h:26:0: warning: Include file: <stdlib.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <stdlib.h>
-^
-src/plugin-support.h:27:0: warning: Include file: <stdarg.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+src/plugin-support.c:6:0: warning: Include file: <stdarg.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <stdarg.h>
 ^
-src/plugin-support.h:28:0: warning: Include file: <string.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <string.h>
-^
-src/plugin-support.c:20:0: warning: Include file: <stdbool.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+src/plugin-support.c:7:0: warning: Include file: <stdbool.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
 #include <stdbool.h>
 ^
-src/plugin-support.c:21:0: warning: Include file: <stdarg.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <stdarg.h>
-^
-src/plugin-support.c:22:0: warning: Include file: <stdlib.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <stdlib.h>
-^
-src/plugin-support.c:23:0: warning: Include file: <string.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <string.h>
-^
-src/plugin-support.c:26:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
-#include <stdio.h>
-^
-src/plugin-support.c:0:0: warning: Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches. [normalCheckLevelMaxBranches]
-
+src/plugin-support.c:10:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <obs-module.h>
 ^
 Checking src/plugin-support.c: HAVE_OBS_HEADERS...
-11/11 files checked 100% done
-src/core/config_macros.hpp:165:0: warning: The function 'is_opencv_available' is never used. [unusedFunction]
-    inline bool is_opencv_available() {
+7/15 files checked 38% done
+Checking src/plugin_main.cpp ...
+src/plugin_main.cpp:6:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <obs-module.h>
 ^
-src/core/config_macros.hpp:169:0: warning: The function 'are_features_available' is never used. [unusedFunction]
-    inline bool are_features_available() {
+src/plugin_main.cpp:7:0: warning: Include file: <stdio.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdio.h>
 ^
-src/core/config_macros.hpp:174:0: warning: The function 'get_feature_description' is never used. [unusedFunction]
-    inline const char* get_feature_description() {
+src/plugin_main.cpp:21:1: warning: There is an unknown macro here somewhere. Configuration is required. If OBS_DECLARE_MODULE is a macro then please configure it. [unknownMacro]
+OBS_DECLARE_MODULE()
 ^
-src/core/opencv_raii.hpp:97:0: warning: The function 'make_points_guard' is never used. [unusedFunction]
-inline CVPointsGuard make_points_guard(std::vector<cv::Point2f>&& points) {
+8/15 files checked 39% done
+Checking src/stabilizer.cpp ...
+src/stabilizer.h:7:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <obs-module.h>
 ^
-src/core/parameter_validator.cpp:190:0: warning: The function 'validate_smoothing_radius' is never used. [unusedFunction]
-ValidationResult ParameterValidator::validate_smoothing_radius(int radius) {
+src/stabilizer.h:8:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <opencv2/opencv.hpp>
 ^
-src/core/parameter_validator.cpp:195:0: warning: The function 'validate_feature_count' is never used. [unusedFunction]
-ValidationResult ParameterValidator::validate_feature_count(int count) {
+src/stabilizer.h:9:0: warning: Include file: <vector> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <vector>
 ^
-src/core/parameter_validator.cpp:200:0: warning: The function 'validate_threshold_value' is never used. [unusedFunction]
-ValidationResult ParameterValidator::validate_threshold_value(double threshold, double min_val, double max_val, const char* param_name) {
+src/stabilizer.cpp:7:0: warning: Include file: <chrono> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <chrono>
 ^
-src/core/parameter_validator.cpp:204:0: warning: The function 'validate_positive_integer' is never used. [unusedFunction]
-ValidationResult ParameterValidator::validate_positive_integer(int value, const char* param_name) {
+src/stabilizer.cpp:71:18: warning: Consider using std::accumulate algorithm instead of a raw loop. [useStlAlgorithm]
+        smoothed += t;
+                 ^
+9/15 files checked 45% done
+Checking src/stabilizer_filter.cpp ...
+src/stabilizer_filter.cpp:6:0: warning: Include file: <obs-module.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <obs-module.h>
 ^
-src/core/parameter_validator.cpp:232:0: warning: The function 'validate_array_access' is never used. [unusedFunction]
-ValidationResult ParameterValidator::validate_array_access(const void* array, size_t index, size_t max_size, const char* array_name) {
+src/stabilizer_filter.cpp:7:0: warning: Include file: <pthread.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <pthread.h>
 ^
-src/core/parameter_validator.cpp:245:0: warning: The function 'validate_buffer_size' is never used. [unusedFunction]
-ValidationResult ParameterValidator::validate_buffer_size(size_t actual_size, size_t required_size, const char* buffer_name) {
+src/stabilizer_filter.cpp:8:0: warning: Include file: <stdlib.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdlib.h>
 ^
-src/core/parameter_validator.cpp:279:0: warning: The function 'get_format_name' is never used. [unusedFunction]
-const char* ParameterValidator::get_format_name(uint32_t format) {
+src/stabilizer_filter.cpp:29:44: warning: C-style pointer casting [cstyleCast]
+    struct stabilizer_filter_data *data = (struct stabilizer_filter_data *)calloc(1, sizeof(struct stabilizer_filter_data));
+                                           ^
+src/stabilizer_filter.cpp:54:46: warning: C-style pointer casting [cstyleCast]
+    struct stabilizer_filter_data *filter = (struct stabilizer_filter_data *)data;
+                                             ^
+src/stabilizer_filter.cpp:66:46: warning: C-style pointer casting [cstyleCast]
+    struct stabilizer_filter_data *filter = (struct stabilizer_filter_data *)data;
+                                             ^
+src/stabilizer_filter.cpp:113:46: warning: C-style pointer casting [cstyleCast]
+    struct stabilizer_filter_data *filter = (struct stabilizer_filter_data *)data;
+                                             ^
+10/15 files checked 50% done
+Checking src/standalone_test.cpp ...
+src/standalone_test.cpp:1:0: warning: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
 ^
-src/core/stabilizer_core.hpp:190:0: warning: The function 'get_status' is never used. [unusedFunction]
-    StabilizerStatus get_status() const { return StabilizerStatus::INACTIVE; }
+11/15 files checked 51% done
+Checking src/tests/test_exception_safety.cpp ...
+src/tests/test_exception_safety.cpp:9:0: warning: Include file: <gtest/gtest.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <gtest/gtest.h>
 ^
-src/core/stabilizer_core.hpp:191:0: warning: The function 'get_metrics' is never used. [unusedFunction]
-    StabilizerMetrics get_metrics() const { return StabilizerMetrics{}; }
+src/tests/test_exception_safety.cpp:10:0: warning: Include file: <stdexcept> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdexcept>
 ^
-src/core/transform_matrix.cpp:99:0: warning: The function 'get_opencv_ref' is never used. [unusedFunction]
-const cv::Mat& TransformMatrix::get_opencv_ref() const {
+src/tests/test_exception_safety.cpp:11:0: warning: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <memory>
 ^
-src/core/transform_matrix.cpp:106:0: warning: The function 'has_opencv_data' is never used. [unusedFunction]
-bool TransformMatrix::has_opencv_data() const {
+src/tests/test_exception_safety.cpp:12:0: warning: Include file: <cstdint> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <cstdint>
 ^
-src/core/transform_matrix.cpp:111:0: warning: The function 'is_identity' is never used. [unusedFunction]
-bool TransformMatrix::is_identity() const {
+src/tests/test_exception_safety.cpp:13:0: warning: Include file: <signal.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <signal.h>
 ^
-src/core/transform_matrix.cpp:262:0: warning: The function 'to_string' is never used. [unusedFunction]
-std::string TransformMatrix::to_string() const {
+src/tests/test_exception_safety.cpp:14:0: warning: Include file: <setjmp.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <setjmp.h>
 ^
-src/core/transform_matrix.cpp:343:0: warning: The function 'create_translation' is never used. [unusedFunction]
-TransformMatrix create_translation(double dx, double dy) {
+src/tests/test_exception_safety.cpp:17:0: warning: Include file: "../obs/obs_integration.hpp" not found. [missingInclude]
+#include "../obs/obs_integration.hpp"
 ^
-src/core/transform_matrix.cpp:349:0: warning: The function 'create_scale' is never used. [unusedFunction]
-TransformMatrix create_scale(double scale) {
+src/tests/test_exception_safety.cpp:18:0: warning: Include file: "../core/error_handler.hpp" not found. [missingInclude]
+#include "../core/error_handler.hpp"
 ^
-src/core/transform_matrix.cpp:355:0: warning: The function 'create_rotation' is never used. [unusedFunction]
-TransformMatrix create_rotation(double radians) {
+src/tests/test_exception_safety.cpp:19:0: warning: Include file: "../core/parameter_validator.hpp" not found. [missingInclude]
+#include "../core/parameter_validator.hpp"
 ^
-src/core/transform_matrix.cpp:365:0: warning: The function 'is_transform_reasonable' is never used. [unusedFunction]
-bool is_transform_reasonable(const TransformMatrix& transform) {
+src/tests/test_exception_safety.cpp:20:0: warning: Include file: "../core/stabilizer_core.hpp" not found. [missingInclude]
+#include "../core/stabilizer_core.hpp"
 ^
-src/core/transform_matrix.cpp:369:0: warning: The function 'interpolate' is never used. [unusedFunction]
-TransformMatrix interpolate(const TransformMatrix& a, const TransformMatrix& b, double t) {
+src/tests/test_exception_safety.cpp:210:15: warning: struct member 'FakeStabilizerFilter::source' is never used. [unusedStructMember]
+        void* source;
+              ^
+src/tests/test_exception_safety.cpp:211:14: warning: struct member 'FakeStabilizerFilter::enabled' is never used. [unusedStructMember]
+        bool enabled;
+             ^
+src/tests/test_exception_safety.cpp:258:27: warning: Variable 'caught_exception' is assigned a value that is never used. [unreadVariable]
+    bool caught_exception = false;
+                          ^
+src/tests/test_exception_safety.cpp:23:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <opencv2/opencv.hpp>
 ^
-src/obs/obs_integration.cpp:207:0: warning: The function 'plugin_load' is never used. [unusedFunction]
-bool OBSIntegration::plugin_load() {
+Checking src/tests/test_exception_safety.cpp: ENABLE_STABILIZATION...
+12/15 files checked 64% done
+Checking src/tests/test_exception_safety_complete.cpp ...
+src/tests/test_exception_safety_complete.cpp:9:0: warning: Include file: <gtest/gtest.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <gtest/gtest.h>
 ^
-src/obs/obs_integration.cpp:227:0: warning: The function 'plugin_unload' is never used. [unusedFunction]
-void OBSIntegration::plugin_unload() {
+src/tests/test_exception_safety_complete.cpp:10:0: warning: Include file: <stdexcept> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdexcept>
 ^
-src/obs/obs_integration.cpp:548:0: warning: The function 'apply_transform_generic' is never used. [unusedFunction]
-void OBSIntegration::apply_transform_generic(struct obs_source_frame* frame,
+src/tests/test_exception_safety_complete.cpp:11:0: warning: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <memory>
 ^
-src/obs_stubs.c:131:0: warning: The function 'obs_module_text' is never used. [unusedFunction]
-const char *obs_module_text(const char *val) {
+src/tests/test_exception_safety_complete.cpp:12:0: warning: Include file: <thread> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <thread>
 ^
-src/obs_stubs.c:174:0: warning: The function 'obs_data_get_string' is never used. [unusedFunction]
+src/tests/test_exception_safety_complete.cpp:13:0: warning: Include file: <atomic> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <atomic>
+^
+src/tests/test_exception_safety_complete.cpp:14:0: warning: Include file: <cstring> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <cstring>
+^
+src/tests/test_exception_safety_complete.cpp:120:0: warning: Include file: "../obs/obs_integration.cpp" not found. [missingInclude]
+#include "../obs/obs_integration.cpp"
+^
+src/tests/test_exception_safety_complete.cpp:30:21: warning: struct member 'obs_source_info::id' is never used. [unusedStructMember]
+        const char* id;
+                    ^
+src/tests/test_exception_safety_complete.cpp:31:30: warning: struct member 'obs_source_info::type' is never used. [unusedStructMember]
+        enum obs_source_type type;
+                             ^
+src/tests/test_exception_safety_complete.cpp:32:18: warning: struct member 'obs_source_info::output_flags' is never used. [unusedStructMember]
+        uint32_t output_flags;
+                 ^
+src/tests/test_exception_safety_complete.cpp:33:23: warning: struct member 'obs_source_info::get_name' is never used. [unusedStructMember]
+        const char* (*get_name)(void*);
+                      ^
+src/tests/test_exception_safety_complete.cpp:34:17: warning: struct member 'obs_source_info::create' is never used. [unusedStructMember]
+        void* (*create)(obs_data_t*, obs_source_t*);
+                ^
+src/tests/test_exception_safety_complete.cpp:35:16: warning: struct member 'obs_source_info::destroy' is never used. [unusedStructMember]
+        void (*destroy)(void*);
+               ^
+src/tests/test_exception_safety_complete.cpp:36:36: warning: struct member 'obs_source_info::filter_video' is never used. [unusedStructMember]
+        struct obs_source_frame* (*filter_video)(void*, struct obs_source_frame*);
+                                   ^
+src/tests/test_exception_safety_complete.cpp:37:16: warning: struct member 'obs_source_info::update' is never used. [unusedStructMember]
+        void (*update)(void*, obs_data_t*);
+               ^
+src/tests/test_exception_safety_complete.cpp:38:29: warning: struct member 'obs_source_info::get_properties' is never used. [unusedStructMember]
+        obs_properties_t* (*get_properties)(void*);
+                            ^
+src/tests/test_exception_safety_complete.cpp:39:16: warning: struct member 'obs_source_info::get_defaults' is never used. [unusedStructMember]
+        void (*get_defaults)(obs_data_t*);
+               ^
+Checking src/tests/test_exception_safety_complete.cpp: ENABLE_STABILIZATION...
+13/15 files checked 83% done
+Checking src/tests/test_exception_safety_isolated.cpp ...
+src/tests/test_exception_safety_isolated.cpp:10:0: warning: Include file: <gtest/gtest.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <gtest/gtest.h>
+^
+src/tests/test_exception_safety_isolated.cpp:11:0: warning: Include file: <stdexcept> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <stdexcept>
+^
+src/tests/test_exception_safety_isolated.cpp:12:0: warning: Include file: <memory> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <memory>
+^
+src/tests/test_exception_safety_isolated.cpp:13:0: warning: Include file: <cstdint> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <cstdint>
+^
+src/tests/test_exception_safety_isolated.cpp:0:0: warning: Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches. [normalCheckLevelMaxBranches]
+
+^
+src/tests/test_exception_safety_isolated.cpp:39:9: warning: Variable 'stabilizer_core' is assigned in constructor body. Consider performing initialization in initialization list. [useInitializationList]
+        stabilizer_core = std::make_unique<StabilizerCore>();
+        ^
+src/tests/test_exception_safety_isolated.cpp:70:13: warning: Condition '!core_ptr' is always false [knownConditionTrueFalse]
+        if (!core_ptr) {
+            ^
+src/tests/test_exception_safety_isolated.cpp:181:26: warning: struct member 'FakeStabilizerFilter::config' is never used. [unusedStructMember]
+        StabilizerConfig config;
+                         ^
+14/15 files checked 98% done
+Checking src/tests/test_main.cpp ...
+src/tests/test_main.cpp:6:0: warning: Include file: <gtest/gtest.h> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <gtest/gtest.h>
+^
+src/tests/test_main.cpp:7:0: warning: Include file: <iostream> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <iostream>
+^
+src/tests/test_main.cpp:30:0: warning: Include file: <opencv2/opencv.hpp> not found. Please note: Cppcheck does not need standard library headers to get proper results. [missingIncludeSystem]
+#include <opencv2/opencv.hpp>
+^
+Checking src/tests/test_main.cpp: SKIP_OPENCV_TESTS...
+15/15 files checked 100% done
+src/tests/test_main.cpp:33:1: warning: The one definition rule is violated, different classes/structs have the same name 'StabilizerTestEnvironment' [ctuOneDefinitionRuleViolation]
+class StabilizerTestEnvironment : public ::testing::Environment {
+^
+src/tests/test_main.cpp:11:1: note: The one definition rule is violated, different classes/structs have the same name 'StabilizerTestEnvironment'
+class StabilizerTestEnvironment : public ::testing::Environment {
+^
+src/tests/test_main.cpp:33:1: note: The one definition rule is violated, different classes/structs have the same name 'StabilizerTestEnvironment'
+class StabilizerTestEnvironment : public ::testing::Environment {
+^
+src/obs_module_exports.c:28:0: warning: The function 'obs_module_name' is never used. [unusedFunction]
+MODULE_EXPORT const char *obs_module_name(void)
+^
+src/obs_module_exports.c:37:0: warning: The function 'obs_module_description' is never used. [unusedFunction]
+MODULE_EXPORT const char *obs_module_description(void)
+^
+src/obs_module_exports.c:46:0: warning: The function 'obs_module_load' is never used. [unusedFunction]
+MODULE_EXPORT bool obs_module_load(void)
+^
+src/obs_module_exports.c:57:0: warning: The function 'obs_module_text' is never used. [unusedFunction]
+MODULE_EXPORT const char* obs_module_text(const char* lookup_string)
+^
+src/obs_module_exports.c:67:0: warning: The function 'obs_module_unload' is never used. [unusedFunction]
+MODULE_EXPORT void obs_module_unload(void)
+^
+src/obs_plugin.cpp:90:0: warning: The function 'register_stabilizer_filter' is never used. [unusedFunction]
+void register_stabilizer_filter() {
+^
+src/obs_stubs.c:180:0: warning: The function 'obs_data_get_string' is never used. [unusedFunction]
 const char *obs_data_get_string(obs_data_t *data, const char *name) {
 ^
-src/obs_stubs.c:198:0: warning: The function 'obs_data_set_default_string' is never used. [unusedFunction]
+src/obs_stubs.c:204:0: warning: The function 'obs_data_set_default_string' is never used. [unusedFunction]
 void obs_data_set_default_string(obs_data_t *data, const char *name, const char *val) {
 ^
-src/obs_stubs.c:210:0: warning: The function 'obs_properties_destroy' is never used. [unusedFunction]
+src/obs_stubs.c:216:0: warning: The function 'obs_properties_destroy' is never used. [unusedFunction]
 void obs_properties_destroy(obs_properties_t *props) {
 ^
-src/obs_stubs.c:225:0: warning: The function 'obs_properties_add_int' is never used. [unusedFunction]
+src/obs_stubs.c:231:0: warning: The function 'obs_properties_add_int' is never used. [unusedFunction]
 obs_property_t *obs_properties_add_int(obs_properties_t *props, const char *name, const char *description, int min, int max, int step) {
 ^
-src/obs_stubs.c:253:0: warning: The function 'obs_properties_create_group' is never used. [unusedFunction]
+src/obs_stubs.c:252:0: warning: The function 'obs_properties_add_list' is never used. [unusedFunction]
+obs_property_t *obs_properties_add_list(obs_properties_t *props, const char *name, const char *description, enum obs_combo_type type, enum obs_combo_format format) {
+^
+src/obs_stubs.c:259:0: warning: The function 'obs_properties_create_group' is never used. [unusedFunction]
 obs_property_t *obs_properties_create_group(obs_properties_t *props, const char *name, const char *description, enum obs_group_type type) {
 ^
-src/obs_stubs.c:266:0: warning: The function 'obs_property_list_add_string' is never used. [unusedFunction]
+src/obs_stubs.c:266:0: warning: The function 'obs_property_list_add_int' is never used. [unusedFunction]
+size_t obs_property_list_add_int(obs_property_t *prop, const char *name, int val) {
+^
+src/obs_stubs.c:272:0: warning: The function 'obs_property_list_add_string' is never used. [unusedFunction]
 size_t obs_property_list_add_string(obs_property_t *prop, const char *name, const char *val) {
+^
+src/obs_stubs.c:278:0: warning: The function 'obs_property_set_long_description' is never used. [unusedFunction]
+void obs_property_set_long_description(obs_property_t *prop, const char *long_description) {
+^
+src/tests/test_exception_safety_isolated.cpp:29:0: warning: The function 'update_configuration' is never used. [unusedFunction]
+    void update_configuration(const StabilizerConfig& config) { (void)config; }
 ^
 nofile:0:0: warning: Active checkers: There was critical errors (use --checkers-report=<filename> to see details) [checkersReport]
 

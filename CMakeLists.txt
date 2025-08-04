@@ -22,8 +22,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -DNDEBUG")
 endif()
 
-# Find OpenCV - DISABLED for minimal plugin to eliminate loading issues
-# find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
+# Find OpenCV - Required for full plugin functionality
+# For CI/CD standalone builds, OpenCV is optional to avoid build timeouts
+if(BUILD_STANDALONE)
+    find_package(OpenCV QUIET COMPONENTS core imgproc video features2d)
+    if(OpenCV_FOUND)
+        message(STATUS "OpenCV found for standalone build - full functionality enabled")
+    else()
+        message(STATUS "OpenCV not found for standalone build - basic validation only")
+    endif()
+else()
+    find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
+endif()
 
 # Skip Qt6 for now - create Qt-independent minimal plugin
 # This eliminates Qt version conflicts while maintaining plugin functionality
@@ -66,11 +76,12 @@ else()
     add_library(${CMAKE_PROJECT_NAME} MODULE)
 endif()
 
-# Set target sources - restore to successful configuration from fix report
+# Set target sources - add stabilizer implementation
 if(NOT BUILD_STANDALONE)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
         src/plugin_main.cpp
-        src/obs_plugin.cpp
+        src/stabilizer_filter.cpp
+        src/stabilizer.cpp
         src/plugin-support.c
     )
 endif()
@@ -80,16 +91,20 @@ if(NOT OBS_INCLUDE_DIR AND NOT BUILD_STANDALONE)
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs_stubs.c)
 endif()
 
-# Link OpenCV libraries - DISABLED for CI/CD compatibility
+# Link OpenCV libraries - Required for stabilizer functionality
 if(BUILD_STANDALONE)
-    # No external dependencies for CI/CD validation build
-    # target_link_libraries(${CMAKE_PROJECT_NAME}-standalone 
-    #     ${OpenCV_LIBS}
-    # )
+    # Link OpenCV if available for full functionality testing
+    if(OpenCV_FOUND)
+        target_link_libraries(${CMAKE_PROJECT_NAME}-standalone ${OpenCV_LIBS})
+        message(STATUS "Standalone build linked with OpenCV for full testing")
+    else()
+        message(STATUS "Standalone build without OpenCV - basic validation only")
+    endif()
 else()
-    # target_link_libraries(${CMAKE_PROJECT_NAME} 
-    #     ${OpenCV_LIBS}
-    # )
+    # Plugin build always requires OpenCV
+    if(OpenCV_FOUND)
+        target_link_libraries(${CMAKE_PROJECT_NAME} ${OpenCV_LIBS})
+    endif()
     
     # Link Qt libraries - TEMPORARILY DISABLED FOR Qt-independent plugin
     # target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::Core Qt6::Widgets)
@@ -107,10 +122,18 @@ if(BUILD_STANDALONE)
     target_include_directories(${CMAKE_PROJECT_NAME}-standalone PRIVATE 
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
+    # Add OpenCV include directories if found
+    if(OpenCV_FOUND)
+        target_include_directories(${CMAKE_PROJECT_NAME}-standalone PRIVATE ${OpenCV_INCLUDE_DIRS})
+    endif()
 else()
     target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
         ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
+    # Add OpenCV include directories if found
+    if(OpenCV_FOUND)
+        target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+    endif()
     
     # Add OBS include directory if found  
     if(OBS_INCLUDE_DIR)

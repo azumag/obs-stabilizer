@@ -78,8 +78,9 @@ runs:
       run: |
         echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
 
-    - name: Install OpenCV (Windows)
+    - name: Skip OpenCV on Windows CI/CD
       if: inputs.platform == 'windows'
       shell: powershell
       run: |
-        vcpkg install opencv:x64-windows
+        Write-Host "Skipping OpenCV installation on Windows CI/CD to avoid timeouts"
+        Write-Host "Standalone builds will work without OpenCV for basic validation"

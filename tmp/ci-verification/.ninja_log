@@ -1,5 +1,0 @@
-# ninja log v7
-1	88	1754270494144252549	build.ninja	84413a2beffcf9d8
-1	88	1754270494144252549	/Users/azumag/work/obs-stabilizer/tmp/ci-verification/cmake_install.cmake	84413a2beffcf9d8
-0	525	1754270494147956535	CMakeFiles/obs-stabilizer-standalone.dir/src/standalone_test.cpp.o	6e42e85ef31e5856
-526	634	1754270494673970682	obs-stabilizer-standalone	a73715d0ba99d595
