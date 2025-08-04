@@ -177,7 +177,21 @@ void obs_module_unload(void);
 #endif
 
 // OBS Module macros
+typedef struct obs_module obs_module_t;
+
 #define OBS_DECLARE_MODULE() \
+    static obs_module_t *obs_module_pointer; \
+    extern "C" { \
+        MODULE_EXPORT void obs_module_set_pointer(obs_module_t *module); \
+        void obs_module_set_pointer(obs_module_t *module) \
+        { \
+            obs_module_pointer = module; \
+        } \
+        obs_module_t *obs_current_module(void) \
+        { \
+            return obs_module_pointer; \
+        } \
+    } \
     bool obs_module_load(void); \
     void obs_module_unload(void);
 
