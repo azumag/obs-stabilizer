@@ -18,6 +18,6 @@ export default async ({ client }) => {
           }
         }
       }
-    },
+    }
   }
 }
