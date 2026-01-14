@@ -1,5 +1,5 @@
 const processedSessions = new Set()
-export const AutoWorkflowPlugin = async ({ client, directory }) => {
+export const AutoWorkflowPlugin = async ({ client }) => {
   return {
     event: async ({ event }) => {
       try {
@@ -18,10 +18,10 @@ export const AutoWorkflowPlugin = async ({ client, directory }) => {
               processedSessions.delete(sessionId)
               await client.tui.appendPrompt({
                 text: "結合テストを実行し、実装に全く問題がないことを確認せよ。もし失敗したら、修正せよ。修正がなくなったら、githubのリポジトリからissueを取得し、それを解決する実装をせよ。issueがゼロになるまで繰り返せ"
-              }, { directory })
+              })
               await client.tui.executeCommand({
                 command: "prompt.submit"
-              }, { directory })
+              })
             }
           }
         }
