@@ -13,6 +13,7 @@ Uses workaround for settings crash: only read settings in create, not update
 #include <deque>
 #include <vector>
 #include <chrono>
+#include "stabilizer_constants.h"
 
 struct stabilizer_filter {
     obs_source_t *source;
@@ -232,12 +233,39 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
 static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_source_frame *frame)
 {
     struct stabilizer_filter *filter = (struct stabilizer_filter *)data;
-    
-    if (!filter || !frame || !filter->enabled) {
+
+    if (!filter || !filter->enabled || !frame) {
         return frame;
     }
+
+    // Copy parameters needed for processing to minimize lock time
+    bool enabled_copy;
+    uint32_t width_copy, height_copy;
+    int smoothing_radius_copy;
+    float max_correction_copy;
+    int feature_count_copy;
+    float quality_level_copy;
+    float min_distance_copy;
+    bool debug_mode_copy;
+    int block_size_copy;
+    bool use_harris_copy;
+    float k_copy;
     
-    std::lock_guard<std::mutex> lock(filter->mutex);
+    {
+        std::lock_guard<std::mutex> lock(filter->mutex);
+        enabled_copy = filter->enabled;
+        width_copy = filter->width;
+        height_copy = filter->height;
+        smoothing_radius_copy = filter->smoothing_radius;
+        max_correction_copy = filter->max_correction;
+        feature_count_copy = filter->feature_count;
+        quality_level_copy = filter->quality_level;
+        min_distance_copy = filter->min_distance;
+        debug_mode_copy = filter->debug_mode;
+        block_size_copy = filter->block_size;
+        use_harris_copy = filter->use_harris;
+        k_copy = filter->k;
+    }
     
     auto start_time = std::chrono::high_resolution_clock::now();
     
@@ -247,14 +275,17 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
         uint32_t height = frame->height;
         
         // Check if dimensions changed
-        if (filter->width != width || filter->height != height) {
-            filter->width = width;
-            filter->height = height;
-            filter->first_frame = true;
-            filter->prev_gray.release();
-            filter->prev_pts.clear();
-            filter->transforms.clear();
-            filter->cumulative_transform = cv::Mat::eye(3, 3, CV_64F);
+        if (width_copy != width || height_copy != height) {
+            {
+                std::lock_guard<std::mutex> lock(filter->mutex);
+                filter->width = width;
+                filter->height = height;
+                filter->first_frame = true;
+                filter->prev_gray.release();
+                filter->prev_pts.clear();
+                filter->transforms.clear();
+                filter->cumulative_transform = cv::Mat::eye(3, 3, CV_64F);
+            }
             obs_log(LOG_INFO, "Frame dimensions changed to %dx%d", width, height);
         }
         
@@ -274,22 +305,30 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
             gray = cv::Mat(height, width, CV_8UC1, frame->data[0], frame->linesize[0]);
         } else {
             // Unsupported format, pass through
-            if (filter->debug_mode) {
+            if (debug_mode_copy) {
                 obs_log(LOG_WARNING, "Unsupported video format: %d", frame->format);
             }
             return frame;
         }
         
-        if (filter->first_frame) {
-            // First frame - just detect features
-            cv::goodFeaturesToTrack(gray, filter->prev_pts, filter->feature_count,
-                                   filter->quality_level, filter->min_distance,
-                                   cv::Mat(), filter->block_size, filter->use_harris, filter->k);
-            filter->prev_gray = gray.clone();
-            filter->first_frame = false;
+        if (width_copy != width || height_copy != height) {
+            // First frame after dimension change
+            {
+                std::lock_guard<std::mutex> lock(filter->mutex);
+                cv::goodFeaturesToTrack(gray, filter->prev_pts, feature_count_copy,
+                                       quality_level_copy, min_distance_copy,
+                                       cv::Mat(), block_size_copy, use_harris_copy, k_copy);
+                filter->prev_gray = gray.clone();
+                filter->first_frame = false;
+            }
             
-            if (filter->debug_mode) {
-                obs_log(LOG_INFO, "First frame processed, detected %zu features", filter->prev_pts.size());
+            if (debug_mode_copy) {
+                size_t pts_size;
+                {
+                    std::lock_guard<std::mutex> lock(filter->mutex);
+                    pts_size = filter->prev_pts.size();
+                }
+                obs_log(LOG_INFO, "First frame processed, detected %zu features", pts_size);
             }
         } else {
             // Track features
@@ -297,9 +336,11 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
             std::vector<uchar> status;
             std::vector<float> err;
             
-            if (!filter->prev_pts.empty()) {
-                cv::calcOpticalFlowPyrLK(filter->prev_gray, gray, filter->prev_pts, curr_pts,
-                                        status, err, cv::Size(filter->winSize, filter->winSize),
+            {
+                std::lock_guard<std::mutex> lock(filter->mutex);
+                if (!filter->prev_pts.empty()) {
+                    cv::calcOpticalFlowPyrLK(filter->prev_gray, gray, filter->prev_pts, curr_pts,
+                                            status, err, cv::Size(OPENCV_PARAMS::WIN_SIZE_DEFAULT, OPENCV_PARAMS::WIN_SIZE_DEFAULT),
                                         filter->maxLevel,
                                         cv::TermCriteria(cv::TermCriteria::COUNT | cv::TermCriteria::EPS,
                                                        filter->maxCount, filter->epsilon),
@@ -320,12 +361,12 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
                     
                     // Add to transform history
                     filter->transforms.push_back(transform);
-                    if (filter->transforms.size() > (size_t)filter->smoothing_radius * 2) {
-                        filter->transforms.pop_front();
-                    }
-                    
-                    // Calculate smoothed transform
-                    cv::Mat smooth = smooth_transform(filter->transforms, filter->smoothing_radius);
+                        if (filter->transforms.size() > (size_t)smoothing_radius_copy * 2) {
+                            filter->transforms.pop_front();
+                        }
+                        
+                        // Calculate smoothed transform
+                        cv::Mat smooth = smooth_transform(filter->transforms, smoothing_radius_copy);
                     
                     // Apply inverse transform to stabilize
                     cv::Mat stabilization_transform = smooth.inv();
@@ -349,8 +390,17 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
                         }
                     }
                     
-                    if (filter->debug_mode && filter->frame_count % 30 == 0) {
-                        obs_log(LOG_INFO, "Stabilization applied: %zu features tracked", good_prev.size());
+                    {
+                        bool should_log = false;
+                        uint32_t frame_count_val;
+                        {
+                            std::lock_guard<std::mutex> lock(filter->mutex);
+                            should_log = filter->debug_mode && filter->frame_count % MEMORY::DEBUG_OUTPUT_INTERVAL == 0;
+                            frame_count_val = filter->frame_count;
+                        }
+                        if (should_log) {
+                            obs_log(LOG_INFO, "Stabilization applied: %zu features tracked", good_prev.size());
+                        }
                     }
                 }
                 
@@ -359,16 +409,22 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
             }
             
             // Refresh features if too few
-            if (filter->prev_pts.size() < (size_t)(filter->feature_count / 2)) {
-                cv::goodFeaturesToTrack(gray, filter->prev_pts, filter->feature_count,
-                                       filter->quality_level, filter->min_distance,
-                                       cv::Mat(), filter->block_size, filter->use_harris, filter->k);
-                if (filter->debug_mode) {
-                    obs_log(LOG_INFO, "Refreshed features: %zu detected", filter->prev_pts.size());
+            {
+                std::lock_guard<std::mutex> lock(filter->mutex);
+                if (filter->prev_pts.size() < (size_t)(feature_count_copy / OPENCV_PARAMS::REFRESH_FEATURE_THRESHOLD_DIVISOR)) {
+                    cv::goodFeaturesToTrack(gray, filter->prev_pts, feature_count_copy,
+                                           quality_level_copy, min_distance_copy,
+                                           cv::Mat(), block_size_copy, use_harris_copy, k_copy);
+                    if (debug_mode_copy) {
+                        obs_log(LOG_INFO, "Refreshed features: %zu detected", filter->prev_pts.size());
+                    }
                 }
             }
             
-            filter->prev_gray = gray.clone();
+            {
+                std::lock_guard<std::mutex> lock(filter->mutex);
+                filter->prev_gray = gray.clone();
+            }
         }
         
         // Update performance metrics
@@ -376,11 +432,14 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         double processing_time = duration.count() / 1000.0; // Convert to ms
         
-        filter->avg_processing_time = (filter->avg_processing_time * filter->frame_count + processing_time) / (filter->frame_count + 1);
-        filter->frame_count++;
-        
-        if (filter->debug_mode && filter->frame_count % 100 == 0) {
-            obs_log(LOG_INFO, "Avg processing time: %.2f ms", filter->avg_processing_time);
+        {
+            std::lock_guard<std::mutex> lock(filter->mutex);
+            filter->avg_processing_time = (filter->avg_processing_time * filter->frame_count + processing_time) / (filter->frame_count + 1);
+            filter->frame_count++;
+            
+            if (filter->debug_mode && filter->frame_count % MEMORY::DEBUG_OUTPUT_INTERVAL * 3 == 0) {
+                obs_log(LOG_INFO, "Avg processing time: %.2f ms", filter->avg_processing_time);
+            }
         }
         
     } catch (const cv::Exception &e) {
@@ -396,23 +455,23 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
 static void apply_preset(obs_data_t *settings, const char *preset_name)
 {
     if (strcmp(preset_name, "gaming") == 0) {
-        obs_data_set_int(settings, "smoothing_radius", 15);
-        obs_data_set_set_double(settings, "max_correction", 30.0);
-        obs_data_set_int(settings, "feature_count", 300);
-        obs_data_set_set_double(settings, "quality_level", 0.005);
-        obs_data_set_set_double(settings, "min_distance", 20.0);
+        obs_data_set_int(settings, "smoothing_radius", PRESETS::GAMING::SMOOTHING_RADIUS);
+        obs_data_set_double(settings, "max_correction", PRESETS::GAMING::MAX_CORRECTION);
+        obs_data_set_int(settings, "feature_count", PRESETS::GAMING::FEATURE_COUNT);
+        obs_data_set_double(settings, "quality_level", PRESETS::GAMING::QUALITY_LEVEL);
+        obs_data_set_double(settings, "min_distance", PRESETS::GAMING::MIN_DISTANCE);
     } else if (strcmp(preset_name, "streaming") == 0) {
-        obs_data_set_int(settings, "smoothing_radius", 30);
-        obs_data_set_set_double(settings, "max_correction", 50.0);
-        obs_data_set_int(settings, "feature_count", 200);
-        obs_data_set_set_double(settings, "quality_level", 0.01);
-        obs_data_set_set_double(settings, "min_distance", 30.0);
+        obs_data_set_int(settings, "smoothing_radius", PRESETS::STREAMING::SMOOTHING_RADIUS);
+        obs_data_set_double(settings, "max_correction", PRESETS::STREAMING::MAX_CORRECTION);
+        obs_data_set_int(settings, "feature_count", PRESETS::STREAMING::FEATURE_COUNT);
+        obs_data_set_double(settings, "quality_level", PRESETS::STREAMING::QUALITY_LEVEL);
+        obs_data_set_double(settings, "min_distance", PRESETS::STREAMING::MIN_DISTANCE);
     } else if (strcmp(preset_name, "recording") == 0) {
-        obs_data_set_int(settings, "smoothing_radius", 60);
-        obs_data_set_set_double(settings, "max_correction", 80.0);
-        obs_data_set_int(settings, "feature_count", 150);
-        obs_data_set_set_double(settings, "quality_level", 0.02);
-        obs_data_set_set_double(settings, "min_distance", 40.0);
+        obs_data_set_int(settings, "smoothing_radius", PRESETS::RECORDING::SMOOTHING_RADIUS);
+        obs_data_set_double(settings, "max_correction", PRESETS::RECORDING::MAX_CORRECTION);
+        obs_data_set_int(settings, "feature_count", PRESETS::RECORDING::FEATURE_COUNT);
+        obs_data_set_double(settings, "quality_level", PRESETS::RECORDING::QUALITY_LEVEL);
+        obs_data_set_double(settings, "min_distance", PRESETS::RECORDING::MIN_DISTANCE);
     }
 }
 
