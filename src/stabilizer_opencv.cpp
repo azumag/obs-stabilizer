@@ -397,9 +397,9 @@ static struct obs_source_info stabilizer_opencv_filter = {
     .create = stabilizer_filter_create,
     .destroy = stabilizer_filter_destroy,
     .update = stabilizer_filter_update,
-    .filter_video = stabilizer_filter_video,
     .get_defaults = stabilizer_filter_get_defaults,
-    .get_properties = stabilizer_filter_get_properties
+    .get_properties = stabilizer_filter_get_properties,
+    .filter_video = stabilizer_filter_video
 };
 
 // Module load
