@@ -6,8 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_ARCHITECTURES "arm64")
 
 # Deployment strategy selection (Issue #171)
-option(OPENCV_DEPLOYMENT_STRATEGY "OpenCV deployment strategy" 
-       "System" CACHE STRING "Static|Bundled|Hybrid|System")
+set(OPENCV_DEPLOYMENT_STRATEGY "System" CACHE STRING "OpenCV deployment strategy")
 
 set_property(CACHE OPENCV_DEPLOYMENT_STRATEGY 
              PROPERTY STRINGS "Static;Bundled;Hybrid;System")
