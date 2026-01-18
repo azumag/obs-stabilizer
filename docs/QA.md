@@ -1,24 +1,29 @@
 # QA Report
 
-- **QA実施日**: 2026-01-19
-- **対象**: obs-stabilizer プラグイン
-- **結果**: 失敗
+## Issue: Build Failure due to `const` correctness violation
 
-## 詳細
+**Description:**
 
-`make` コマンドを実行したところ、プラグイン本体のビルドに失敗しました。
-単体テストの実行ファイル `stabilizer_tests` はビルドできましたが、メインライブラリ `obs-stabilizer-opencv.so` のビルドで多数のエラーが発生しています。
+The build fails with multiple errors related to `obs_data_get_*` functions. The compiler reports that a `const obs_data_t *` is being passed to functions that expect a `obs_data_t *`. This indicates a violation of the OBS API's `const` correctness.
 
-### エラーが発生したファイル
-- `src/stabilizer_opencv.cpp`
-- `src/obs/obs_integration.cpp`
-- `src/core/stabilizer_core.cpp`
+**Error Log:**
 
-### 主なエラー内容
-- **OBS APIのシグネチャ不一致**: `obs_data_get_bool` などの関数呼び出しで、引数の `const` 修飾子が合わないためエラーが発生しています。
-- **未定義の識別子**: `obs_source_get_settings`, `OBS_TEXT_INFO` など、OBS APIの関数や定数が未定義として扱われています。
-- **C++構文エラー**: `try-catch` ブロックの不整合や、予期しない括弧など、基本的な構文エラーが複数見られます。
+```
+/Users/azumag/work/obs-stabilizer/src/stabilizer_opencv.cpp:304:22: error: no matching function for call to 'obs_data_get_bool'
+  304 |     params.enabled = obs_data_get_bool(settings, "enabled");
+      |                      ^~~~~~~~~~~~~~~~~
+/Users/azumag/work/obs-stabilizer/include/obs/obs-module.h:132:6: note: candidate function not viable: 1st argument ('const obs_data_t *' (aka 'const obs_data *')) would lose const qualifier
+  132 | bool obs_data_get_bool(obs_data_t *data, const char *name);
+      |      ^                 ~~~~~~~~~~~~~~~~
+... (similar errors for other obs_data_get_* calls)
+```
 
-## 次のステップ
+**Analysis:**
 
-これらのビルドエラーを修正するよう、実装エージェントにフィードバックを行います。
+The `stabilizer_update` function in `src/stabilizer_opencv.cpp` receives a `const obs_data_t *settings` parameter. However, the code attempts to call non-const versions of `obs_data_get_*` functions with this const pointer.
+
+This is a critical issue that prevents the plugin from being built and tested. It needs to be addressed by the implementation team.
+
+**Recommendation:**
+
+The implementation agent needs to fix the `const` correctness issue in `src/stabilizer_opencv.cpp`. This likely involves using `const` versions of the `obs_data_get_*` functions if they exist, or refactoring the code to avoid this issue. If `const` versions of the functions are not available in the included OBS headers, the OBS API documentation should be consulted for the correct way to handle this.
