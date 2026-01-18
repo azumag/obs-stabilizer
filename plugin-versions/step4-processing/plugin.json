@@ -1,0 +1,29 @@
+{
+  "version": "step4-processing",
+  "description": "Add actual video processing and stabilization logic",
+  "filter_id": "test_stabilizer_step4_processing", 
+  "filter_name": "Test Stabilizer Step 4 (Processing)",
+  "plugin_name": "test-stabilizer-step4",
+  "bundle_id": "com.obsstabilizer.step4",
+  "functionality": [
+    "Basic plugin loading",
+    "Filter registration", 
+    "Parameter reading from settings",
+    "Filter data updates",
+    "Frame data access and validation", 
+    "OpenCV Mat creation from frame data",
+    "Basic OpenCV operations",
+    "Feature detection and tracking",
+    "Motion estimation",
+    "Video stabilization processing"
+  ],
+  "expected_behavior": "Should perform actual video stabilization without crashing",
+  "test_criteria": [
+    "Plugin loads successfully",
+    "Filter appears in OBS menu",
+    "No crashes when applied to video source", 
+    "Video stabilization processing works",
+    "Output video shows stabilization effects",
+    "Performance is acceptable for real-time use"
+  ]
+}

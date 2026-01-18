@@ -116,23 +116,7 @@ void blogva(int log_level, const char *format, va_list args) {
     printf("\n");
 }
 
-void obs_log(int log_level, const char *format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    blogva(log_level, format, args);
-    va_end(args);
-}
 
-bool obs_register_source(struct obs_source_info *info) {
-    // Validate input parameters
-    if (!info || !info->id) {
-        printf("Error: Invalid source info provided to obs_register_source\n");
-        return false;
-    }
-    printf("Registering source: %s\n", info->id);
-    return true;
-}
 
 const char *obs_module_text(const char *val) {
     // Validate input parameter

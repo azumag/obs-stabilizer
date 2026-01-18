@@ -22,7 +22,7 @@ static void* stabilizer_filter_create(obs_data_t* settings, obs_source_t* source
     filter->enabled = obs_data_get_bool(settings, "enable_stabilization");
     filter->smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
     
-    printf("[obs-stabilizer] Stabilizer filter created (minimal test version)\n");
+    obs_log(LOG_INFO, "[obs-stabilizer] Stabilizer filter created (minimal test version)");
     return filter;
 }
 
@@ -32,7 +32,7 @@ static void stabilizer_filter_destroy(void* data) {
     StabilizerFilter* filter = static_cast<StabilizerFilter*>(data);
     delete filter;
     
-    printf("[obs-stabilizer] Stabilizer filter destroyed (minimal test version)\n");
+    obs_log(LOG_INFO, "[obs-stabilizer] Stabilizer filter destroyed (minimal test version)");
 }
 
 static void stabilizer_filter_update(void* data, obs_data_t* settings) {

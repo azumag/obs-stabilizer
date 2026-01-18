@@ -6,14 +6,7 @@ Real-time video stabilization using OpenCV
 #include <obs-module.h>
 #include <stdio.h>
 
-// Forward declaration for filter registration
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern void register_stabilizer_filter(void);
-#ifdef __cplusplus
-}
-#endif
+// Remove forward declaration - we'll handle registration in stabilizer_filter.cpp
 
 // Module metadata
 #define PLUGIN_VERSION "0.1.0"
@@ -33,17 +26,16 @@ MODULE_EXPORT const char* obs_module_author(void) {
     return "azumag";
 }
 
+// This will be defined in simple_passthrough.cpp
+extern bool simple_obs_module_load(void);
+
 MODULE_EXPORT bool obs_module_load(void) {
-    // Register the video stabilizer filter
-    register_stabilizer_filter();
-    printf("[obs-stabilizer] Video stabilizer filter registered\n");
-    fflush(stdout);
-    return true;
+    // Call the simple module load function
+    return simple_obs_module_load();
 }
 
 MODULE_EXPORT void obs_module_unload(void) {
-    printf("[obs-stabilizer] Unloading OBS Stabilizer Plugin\n");
-    fflush(stdout);
+    obs_log(LOG_INFO, "[obs-stabilizer] Unloading OBS Stabilizer Plugin");
 }
 
 MODULE_EXPORT const char* obs_module_name(void) {

@@ -12,7 +12,6 @@ Provides compatibility layer for OBS API differences
 // Bridge function to handle symbol differences
 bool obs_register_source(struct obs_source_info *info)
 {
-    extern bool obs_register_source_s(struct obs_source_info *info, size_t size);
     return obs_register_source_s(info, sizeof(*info));
 }
 
@@ -21,7 +20,6 @@ void obs_log(int log_level, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    extern void blogva(int log_level, const char *format, va_list args);
     blogva(log_level, format, args);
     va_end(args);
 }

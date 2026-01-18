@@ -1,0 +1,26 @@
+{
+  "version": "step2-frame-access", 
+  "description": "Add frame data access and validation",
+  "filter_id": "test_stabilizer_step2_frame",
+  "filter_name": "Test Stabilizer Step 2 (Frame Access)",
+  "plugin_name": "test-stabilizer-step2",
+  "bundle_id": "com.obsstabilizer.step2",
+  "functionality": [
+    "Basic plugin loading",
+    "Filter registration",
+    "Pass-through video processing", 
+    "Parameter reading from settings",
+    "Filter data updates",
+    "Frame data access and validation",
+    "Frame metadata inspection"
+  ],
+  "expected_behavior": "Should access frame data safely without crashing",
+  "test_criteria": [
+    "Plugin loads successfully",
+    "Filter appears in OBS menu",
+    "No crashes when applied to video source",
+    "Frame data can be accessed safely",
+    "Frame validation works correctly",
+    "Passes through video unchanged"
+  ]
+}

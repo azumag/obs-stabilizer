@@ -1,170 +1,155 @@
-cmake_minimum_required(VERSION 3.16...3.30)
+cmake_minimum_required(VERSION 3.16)
+project(obs-stabilizer-opencv)
 
-# OBS Stabilizer Plugin - Simplified Architecture
-project(obs-stabilizer VERSION 0.1.0)
-
-# Language standards
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_OSX_ARCHITECTURES "arm64")
 
-# Build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE RelWithDebInfo)
-endif()
+# Find OpenCV
+find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
+message(STATUS "OpenCV version: ${OpenCV_VERSION}")
+message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
 
-# Compiler flags
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O2 -g -DNDEBUG")
-endif()
+# OBS paths - use local headers
+set(OBS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/obs")
+set(OBS_FRONTEND_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/obs-frontend-api")
+set(OBS_LIB_DIR "/Applications/OBS.app/Contents/Frameworks")
 
-# Find OpenCV - Required for full plugin functionality
-# For CI/CD standalone builds, OpenCV is optional to avoid build timeouts
-if(BUILD_STANDALONE)
-    find_package(OpenCV QUIET COMPONENTS core imgproc video features2d)
-    if(OpenCV_FOUND)
-        message(STATUS "OpenCV found for standalone build - full functionality enabled")
-    else()
-        message(STATUS "OpenCV not found for standalone build - basic validation only")
-    endif()
+# Check if OBS headers exist
+if(NOT EXISTS "${OBS_INCLUDE_DIR}/obs-module.h")
+    message(WARNING "OBS headers not found at ${OBS_INCLUDE_DIR}")
+    message(STATUS "Building standalone test version")
+    add_definitions(-DSTANDALONE_TEST)
 else()
-    find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
+    message(STATUS "Found OBS headers at ${OBS_INCLUDE_DIR}")
+    add_definitions(-DHAVE_OBS_HEADERS=1)
 endif()
-
-# Skip Qt6 for now - create Qt-independent minimal plugin
-# This eliminates Qt version conflicts while maintaining plugin functionality
-# find_package(Qt6 6.8 REQUIRED COMPONENTS Core Widgets)
-
-# Build options
-option(BUILD_STANDALONE "Build standalone executable for testing" OFF)
-
-# Find OBS headers and libraries - revert to working direct path method
-if(NOT BUILD_STANDALONE)
-    find_path(OBS_INCLUDE_DIR obs-module.h 
-        PATHS 
-            ${CMAKE_CURRENT_SOURCE_DIR}/include/obs
-            /usr/include/obs
-            /usr/local/include/obs
-            /Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/Headers
-        NO_DEFAULT_PATH
-    )
-endif()
-
-# Find OBS library - direct path for macOS framework
-if(NOT BUILD_STANDALONE)
-    if(APPLE AND EXISTS "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
-        set(OBS_LIBRARY "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
-        message(STATUS "Found OBS library at: ${OBS_LIBRARY}")
-    else()
-        # Fallback for other platforms
-        find_library(OBS_LIBRARY NAMES libobs obs PATHS /usr/lib /usr/local/lib NO_DEFAULT_PATH)
-    endif()
-endif()
-
-# Skip OBS frontend API - not needed for basic video filters
-# Most OBS plugins work without frontend API dependency
-
-# Create the plugin library or standalone executable
-if(BUILD_STANDALONE)
-    add_executable(${CMAKE_PROJECT_NAME}-standalone src/standalone_test.cpp)
-    message(STATUS "Building standalone executable for CI/CD testing")
-else()
-    add_library(${CMAKE_PROJECT_NAME} MODULE)
-endif()
-
-# Set target sources - add stabilizer implementation
-if(NOT BUILD_STANDALONE)
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE 
-        src/plugin_main.cpp
-        src/stabilizer_filter.cpp
-        src/stabilizer.cpp
-        src/plugin-support.c
-    )
-endif()
-
-# Add stub functions for CI/CD builds without OBS library
-if(NOT OBS_INCLUDE_DIR AND NOT BUILD_STANDALONE)
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/obs_stubs.c)
-endif()
-
-# Link OpenCV libraries - Required for stabilizer functionality
-if(BUILD_STANDALONE)
-    # Link OpenCV if available for full functionality testing
-    if(OpenCV_FOUND)
-        target_link_libraries(${CMAKE_PROJECT_NAME}-standalone ${OpenCV_LIBS})
-        message(STATUS "Standalone build linked with OpenCV for full testing")
-    else()
-        message(STATUS "Standalone build without OpenCV - basic validation only")
-    endif()
-else()
-    # Plugin build always requires OpenCV
-    if(OpenCV_FOUND)
-        target_link_libraries(${CMAKE_PROJECT_NAME} ${OpenCV_LIBS})
-    endif()
-    
-    # Link Qt libraries - TEMPORARILY DISABLED FOR Qt-independent plugin
-    # target_link_libraries(${CMAKE_PROJECT_NAME} Qt6::Core Qt6::Widgets)
-    
-    # Link libraries - only if OBS_LIBRARY is found
-    if(OBS_LIBRARY)
-        target_link_libraries(${CMAKE_PROJECT_NAME} ${OBS_LIBRARY})
-    endif()
-endif()
-
-# Skip OBS frontend API linking - not required for video filters
 
 # Include directories
-if(BUILD_STANDALONE)
-    target_include_directories(${CMAKE_PROJECT_NAME}-standalone PRIVATE 
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
-    # Add OpenCV include directories if found
-    if(OpenCV_FOUND)
-        target_include_directories(${CMAKE_PROJECT_NAME}-standalone PRIVATE ${OpenCV_INCLUDE_DIRS})
-    endif()
-else()
-    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE 
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
-    # Add OpenCV include directories if found
-    if(OpenCV_FOUND)
-        target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
+include_directories(
+    ${OBS_INCLUDE_DIR}
+    ${OBS_FRONTEND_INCLUDE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# Source files
+set(SOURCES
+    src/stabilizer_opencv.cpp
+    src/plugin-support.c
+    src/obs_stubs.c
+)
+
+# Create plugin library
+add_library(obs-stabilizer-opencv MODULE ${SOURCES})
+
+# Link libraries
+target_link_libraries(obs-stabilizer-opencv
+    ${OpenCV_LIBS}
+)
+
+# macOS specific settings
+if(APPLE)
+    # Find OBS library
+    if(EXISTS "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
+        set(OBS_LIBRARY "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
+        message(STATUS "Found OBS library at: ${OBS_LIBRARY}")
+        target_link_libraries(obs-stabilizer-opencv ${OBS_LIBRARY})
+        # Allow undefined symbols to be resolved at runtime by OBS
+        set_target_properties(obs-stabilizer-opencv PROPERTIES
+            LINK_FLAGS "-undefined dynamic_lookup"
+        )
+    else()
+        message(WARNING "OBS library not found, building without OBS linking")
     endif()
     
-    # Add OBS include directory if found  
-    if(OBS_INCLUDE_DIR)
-        target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${OBS_INCLUDE_DIR})
-        target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_OBS_HEADERS=1)
-        message(STATUS "Building with OBS headers from: ${OBS_INCLUDE_DIR}")
-    endif()
-endif()
-
-# Plugin properties
-if(NOT BUILD_STANDALONE)
-    set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
-        PREFIX ""
-        SUFFIX ""
-        OUTPUT_NAME "test-stabilizer"
-    )
-endif()
-
-# Platform-specific settings
-if(APPLE AND NOT BUILD_STANDALONE)
-    set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES
-        BUNDLE TRUE
-        BUNDLE_EXTENSION "plugin"
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
-        INSTALL_RPATH "@loader_path/../Frameworks;@executable_path/../Frameworks;/Applications/OBS.app/Contents/Frameworks"
+    # Set RPATH for finding OpenCV libraries at runtime
+    set_target_properties(obs-stabilizer-opencv PROPERTIES
+        INSTALL_RPATH "@loader_path/../Frameworks;@loader_path/../Resources/lib;/opt/homebrew/lib;/usr/local/lib"
         BUILD_WITH_INSTALL_RPATH TRUE
+        MACOSX_RPATH TRUE
     )
-    
-    # Apply macOS plugin fixes
-    include(cmake/macOS-plugin-fix.cmake)
-    fix_macos_plugin_binary(${CMAKE_PROJECT_NAME})
 endif()
 
-message(STATUS "Building OBS Stabilizer Plugin v${CMAKE_PROJECT_VERSION} (Simplified Architecture)")
+# Output settings
+set_target_properties(obs-stabilizer-opencv PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "obs-stabilizer-opencv"
+    SUFFIX ".so"
+)
+
+# Install target
+install(TARGETS obs-stabilizer-opencv
+    LIBRARY DESTINATION obs-plugins
+    RUNTIME DESTINATION obs-plugins
+)
+
+# Performance test executables (from src/CMakeLists.txt)
+add_executable(perftest src/performance-test.cpp)
+add_executable(memtest src/memory-test.cpp)
+target_link_libraries(perftest ${OpenCV_LIBS})
+target_link_libraries(memtest ${OpenCV_LIBS})
+target_include_directories(perftest PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(memtest PRIVATE ${OpenCV_INCLUDE_DIRS})
+
+# Compiler-specific optimizations for performance tests
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(perftest PRIVATE -O3)
+    target_compile_options(memtest PRIVATE -O3)
+endif()
+
+# Test configuration (from src/tests/CMakeLists.txt)
+# Find Google Test
+find_package(GTest REQUIRED)
+
+# Check if we have test files
+set(TEST_SOURCES "")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/test_main.cpp")
+    list(APPEND TEST_SOURCES src/tests/test_main.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/test_exception_safety_isolated.cpp")
+    list(APPEND TEST_SOURCES src/tests/test_exception_safety_isolated.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/stabilizer.cpp")
+    list(APPEND TEST_SOURCES src/stabilizer.cpp)
+endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/obs_stubs.c")
+    list(APPEND TEST_SOURCES src/obs_stubs.c)
+endif()
+
+# Create test executable if we have test sources
+if(TEST_SOURCES)
+    add_executable(stabilizer_tests ${TEST_SOURCES})
+    
+    # Link against Google Test and OpenCV
+    target_link_libraries(stabilizer_tests 
+        GTest::gtest 
+        GTest::gtest_main
+        ${OpenCV_LIBS}
+    )
+    
+    # Include directories
+    target_include_directories(stabilizer_tests PRIVATE 
+        ${OpenCV_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/obs
+    )
+    
+    # Enable testing
+    enable_testing()
+    add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
+    
+    message(STATUS "Test suite enabled with sources: ${TEST_SOURCES}")
+else()
+    message(STATUS "No test sources found, skipping test suite")
+endif()
+
+# Print configuration summary
+message(STATUS "========================================")
+message(STATUS "Configuration Summary:")
+message(STATUS "  OpenCV Version: ${OpenCV_VERSION}")
+message(STATUS "  OBS Headers: ${OBS_INCLUDE_DIR}")
+message(STATUS "  OBS Library: ${OBS_LIBRARY}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "========================================")

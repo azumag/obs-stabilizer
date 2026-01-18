@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>OBS Stabilizer</string>
 	<key>CFBundleExecutable</key>
-	<string>obs-stabilizer</string>
+	<string>test-stabilizer</string>
 	<key>CFBundleGetInfoString</key>
 	<string>OBS Stabilizer Plugin 0.1.0</string>
 	<key>CFBundleIdentifier</key>
