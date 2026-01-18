@@ -161,15 +161,15 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
 {
     try {
         struct stabilizer_filter *context = (struct stabilizer_filter *)data;
-        if (!context || !context->stabilizer || !frame) {
+        if (!context || !context->stabilizer.is_initialized() || !frame) {
             return frame;
         }
 
         // Initialize stabilizer on first frame
         if (!context->initialized) {
-            if (!context->stabilizer->initialize(frame->width, frame->height, context->params)) {
+            if (!context->stabilizer.initialize(frame->width, frame->height, context->params)) {
                 obs_log(LOG_ERROR, "Failed to initialize stabilizer: %s", 
-                        context->stabilizer->get_last_error().c_str());
+                         context->stabilizer.get_last_error().c_str());
                 return frame;
             }
             
@@ -186,7 +186,7 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
 
         // Process frame with stabilizer
         auto start_time = std::chrono::high_resolution_clock::now();
-        cv::Mat stabilized_frame = context->stabilizer->process_frame(cv_frame);
+         cv::Mat stabilized_frame = context->stabilizer.process_frame(cv_frame);
         auto end_time = std::chrono::high_resolution_clock::now();
         
         // Update performance metrics

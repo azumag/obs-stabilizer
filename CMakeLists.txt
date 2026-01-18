@@ -5,65 +5,36 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_ARCHITECTURES "arm64")
 
-# Deployment strategy selection (Issue #171)
-set(OPENCV_DEPLOYMENT_STRATEGY "System" CACHE STRING "OpenCV deployment strategy")
-
-set_property(CACHE OPENCV_DEPLOYMENT_STRATEGY 
-             PROPERTY STRINGS "Static;Bundled;Hybrid;System")
-
-message(STATUS "OpenCV Deployment Strategy: ${OPENCV_DEPLOYMENT_STRATEGY}")
-
-# Load strategy-specific configuration
-if(OPENCV_DEPLOYMENT_STRATEGY STREQUAL "Static" OR 
-   OPENCV_DEPLOYMENT_STRATEGY STREQUAL "Hybrid")
-    include(${CMAKE_SOURCE_DIR}/cmake/StaticOpenCV.cmake)
-elseif(OPENCV_DEPLOYMENT_STRATEGY STREQUAL "Bundled")
-    include(${CMAKE_SOURCE_DIR}/cmake/BundledOpenCV.cmake)
-else()
-    # System dependencies (default/current approach)
-    find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d calib3d flann)
-    message(STATUS "OpenCV version: ${OpenCV_VERSION}")
-    message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
-    message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
-endif()
-
-# OBS paths - find headers in standard locations or use local headers
-find_path(OBS_INCLUDE_DIR obs-module.h
-    PATHS
-    ${CMAKE_SOURCE_DIR}/include/obs
-    /usr/local/include/obs
-    /usr/include/obs
-)
-find_path(OBS_FRONTEND_INCLUDE_DIR obs-frontend-api.h
-    PATHS
-    ${CMAKE_SOURCE_DIR}/include/obs-frontend-api
-    /usr/local/include/obs-frontend-api
-    /usr/include/obs-frontend-api
-)
-
-set(OBS_LIB_DIR "/Applications/OBS.app/Contents/Frameworks")
-
-# Check if OBS headers exist
-if(NOT EXISTS "${OBS_INCLUDE_DIR}/obs-module.h")
-    message(WARNING "OBS headers not found at ${OBS_INCLUDE_DIR}")
-    message(STATUS "Building standalone test version")
-    add_definitions(-DSTANDALONE_TEST)
-else()
-    message(STATUS "Found OBS headers at ${OBS_INCLUDE_DIR}")
-    add_definitions(-DHAVE_OBS_HEADERS=1)
-endif()
-
-# Include directories
-include_directories(
-    ${OBS_INCLUDE_DIR}
-    ${OBS_FRONTEND_INCLUDE_DIR}
-    ${OpenCV_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
+# --- OpenCV Dependencies ---
+find_package(OpenCV REQUIRED)
 include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
 
-# Source files
+# --- OBS Dependencies ---
+find_path(OBS_INCLUDE_DIR obs.h
+    PATHS /usr/local/include /usr/include ${CMAKE_SOURCE_DIR}/include
+    PATH_SUFFIXES obs)
+find_path(OBS_FRONTEND_INCLUDE_DIR obs-frontend-api.h
+    PATHS /usr/local/include /usr/include ${CMAKE_SOURCE_DIR}/include)
+find_library(OBS_LIBRARY obs PATHS /Applications/OBS.app/Contents/Frameworks)
+
+if(OBS_INCLUDE_DIR AND OBS_FRONTEND_INCLUDE_DIR)
+    add_definitions(-DHAVE_OBS_HEADERS=1)
+    message(STATUS "Found OBS headers at ${OBS_INCLUDE_DIR}")
+    message(STATUS "Found OBS frontend headers at ${OBS_FRONTEND_INCLUDE_DIR}")
+else()
+    message(WARNING "OBS headers not found. Building in standalone mode.")
+    add_definitions(-DSTANDALONE_TEST)
+endif()
+
+
+# --- Include Directories ---
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${OBS_INCLUDE_DIR}
+    ${OBS_FRONTEND_INCLUDE_DIR}
+)
+
+# --- Source Files ---
 set(SOURCES
     src/stabilizer_opencv.cpp
     src/core/stabilizer_core.cpp
@@ -72,120 +43,53 @@ set(SOURCES
     src/obs_stubs.c
 )
 
-# Create plugin library
+# --- Main Plugin Target ---
 add_library(obs-stabilizer-opencv MODULE ${SOURCES})
 
-# Link libraries - only for system dependencies
-if(OPENCV_DEPLOYMENT_STRATEGY STREQUAL "System")
-    target_link_libraries(obs-stabilizer-opencv
-        ${OpenCV_LIBS}
-    )
+target_link_libraries(obs-stabilizer-opencv ${OpenCV_LIBS})
+if(OBS_LIBRARY)
+    target_link_libraries(obs-stabilizer-opencv ${OBS_LIBRARY})
 endif()
 
-# macOS specific settings
 if(APPLE)
-    # Find OBS library
-    if(EXISTS "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
-        set(OBS_LIBRARY "/Applications/OBS.app/Contents/Frameworks/libobs.framework/Versions/A/libobs")
-        message(STATUS "Found OBS library at: ${OBS_LIBRARY}")
-        target_link_libraries(obs-stabilizer-opencv ${OBS_LIBRARY})
-        # Allow undefined symbols to be resolved at runtime by OBS
-        set_target_properties(obs-stabilizer-opencv PROPERTIES
-            LINK_FLAGS "-undefined dynamic_lookup"
-        )
-    else()
-        message(WARNING "OBS library not found, building without OBS linking")
-    endif()
-    
-    # Set RPATH for finding OpenCV libraries at runtime
     set_target_properties(obs-stabilizer-opencv PROPERTIES
-        INSTALL_RPATH "@loader_path/../Frameworks;@loader_path/../Resources/lib;/opt/homebrew/lib;/usr/local/lib"
+        LINK_FLAGS "-undefined dynamic_lookup"
+        INSTALL_RPATH "@loader_path/../Frameworks"
         BUILD_WITH_INSTALL_RPATH TRUE
         MACOSX_RPATH TRUE
     )
 endif()
 
-# Output settings
 set_target_properties(obs-stabilizer-opencv PROPERTIES
     PREFIX ""
     OUTPUT_NAME "obs-stabilizer-opencv"
     SUFFIX ".so"
 )
 
-# Install target
+# --- Installation ---
 install(TARGETS obs-stabilizer-opencv
     LIBRARY DESTINATION obs-plugins
     RUNTIME DESTINATION obs-plugins
 )
 
-# Performance test executables (from src/CMakeLists.txt)
-add_executable(perftest src/performance-test.cpp)
-add_executable(memtest src/memory-test.cpp)
-target_link_libraries(perftest ${OpenCV_LIBS})
-target_link_libraries(memtest ${OpenCV_LIBS})
-target_include_directories(perftest PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_include_directories(memtest PRIVATE ${OpenCV_INCLUDE_DIRS})
+# --- Tests ---
+enable_testing()
 
-# Enhanced compiler optimizations for performance tests
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(perftest PRIVATE -O3)
-    target_compile_options(memtest PRIVATE -O3)
-endif()
-
-# Test configuration (from src/tests/CMakeLists.txt)
-# Find Google Test
+# Google Test
 find_package(GTest REQUIRED)
 
-# Check if we have test files
-set(TEST_SOURCES "")
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/test_main.cpp")
-    list(APPEND TEST_SOURCES src/tests/test_main.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/test_exception_safety_isolated.cpp")
-    list(APPEND TEST_SOURCES src/tests/test_exception_safety_isolated.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/stabilizer.cpp")
-    list(APPEND TEST_SOURCES src/stabilizer.cpp)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/obs_stubs.c")
-    list(APPEND TEST_SOURCES src/obs_stubs.c)
-endif()
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c")
-    list(APPEND TEST_SOURCES src/plugin-support.c)
-endif()
+# Test Sources
+file(GLOB_RECURSE TEST_SOURCES "src/tests/*.cpp" "src/tests/*.c")
 
-# Create test executable if we have test sources
 if(TEST_SOURCES)
     add_executable(stabilizer_tests ${TEST_SOURCES})
-    
-    # Link against Google Test and OpenCV
-    target_link_libraries(stabilizer_tests 
-        GTest::gtest 
-        GTest::gtest_main
-        ${OpenCV_LIBS}
-    )
-    
-    # Include directories
-    target_include_directories(stabilizer_tests PRIVATE 
-        ${OpenCV_INCLUDE_DIRS}
+    target_link_libraries(stabilizer_tests GTest::gtest GTest::gtest_main ${OpenCV_LIBS})
+    target_include_directories(stabilizer_tests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/obs
+        ${OBS_INCLUDE_DIR}
     )
-    
-    # Enable testing
-    enable_testing()
     add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
-    
-    message(STATUS "Test suite enabled with sources: ${TEST_SOURCES}")
+    message(STATUS "Test suite enabled.")
 else()
-    message(STATUS "No test sources found, skipping test suite")
+    message(STATUS "No test sources found, skipping test suite.")
 endif()
-
-# Print configuration summary
-message(STATUS "========================================")
-message(STATUS "Configuration Summary:")
-message(STATUS "  OpenCV Version: ${OpenCV_VERSION}")
-message(STATUS "  OBS Headers: ${OBS_INCLUDE_DIR}")
-message(STATUS "  OBS Library: ${OBS_LIBRARY}")
-message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "========================================")

@@ -92,7 +92,7 @@ public:
      * @brief Check if wrapper is initialized
      * @return true if stabilizer is active, false otherwise
      */
-    bool is_initialized() const {
+    bool is_initialized() {
         std::lock_guard<std::mutex> lock(mutex);
         return stabilizer != nullptr;
     }
@@ -116,7 +116,7 @@ public:
      * @brief Get last error message
      * @return Error string, or empty if no error
      */
-    std::string get_last_error() const {
+    std::string get_last_error() {
         std::lock_guard<std::mutex> lock(mutex);
         if (stabilizer) {
             return stabilizer->get_last_error();

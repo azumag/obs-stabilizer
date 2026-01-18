@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
 #include "core/stabilizer_core.hpp"
+#include <thread>
 
 class StabilizerCoreTest : public ::testing::Test {
 protected:

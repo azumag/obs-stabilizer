@@ -4,6 +4,7 @@ Tests for the actual stabilizer_opencv.cpp implementation
 */
 
 #include <gtest/gtest.h>
+#include <obs-module.h>
 #include <opencv2/opencv.hpp>
 #include <memory>
 

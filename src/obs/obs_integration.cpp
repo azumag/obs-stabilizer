@@ -20,7 +20,7 @@ std::unique_ptr<OBSIntegration::OBSFilterData> OBSIntegration::create_filter_dat
         data->initialized = false;
         
         // Get initial parameters
-        StabilizerCore::StabilizerParams params = settings_to_params(settings);
+        StabilizerCore::StabilizerParams params = settings_to_params(const_cast<obs_data_t*>(settings));
         
         // We'll initialize on first frame when we know the dimensions
         // For now, just validate parameters
@@ -47,7 +47,7 @@ bool OBSIntegration::update_parameters(OBSFilterData* data, obs_data_t* settings
     }
     
     try {
-        StabilizerCore::StabilizerParams params = settings_to_params(settings);
+        StabilizerCore::StabilizerParams params = settings_to_params(const_cast<obs_data_t*>(settings));
         data->stabilizer->update_parameters(params);
         return true;
         
@@ -65,9 +65,8 @@ obs_source_frame* OBSIntegration::process_video_frame(OBSFilterData* data, obs_s
     try {
         // Initialize stabilizer on first frame
         if (!data->initialized) {
-            StabilizerCore::StabilizerParams params = settings_to_params(obs_source_get_settings(data->source));
             
-            if (!data->stabilizer->initialize(frame->width, frame->height, params)) {
+            if (!data->stabilizer->initialize(frame->width, frame->height, data->stabilizer->get_current_params())) {
                 log_error("Failed to initialize stabilizer: " + data->stabilizer->get_last_error());
                 return frame;
             }
@@ -122,7 +121,7 @@ obs_properties_t* OBSIntegration::get_properties(void* data) {
     obs_property_set_modified_callback(preset_list, PresetHandler::preset_changed_callback);
     
     // Separator
-    obs_properties_add_text(props, "sep1", "--- Basic Parameters ---", OBS_TEXT_INFO);
+    obs_properties_add_text(props, "sep1", "--- Basic Parameters ---");
     
     // Basic parameters
     obs_properties_add_int_slider(props, "smoothing_radius", "Smoothing Radius", 
@@ -133,18 +132,18 @@ obs_properties_t* OBSIntegration::get_properties(void* data) {
                                   MIN_FEATURE_COUNT, MAX_FEATURE_COUNT, 10);
     
     // Advanced parameters group
-    obs_properties_t* advanced_group = obs_properties_create_group(props, "advanced_group", 
+    obs_property_t* advanced_group = obs_properties_create_group(props, "advanced_group", 
                                                                   "Advanced Parameters", OBS_GROUP_CHECKABLE);
     
-    obs_properties_add_float_slider(advanced_group, "quality_level", "Quality Level", 
-                                    0.001, 0.1, 0.001);
-    obs_properties_add_float_slider(advanced_group, "min_distance", "Min Distance", 
+    obs_properties_add_float_slider(props, "quality_level", "Quality Level", 
+                                     0.001, 0.1, 0.001);
+    obs_properties_add_float_slider(props, "min_distance", "Min Distance", 
                                     1.0, 200.0, 1.0);
-    obs_properties_add_int_slider(advanced_group, "block_size", "Block Size", 
+    obs_properties_add_int_slider(props, "block_size", "Block Size", 
                                    MIN_BLOCK_SIZE, MAX_BLOCK_SIZE, 2);
     
-    obs_properties_add_bool(advanced_group, "use_harris", "Use Harris Detector");
-    obs_properties_add_float_slider(advanced_group, "k", "Harris K Parameter", 
+    obs_properties_add_bool(props, "use_harris", "Use Harris Detector");
+    obs_properties_add_float_slider(props, "k", "Harris K Parameter", 
                                     MIN_HARRIS_K, MAX_HARRIS_K, 0.001);
     
     // Debug options
@@ -180,7 +179,7 @@ void OBSIntegration::apply_preset(obs_data_t* settings, const char* preset_name)
     params_to_settings(params, settings);
 }
 
-StabilizerCore::StabilizerParams OBSIntegration::settings_to_params(const obs_data_t* settings) {
+StabilizerCore::StabilizerParams OBSIntegration::settings_to_params(obs_data_t* settings) {
     StabilizerCore::StabilizerParams params;
     
     params.enabled = OBSDataConverter::get_bool_safe(settings, "enabled", true);
@@ -233,10 +232,9 @@ cv::Mat OBSIntegration::obs_frame_to_cv_mat(const obs_source_frame* frame) {
                 break;
                 
             case VIDEO_FORMAT_BGRX:
-                mat = cv::Mat(frame->height, frame->width, CV_8UC4, frame->data[0], frame->linesize[0]);
-                // Convert X channel to Alpha
-                cv::cvtColor(mat, mat, cv::COLOR_BGRA2BGRA);
-                break;
+                 mat = cv::Mat(frame->height, frame->width, CV_8UC4, frame->data[0], frame->linesize[0]);
+                 // Convert X channel to Alpha
+                 break;
                 
             case VIDEO_FORMAT_BGR3:
                 mat = cv::Mat(frame->height, frame->width, CV_8UC3, frame->data[0], frame->linesize[0]);
@@ -277,63 +275,60 @@ obs_source_frame* OBSIntegration::cv_mat_to_obs_frame(const cv::Mat& mat, const 
     }
     
     try {
-        // Create a copy of the reference frame
-        obs_source_frame* frame = obs_source_frame_create(reference_frame->format, 
-                                                         reference_frame->width, 
-                                                         reference_frame->height);
-        if (!frame) {
-            log_error("Failed to create OBS frame");
-            return nullptr;
+        static struct {
+            std::vector<uint8_t> buffer;
+            obs_source_frame frame;
+            bool initialized;
+        } frame_buffer = { {}, {}, false };
+
+        if (!frame_buffer.initialized) {
+            frame_buffer.frame = *reference_frame;
+            frame_buffer.initialized = true;
         }
-        
-        // Copy timestamp
-        frame->timestamp = reference_frame->timestamp;
-        
-        // Convert mat to the appropriate format and copy data
+
+        frame_buffer.frame.width = reference_frame->width;
+        frame_buffer.frame.height = reference_frame->height;
+        frame_buffer.frame.format = reference_frame->format;
+        frame_buffer.frame.timestamp = reference_frame->timestamp;
+
         cv::Mat converted;
         
         switch (reference_frame->format) {
             case VIDEO_FORMAT_BGRA:
                 if (mat.channels() == 4) {
-                    converted = mat.clone();
-                } else if (mat.channels() == 3) {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGR2BGRA);
+                    converted = mat;
                 } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_GRAY2BGRA);
+                    cv::cvtColor(mat, converted, cv::COLOR_BGR2BGRA);
                 }
                 break;
-                
             case VIDEO_FORMAT_BGR3:
                 if (mat.channels() == 3) {
-                    converted = mat.clone();
-                } else if (mat.channels() == 4) {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGRA2BGR);
+                    converted = mat;
                 } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_GRAY2BGR);
+                    cv::cvtColor(mat, converted, cv::COLOR_BGRA2BGR);
                 }
                 break;
-                
             default:
                 log_error("Unsupported output format: " + std::to_string(reference_frame->format));
-                obs_source_frame_release(frame);
                 return nullptr;
         }
         
-        // Copy data to frame
-        if (converted.total() * converted.elemSize() == 
-            static_cast<size_t>(frame->linesize[0] * frame->height)) {
-            std::memcpy(frame->data[0], converted.data, 
-                       converted.total() * converted.elemSize());
-        } else {
-            // Size mismatch, need to copy row by row
-            for (int y = 0; y < frame->height; ++y) {
-                std::memcpy(frame->data[0] + y * frame->linesize[0], 
-                           converted.ptr(y), 
-                           converted.cols * converted.elemSize());
-            }
+        size_t required_size = converted.total() * converted.elemSize();
+        if (frame_buffer.buffer.size() < required_size) {
+            frame_buffer.buffer.resize(required_size);
         }
         
-        return frame;
+        frame_buffer.frame.data[0] = frame_buffer.buffer.data();
+        frame_buffer.frame.linesize[0] = static_cast<uint32_t>(converted.step);
+        
+        memcpy(frame_buffer.frame.data[0], converted.data, required_size);
+        
+        for (int i = 1; i < 8; i++) {
+            frame_buffer.frame.data[i] = nullptr;
+            frame_buffer.frame.linesize[i] = 0;
+        }
+        
+        return &frame_buffer.frame;
         
     } catch (const std::exception& e) {
         log_error("Exception in cv_mat_to_obs_frame: " + std::string(e.what()));
@@ -364,7 +359,7 @@ bool OBSIntegration::validate_settings(const obs_data_t* settings) {
         return false;
     }
     
-    StabilizerCore::StabilizerParams params = settings_to_params(settings);
+    StabilizerCore::StabilizerParams params = settings_to_params(const_cast<obs_data_t*>(settings));
     return StabilizerCore::validate_parameters(params);
 }
 
@@ -470,7 +465,7 @@ int OBSDataConverter::get_int_safe(const obs_data_t* data, const char* name, int
         return default_value;
     }
     
-    return static_cast<int>(obs_data_get_int(data, name, default_value));
+    return static_cast<int>(obs_data_get_int(const_cast<obs_data_t*>(data), name));
 }
 
 double OBSDataConverter::get_double_safe(const obs_data_t* data, const char* name, double default_value) {
@@ -478,7 +473,7 @@ double OBSDataConverter::get_double_safe(const obs_data_t* data, const char* nam
         return default_value;
     }
     
-    return obs_data_get_double(data, name, default_value);
+    return obs_data_get_double(const_cast<obs_data_t*>(data), name);
 }
 
 bool OBSDataConverter::get_bool_safe(const obs_data_t* data, const char* name, bool default_value) {
@@ -486,10 +481,10 @@ bool OBSDataConverter::get_bool_safe(const obs_data_t* data, const char* name, b
         return default_value;
     }
     
-    return obs_data_get_bool(data, name, default_value);
+    return obs_data_get_bool(const_cast<obs_data_t*>(data), name);
 }
 
-std::string OBSDataConverter::get_string_safe(const obs_data_t* data, const char* name, const std::string& default_value) {
+std::string OBSDataConverter::get_string_safe(obs_data_t* data, const char* name, const std::string& default_value) {
     if (!data || !name) {
         return default_value;
     }

@@ -89,7 +89,7 @@ public:
      * @param settings OBS settings data
      * @return StabilizerCore parameters
      */
-    static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t* settings);
+    static StabilizerCore::StabilizerParams settings_to_params(obs_data_t* settings);
 
     /**
      * Convert StabilizerCore parameters to OBS settings
@@ -235,7 +235,7 @@ public:
      * @param default_value Default value if not found
      * @return String value
      */
-    static std::string get_string_safe(const obs_data_t* data, const char* name, const std::string& default_value);
+    static std::string get_string_safe(obs_data_t* data, const char* name, const std::string& default_value);
 
     /**
      * Set integer value to OBS data with validation

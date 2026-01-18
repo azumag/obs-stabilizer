@@ -157,10 +157,15 @@ obs_property_t *obs_properties_create_group(obs_properties_t *props, const char 
 size_t obs_property_list_add_int(obs_property_t *prop, const char *name, int val);
 size_t obs_property_list_add_string(obs_property_t *prop, const char *name, const char *val);
 void obs_property_set_long_description(obs_property_t *prop, const char *long_description);
+obs_property_t *obs_properties_add_text(obs_properties_t *props, const char *name, const char *text);
 
 // Property callback function
 typedef bool (*obs_property_modified_callback_t)(void *priv, obs_properties_t *props, obs_property_t *property, obs_data_t *settings);
 void obs_property_set_modified_callback(obs_property_t *prop, obs_property_modified_callback_t callback);
+
+// Source functions
+uint32_t obs_source_get_width(obs_source_t *source);
+uint32_t obs_source_get_height(obs_source_t *source);
 
 // Output flags
 #define OBS_SOURCE_VIDEO                (1<<0)

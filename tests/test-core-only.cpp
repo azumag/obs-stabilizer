@@ -20,59 +20,44 @@ inline void obs_log(int, const char*, ...) {
 #ifdef ENABLE_STABILIZATION
 
 void test_core_compilation() {
-    using namespace obs_stabilizer;
-
     std::cout << "Testing StabilizerCore compilation..." << std::endl;
 
     // Test basic instantiation
     auto core = std::make_unique<StabilizerCore>();
 
     // Test configuration
-    StabilizerConfig config;
-    config.smoothing_radius = 30;
-    config.max_features = 200;
-    config.enable_stabilization = true;
-    config.error_threshold = 30.0f;
-    config.min_feature_quality = 0.01f;
+    StabilizerCore::StabilizerParams params;
+    params.smoothing_radius = 30;
+    params.feature_count = 200;
+    params.enabled = true;
+    params.quality_level = 0.01f;
 
     // Test initialization
-    bool init_result = core->initialize(config);
+    bool init_result = core->initialize(640, 480, params);
 
     // Test status query
-    StabilizerStatus status = core->get_status();
+    bool is_ready = core->is_ready();
 
     // Test metrics query
-    StabilizerMetrics metrics = core->get_metrics();
+    StabilizerCore::PerformanceMetrics metrics = core->get_performance_metrics();
 
     // Test configuration update
-    config.smoothing_radius = 50;
-    core->update_configuration(config);
+    params.smoothing_radius = 50;
+    core->update_parameters(params);
 
     // Test reset
     core->reset();
 
     std::cout << "✅ StabilizerCore compilation and API test PASSED" << std::endl;
-    std::cout << "   - Configuration: smoothing_radius=" << config.smoothing_radius << std::endl;
+    std::cout << "   - Configuration: smoothing_radius=" << params.smoothing_radius << std::endl;
     std::cout << "   - Initialization result: " << (init_result ? "SUCCESS" : "FAILED") << std::endl;
-    std::cout << "   - Status query works: " << static_cast<int>(status) << std::endl;
-    std::cout << "   - Metrics query works: " << metrics.tracked_features << " tracked features" << std::endl;
+    std::cout << "   - Status query works: " << (is_ready ? "ready" : "not ready") << std::endl;
+    std::cout << "   - Metrics query works: " << metrics.frame_count << " frames processed" << std::endl;
 }
 
 void test_core_enum_definitions() {
-    using namespace obs_stabilizer;
-
     std::cout << "Testing enum definitions..." << std::endl;
-
-    // Test StabilizerStatus enum
-    StabilizerStatus status = StabilizerStatus::INACTIVE;
-    status = StabilizerStatus::INITIALIZING;
-    status = StabilizerStatus::ACTIVE;
-    status = StabilizerStatus::DEGRADED;
-    status = StabilizerStatus::ERROR_RECOVERY;
-    status = StabilizerStatus::FAILED;
-
-    std::cout << "✅ StabilizerStatus enum compilation PASSED" << std::endl;
-    std::cout << "   - All status values accessible: " << static_cast<int>(status) << std::endl;
+    std::cout << "✅ No enums to test in StabilizerCore" << std::endl;
 }
 #endif
 
@@ -93,23 +78,21 @@ int main() {
 
         #else
         // Test stub implementation
-        using namespace obs_stabilizer;
-
         std::cout << "Testing StabilizerCore stub implementation..." << std::endl;
 
         auto core = std::make_unique<StabilizerCore>();
-        StabilizerConfig config;
-        config.smoothing_radius = 30;
+        StabilizerCore::StabilizerParams params;
+        params.smoothing_radius = 30;
 
         // These should work but return false/defaults in stub mode
-        bool init_result = core->initialize(config);
-        StabilizerStatus status = core->get_status();
-        [[maybe_unused]] StabilizerMetrics metrics = core->get_metrics();
+        bool init_result = core->initialize(640, 480, params);
+        bool is_ready = core->is_ready();
+        [[maybe_unused]] StabilizerCore::PerformanceMetrics metrics = core->get_performance_metrics();
 
         std::cout << "✅ StabilizerCore stub compilation and API test PASSED" << std::endl;
         std::cout << "   - ENABLE_STABILIZATION not defined (no OpenCV)" << std::endl;
         std::cout << "   - Stub methods callable: init=" << (init_result ? "true" : "false") << std::endl;
-        std::cout << "   - Status query works: " << static_cast<int>(status) << std::endl;
+        std::cout << "   - Status query works: " << (is_ready ? "ready" : "not ready") << std::endl;
         std::cout << "   - Architecture supports graceful degradation" << std::endl;
         #endif
 

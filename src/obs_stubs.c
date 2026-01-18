@@ -264,3 +264,11 @@ void obs_property_set_long_description(obs_property_t *prop, const char *long_de
     if (!prop || !long_description) return;
     // Stub - do nothing
 }
+
+uint32_t obs_source_get_width(obs_source_t *source) {
+    return 1920;
+}
+
+uint32_t obs_source_get_height(obs_source_t *source) {
+    return 1080;
+}

@@ -6,10 +6,22 @@
 
 #pragma once
 
+#ifdef BUILD_STANDALONE
+namespace cv {
+    class Mat {};
+    template<typename T>
+    class Point_ {
+    public:
+        T x, y;
+    };
+    using Point2f = Point_<float>;
+}
+#else
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <opencv2/features2d.hpp>
+#endif
 #include <mutex>
 #include <memory>
 #include <deque>
@@ -83,6 +95,11 @@ public:
     void reset();
 
     /**
+     * @brief Clear all internal state
+     */
+    void clear_state();
+
+    /**
      * Get current performance metrics
      * @return Performance metrics structure
      */
@@ -100,6 +117,12 @@ public:
      */
     std::string get_last_error() const;
 
+    /**
+     * Get current parameters
+     * @return The current stabilizer parameters
+     */
+    StabilizerParams get_current_params() const;
+
     // Parameter validation
     static bool validate_parameters(const StabilizerParams& params);
 
@@ -107,6 +130,8 @@ public:
     static StabilizerParams get_preset_gaming();
     static StabilizerParams get_preset_streaming();
     static StabilizerParams get_preset_recording();
+
+    bool validate_frame(const cv::Mat& frame);
 
 private:
     // Core algorithm implementation
@@ -140,8 +165,6 @@ private:
 
     // Utility methods
     void log_performance(double processing_time);
-    bool validate_frame(const cv::Mat& frame);
-    void clear_state();
     
     // Lock-free helper methods (take parameters as arguments)
     bool detect_features_impl(const cv::Mat& gray, std::vector<cv::Point2f>& points, 
