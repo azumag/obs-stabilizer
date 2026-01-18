@@ -184,6 +184,7 @@ endif()
 - [ ] Exception safety testing with invalid video frames
 - [ ] Cross-platform memory management verification
 - [ ] OBS integration testing under stress conditions
+- [ ] Performance impact of `std::mutex` measured and evaluated to be within acceptable limits
 
 ### Logging Standardization
 - [ ] All printf() statements replaced with obs_log()
