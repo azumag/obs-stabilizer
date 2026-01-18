@@ -93,7 +93,7 @@ target_link_libraries(memtest ${OpenCV_LIBS})
 target_include_directories(perftest PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_include_directories(memtest PRIVATE ${OpenCV_INCLUDE_DIRS})
 
-# Compiler-specific optimizations for performance tests
+# Enhanced compiler optimizations for performance tests
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(perftest PRIVATE -O3)
     target_compile_options(memtest PRIVATE -O3)
