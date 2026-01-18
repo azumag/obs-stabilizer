@@ -53,6 +53,7 @@ include_directories(
 # Source files
 set(SOURCES
     src/stabilizer_opencv.cpp
+    src/core/stabilizer_core.cpp
     src/plugin-support.c
     src/obs_stubs.c
 )

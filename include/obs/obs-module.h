@@ -139,6 +139,12 @@ void obs_data_set_default_int(obs_data_t *data, const char *name, int val);
 void obs_data_set_default_double(obs_data_t *data, const char *name, double val);
 void obs_data_set_default_string(obs_data_t *data, const char *name, const char *val);
 
+// Non-default setters
+void obs_data_set_int(obs_data_t *data, const char *name, int val);
+void obs_data_set_double(obs_data_t *data, const char *name, double val);
+void obs_data_set_bool(obs_data_t *data, const char *name, bool val);
+void obs_data_set_string(obs_data_t *data, const char *name, const char *val);
+
 // OBS properties functions
 obs_properties_t *obs_properties_create(void);
 void obs_properties_destroy(obs_properties_t *props);
@@ -151,6 +157,10 @@ obs_property_t *obs_properties_create_group(obs_properties_t *props, const char 
 size_t obs_property_list_add_int(obs_property_t *prop, const char *name, int val);
 size_t obs_property_list_add_string(obs_property_t *prop, const char *name, const char *val);
 void obs_property_set_long_description(obs_property_t *prop, const char *long_description);
+
+// Property callback function
+typedef bool (*obs_property_modified_callback_t)(void *priv, obs_properties_t *props, obs_property_t *property, obs_data_t *settings);
+void obs_property_set_modified_callback(obs_property_t *prop, obs_property_modified_callback_t callback);
 
 // Output flags
 #define OBS_SOURCE_VIDEO                (1<<0)
