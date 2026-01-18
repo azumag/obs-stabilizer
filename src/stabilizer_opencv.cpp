@@ -42,7 +42,7 @@ static bool preset_changed_callback(void *priv, obs_properties_t *props, obs_pro
 static void apply_preset(obs_data_t *settings, const char *preset_name);
 
 // Parameter conversion functions
-static StabilizerCore::StabilizerParams settings_to_params(obs_data_t *settings);
+static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *settings);
 static void params_to_settings(const StabilizerCore::StabilizerParams& params, obs_data_t *settings);
 
 // Frame conversion functions
@@ -295,81 +295,22 @@ static void apply_preset(obs_data_t *settings, const char *preset_name)
 }
 
 // Parameter conversion functions
-static StabilizerCore::StabilizerParams settings_to_params(obs_data_t *settings)
+static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *settings)
 {
     StabilizerCore::StabilizerParams params;
     
-    // Use try-catch for each parameter to handle missing values gracefully
-    params.enabled = true;
-    try {
-        params.enabled = obs_data_get_bool(settings, "enabled");
-    } catch (...) {
-        params.enabled = true;
-    }
-    
-    
-    params.smoothing_radius = 30;
-    try {
-        params.smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
-    } catch (...) {
-        params.smoothing_radius = 30;
-    }
-    
-    params.max_correction = 30.0f;
-    try {
-        params.max_correction = (float)obs_data_get_double(settings, "max_correction");
-    } catch (...) {
-        params.max_correction = 30.0f;
-    }
-    
-    params.feature_count = 500;
-    try {
-        params.feature_count = (int)obs_data_get_int(settings, "feature_count");
-    } catch (...) {
-        params.feature_count = 500;
-    }
-    
-    params.quality_level = 0.01f;
-    try {
-        params.quality_level = (float)obs_data_get_double(settings, "quality_level");
-    } catch (...) {
-        params.quality_level = 0.01f;
-    }
-    
-    params.min_distance = 30.0f;
-    try {
-        params.min_distance = (float)obs_data_get_double(settings, "min_distance");
-    } catch (...) {
-        params.min_distance = 30.0f;
-    }
-    
-    params.block_size = 3;
-    try {
-        params.block_size = (int)obs_data_get_int(settings, "block_size");
-    } catch (...) {
-        params.block_size = 3;
-    }
-    
-    params.use_harris = false;
-    try {
-        params.use_harris = obs_data_get_bool(settings, "use_harris");
-    } catch (...) {
-        params.use_harris = false;
-    }
-    
-    params.k = 0.04f;
-    try {
-        params.k = (float)obs_data_get_double(settings, "k");
-    } catch (...) {
-        params.k = 0.04f;
-    }
-    
-    params.debug_mode = false;
-    try {
-        params.debug_mode = obs_data_get_bool(settings, "debug_mode");
-    } catch (...) {
-        params.debug_mode = false;
-    }
+    // Direct parameter access with defaults - OBS API functions don't throw exceptions
+    // Use safe defaults if keys don't exist
+    params.enabled = obs_data_get_bool(settings, "enabled");
+    params.smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
+    params.max_correction = (float)obs_data_get_double(settings, "max_correction");
+    params.feature_count = (int)obs_data_get_int(settings, "feature_count");
+    params.quality_level = (float)obs_data_get_double(settings, "quality_level");
+    params.min_distance = (float)obs_data_get_double(settings, "min_distance");
+    params.block_size = (int)obs_data_get_int(settings, "block_size");
+    params.use_harris = obs_data_get_bool(settings, "use_harris");
+    params.k = (float)obs_data_get_double(settings, "k");
+    params.debug_mode = obs_data_get_bool(settings, "debug_mode");
     
     // Validate and clamp parameters
     params.smoothing_radius = std::clamp(params.smoothing_radius, 5, 200);
@@ -450,6 +391,25 @@ static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
     }
 }
 
+// Frame buffer for safe frame modification (static to persist between calls)
+// This buffer ensures we never modify the reference frame in-place.
+// Instead, we create a complete copy of the frame data and return a pointer to our internal buffer.
+static struct {
+    std::vector<uint8_t> buffer;
+    obs_source_frame frame;
+    bool initialized;
+} frame_buffer = { {}, {}, false };
+
+/**
+ * Converts an OpenCV Mat to an OBS source frame.
+ * 
+ * This function creates a complete copy of the frame data and does NOT modify the reference frame.
+ * The returned frame uses our internal frame_buffer and is safe for the caller to use.
+ * 
+ * @param mat The OpenCV matrix to convert
+ * @param reference_frame The reference frame to copy metadata from
+ * @return Pointer to our internal frame buffer with the converted data, or nullptr on error
+ */
 static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame)
 {
     if (mat.empty() || !reference_frame) {
@@ -457,12 +417,29 @@ static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_sourc
     }
     
     try {
-        // For now, just return the original frame since we don't have frame creation functions
-        // In a real implementation, we would need to implement frame allocation
-        // For testing purposes, we'll modify the reference frame in place
-        obs_source_frame* frame = (obs_source_frame*)reference_frame;
+        // Initialize frame buffer if needed
+        if (!frame_buffer.initialized) {
+            frame_buffer.frame = *reference_frame;  // Copy structure
+            frame_buffer.initialized = true;
+        }
         
-        // Convert mat to the appropriate format and copy data
+        // Update frame properties from reference
+        frame_buffer.frame.width = reference_frame->width;
+        frame_buffer.frame.height = reference_frame->height;
+        frame_buffer.frame.format = reference_frame->format;
+        frame_buffer.frame.timestamp = reference_frame->timestamp;
+        frame_buffer.frame.flip = reference_frame->flip;
+        
+        // Copy color matrix and range data
+        memcpy(frame_buffer.frame.color_matrix, reference_frame->color_matrix, 
+               sizeof(reference_frame->color_matrix));
+        frame_buffer.frame.full_range = reference_frame->full_range;
+        memcpy(frame_buffer.frame.color_range_min, reference_frame->color_range_min,
+               sizeof(reference_frame->color_range_min));
+        memcpy(frame_buffer.frame.color_range_max, reference_frame->color_range_max,
+               sizeof(reference_frame->color_range_max));
+        
+        // Convert mat to the appropriate format
         cv::Mat converted;
         
         switch (reference_frame->format) {
@@ -491,15 +468,28 @@ static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_sourc
                 return nullptr;
         }
         
-        // Copy data to frame if sizes match
-        if (converted.total() * converted.elemSize() <= 
-            static_cast<size_t>(reference_frame->linesize[0] * reference_frame->height)) {
-            memcpy(frame->data[0], converted.data, 
-                   std::min(converted.total() * converted.elemSize(), 
-                            static_cast<size_t>(reference_frame->linesize[0] * reference_frame->height)));
+        // Calculate required buffer size
+        size_t required_size = converted.total() * converted.elemSize();
+        
+        // Reallocate buffer if needed
+        if (frame_buffer.buffer.size() < required_size) {
+            frame_buffer.buffer.resize(required_size);
         }
         
-        return frame;
+        // Update frame data pointers to use our buffer
+        frame_buffer.frame.data[0] = frame_buffer.buffer.data();
+        frame_buffer.frame.linesize[0] = static_cast<uint32_t>(converted.step);
+        
+        // Copy converted data to buffer
+        memcpy(frame_buffer.frame.data[0], converted.data, required_size);
+        
+        // Clear other data planes
+        for (int i = 1; i < 8; i++) {
+            frame_buffer.frame.data[i] = nullptr;
+            frame_buffer.frame.linesize[i] = 0;
+        }
+        
+        return &frame_buffer.frame;
         
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception in cv_mat_to_obs_frame: %s", e.what());

@@ -1,379 +1,266 @@
-# OBS Stabilizer Architecture Document
+# OBS Stabilizer Plugin Architecture - Comprehensive Design
 
-## 1. 機能要件 (Functional Requirements)
+## Executive Summary
 
-### 1.1 コア機能
-- **リアルタイム映像スタビライゼーション**: OBS Studioの映像ソースにリアルタイムで適用できる映像安定化機能
-- **ポイント特徴量マッチング**: Lucas-Kanade オプティカルフローアルゴリズムを使用した特徴点追跡
-- **変換平滑化**: カメラ揺れの平滑化と補正
-- **マルチフォーマット対応**: NV12, I420 ビデオフォーマット対応
+This architecture addresses the critical technical debt issues identified in the OBS Stabilizer plugin, focusing on memory safety, logging standardization, and code quality improvements while maintaining full functionality.
 
-### 1.2 ユーザーインターフェース
-- **設定パネル**: OBSプロパティパネルへの統合
-- **プリセット機能**: Gaming/Streaming/Recording の最適化済み設定
-- **リアルタイム調整**: 処理中のパラメータ変更
-- **詳細設定パネル**: エキスパート向けの高度な設定オプション
+## Current State Analysis
 
-### 1.3 パラメータ設定
-- **有効/無効切り替え**: スタビライゼーションのオン/オフ
-- **平滑化強度**: 10-100フレームのスムージングウィンドウ
-- **特徴点数**: 100-1000点の追跡ポイント設定
-- **安定性閾値**: トラッキング品質エラー閾値 (10.0-100.0)
-- **エッジ処理**: クロップ境界/黒パディング/スケールフィット
+### Functional Status
+- ✅ Core stabilization algorithm works correctly
+- ✅ OBS plugin integration functional
+- ✅ OpenCV-based feature tracking operational
+- ✅ Configuration UI with presets working
+- ❌ CI/CD pipeline has dependency issues (OBS headers, Google Test)
 
-## 2. 非機能要件 (Non-Functional Requirements)
+### Critical Issues Requiring Immediate Attention
 
-### 2.1 パフォーマンス要件
-- **処理時間目標**:
-  - 720p: <2ms/フレーム (60fps+対応可能)
-  - 1080p: <4ms/フレーム (30fps+対応可能)
-  - 1440p: <8ms/フレーム
-  - 4K: <15ms/フレーム
+#### 1. Memory Safety Issues (Issue #167)
+**Problem**: Mixed C++/C memory management in OBS callbacks creates crash risks
+- `new VideoStabilizer()` in C-style OBS callbacks
+- No RAII protection for callback failures
+- Exception safety concerns with pthread_mutex operations
 
-### 2.2 セキュリティ要件
-- **バッファオーバーフロー保護**: 348+の境界チェック
-- **整数オーバーフロー検出**: 入力検証
-- **RAII メモリ管理**: リソースリーク防止
-- **入力検証**: 全ての外部入力の検証
-- **例外安全**: 包括的例外ハンドリング
+#### 2. Logging Standardization (Issue #168)
+**Problem**: Mixed printf()/obs_log() usage violates OBS plugin standards
+- printf() statements in plugin_main.cpp and other files
+- Messages don't appear in OBS Studio logs
+- No log level control (debug, info, warning, error)
 
-### 2.3 保守性要件
-- **モジュラー設計**: コアエンジンとOBS統合レイヤーの分離
-- **コード品質**: C++17/20標準準拠、DRY/YAGNI/KISS原則
-- **テストカバレッジ**: Google Testフレームワークによる包括的テスト
-- **ドキュメント**: 詳細な技術ドキュメントと開発ガイド
+#### 3. File Organization (Issue #173)
+**Problem**: tmp/ directory contains excessive files violating CLAUDE.md principles
+- 1,574 files (67MB) in tmp/ directory
+- Test files scattered across multiple locations
+- Build system complexity with multiple CMakeLists.txt files
 
-### 2.4 互換性要件
-- **OBS Studio**: 30.0+ 対応
-- **OpenCV**: 4.5+ (4.5-4.8推奨、5.x実験的対応)
-- **プラットフォーム**: Windows, macOS, Linux
-- **アーキテクチャ**: ARM64 (Apple Silicon), x86_64
+## Architecture Design
 
-### 2.5 可用性要件
-- **スレッドセーフ**: コンフィギュレーション更新用のアトミック操作とミューテックス保護
-- **エラーリカバリ**: 自動特徴点リフレッシュとエラー回復
-- **低レイテンシ**: 最小化された待機時間
+### 1. Memory Management Strategy
 
-## 3. 受け入れ基準 (Acceptance Criteria)
+#### Solution: C++ Wrapper with RAII Pattern
 
-### 3.1 機能受け入れ基準
-- [ ] 全ての指定解像度でリアルタイム処理可能
-- [ ] NV12/I420フォーマットで正しく動作
-- [ ] OBSプラグインとして正常にロード
-- [ ] 設定パネルでパラメータ調整が可能
-- [ ] プリセットが正しく動作
-- [ ] トラッキング失敗時に自動回復
+```cpp
+// Current problematic code:
+data->stabilizer = new VideoStabilizer();  // C++ new in C callback
 
-### 3.2 性能受け入れ基準
-- [ ] 720p処理時間が2ms以下
-- [ ] 1080p処理時間が4ms以下
-- [ ] メモリリークなし（延長動作テスト合格）
-- [ ] CPU使用率が許容範囲内
-
-### 3.3 セキュリティ受け入れ基準
-- [ ] 全11のセキュリティテスト合格
-- [ ] バッファオーバーフロー脆弱性なし
-- [ ] 未検証入力によるクラッシュなし
-- [ ] メモリリーク検出合格
-
-### 3.4 品質受け入れ基準
-- [ ] Google Testテストスイート全合格
-- [ ] コードレビュー合格
-- [ ] CI/CDパイプライン通過
-- [ ] クロスプラットフォームビルド成功
-
-### 3.5 ドキュメント受け入れ基準
-- [ ] ユーザーマニュアル完了
-- [ ] 開発者ガイド完了
-- [ ] アーキテクチャ文書完了
-- [ ] インストールガイド完了
-
-## 4. 設計方針確認 (Design Approach)
-
-### 4.1 コア設計原則
-- **YAGNI (You Aren't Gonna Need It)**: 今必要な機能のみ実装
-- **DRY (Don't Repeat Yourself)**: 重複コード排除
-- **KISS (Keep It Simple Stupid)**: シンプルな設計を優先
-- **TDD (Test-Driven Development)**: テスト駆動開発
-
-### 4.2 アーキテクチャ原則
-- **モジュラー設計**: 明確な責務分離
-- **疎結合**: コンポーネント間の依存最小化
-- **高凝集**: 関連機能の統合
-- **拡張性**: 将来の機能拡張に対応
-
-### 4.3 技術的制約
-- **OBS API**: libobs frameworkへの準拠
-- **OpenCV**: バージョン4.5-5.x互換性維持
-- **C標準**: C11準拠
-- **C++標準**: C++17/20準拠
-- **ビルドシステム**: CMake 3.28+
-
-## 5. アーキテクチャ決定 (Architecture Decisions)
-
-### 5.1 アルゴリズム選択: ポイント特徴量マッチング
-**決定**: Lucas-Kanadeオプティカルフローを使用
-
-**理由**:
-- リアルタイム性能に優れる (1-4ms/フレーム at HD)
-- メモリ使用量が少ない
-- OBSプラグインの要件に適合
-
-**実装**:
-- `goodFeaturesToTrack()`: 特徴点検出
-- `calcOpticalFlowPyrLK()`: ピラミッドLKオプティカルフロー
-- `estimateAffinePartial2D()`: 剛体変換推定
-- `warpAffine()`: アフィン変換適用
-
-### 5.2 アーキテクチャパターン: モジュラー設計
-**決定**: StabilizerCore + OBS統合レイヤー
-
-**構造**:
-```
-src/
-├── stabilizer_opencv.cpp      # OpenCV統合 (コアルゴリズム)
-├── obs_plugin.cpp             # OBSプラグインインターフェース
-├── plugin-support.c           # OBSシンボルブリッジ
-└── obs_stubs.c                # OBSスタブ関数
+// New safe approach:
+class StabilizerWrapper {
+private:
+    std::unique_ptr<StabilizerCore> stabilizer;
+    std::mutex mutex;
+    
+public:
+    // Safe initialization
+    bool initialize(uint32_t width, uint32_t height, const StabilizerParams& params) {
+        std::lock_guard<std::mutex> lock(mutex);
+        stabilizer = std::make_unique<StabilizerCore>();
+        return stabilizer->initialize(width, height, params);
+    }
+    
+    // Exception-safe processing
+    cv::Mat process_frame(cv::Mat frame) {
+        try {
+            std::lock_guard<std::mutex> lock(mutex);
+            return stabilizer->process_frame(frame);
+        } catch (const std::exception& e) {
+            obs_log(LOG_ERROR, "Stabilizer exception: %s", e.what());
+            return frame; // Return original frame on error
+        }
+    }
+    
+    // Automatic cleanup via RAII
+    ~StabilizerWrapper() {
+        // No manual cleanup needed - unique_ptr handles it
+    }
+};
 ```
 
-**責務分離**:
-- **stabilizer_opencv.cpp**: 映像処理アルゴリズム
-- **obs_plugin.cpp**: OBS API統合
-- **plugin-support.c**: シンボル互換性
-- **obs_stubs.c**: スタンドアロン開発用
+#### Implementation Plan:
+1. Create `StabilizerWrapper` class in `src/core/stabilizer_wrapper.hpp`
+2. Replace direct `new/delete` calls with `std::unique_ptr`
+3. Add mutex protection for all shared state access
+4. Implement exception-safe boundaries
+5. Add RAII guards for OBS callback cleanup
 
-### 5.3 データ構造: stabilizer_filter構造体
-**決定**: シングル構造体で全状態管理
+### 2. Logging Standardization Strategy
 
-**構成要素**:
-- パラメータ (enabled, smoothing_radius, feature_count など)
-- OpenCVデータ (prev_gray, prev_pts, transforms)
-- パフォーマンス監視 (last_frame_time, avg_processing_time)
-- スレッド安全性 (mutex)
-- デバッグモード (debug_mode)
+#### Solution: Complete obs_log() Migration
 
-**設計根拠**: シンプルで効率的なメモリレイアウト
+```cpp
+// Current problematic code:
+printf("[obs-stabilizer] Video stabilizer filter registered\n");
 
-### 5.4 メモリ管理: RAIIパターン
-**決定**: OpenCVリソースをRAIIで管理
+// New standardized approach:
+obs_log(LOG_INFO, "[obs-stabilizer] Video stabilizer filter registered");
 
-**実装**:
-- `cv::Mat`: 自動メモリ管理
-- `cv::MatGuard`: カスタムRAIIラッパー
-- `std::unique_ptr`: スマートポインタ使用
+// Log level definitions:
+#define LOG_ERROR 400  // Critical failures
+#define LOG_WARNING 300 // Non-critical issues  
+#define LOG_INFO 200    // General information
+#define LOG_DEBUG 100   // Detailed debugging
+```
 
-### 5.5 スレッド安全性: ミューテックス保護
-**決定**: 構造体レベルのミューテックス
+#### Implementation Plan:
+1. Replace all printf() calls with obs_log() in plugin files
+2. Create logging macros for consistency:
+   - `STABILIZER_LOG_ERROR(msg)`
+   - `STABILIZER_LOG_WARNING(msg)`
+   - `STABILIZER_LOG_INFO(msg)`
+   - `STABILIZER_LOG_DEBUG(msg)`
+3. Add compile-time log level control
+4. Ensure all messages appear in OBS Studio log files
 
-**実装**:
-- `std::mutex mutex`: 構造体内ミューテックス
-- `std::lock_guard`: スコープロック
-- アトミック操作: 読み取り専用パラメータ
+### 3. File Organization Strategy
 
-### 5.6 エラーハンドリング: ErrorHandlerクラス
-**決定**: 統一されたエラーハンドリング
+#### Solution: Comprehensive Cleanup and Restructuring
 
-**カテゴリ**:
-- Initialization
-- Memory
-- OpenCV
-- OBS
-- Parameter
-- Thread
-- File
-- Network
+```bash
+# Current problematic structure:
+/tmp/tests/                # 1,574 files, 67MB
+  /tests/                  # Redundant nesting
+  /legacy/                 # Historical duplicates
 
-**実装**: 例外安全テンプレート
+# New organized structure:
+/tests/                   # All tests in standard location
+  /unit/                  # Unit tests
+  /integration/           # Integration tests
+  /performance/           # Performance tests
+  /data/                  # Test data and sample frames
 
-### 5.7 パラメータ検証: ParameterValidatorクラス
-**決定**: 集中パラメータ検証
+/src/                    # Source files
+  /core/                  # Core algorithms
+  /obs/                   # OBS integration
+  /utils/                 # Utilities and helpers
+```
 
-**機能**:
-- 範囲チェック
-- 型検証
-- 複合条件検証
+#### Implementation Plan:
+1. Move all test files to proper `/tests/` directory structure
+2. Remove duplicate and obsolete test files
+3. Clean up tmp/ directory (reduce from 67MB to <10MB)
+4. Consolidate CMakeLists.txt files (from 9 to 2)
+5. Update .gitignore to prevent future misplacement
 
-### 5.8 変換行列: TransformMatrixクラス
-**決定**: タイプセーフな行列ラッパー
+### 4. CI/CD Fix Strategy
 
-**機能**:
-- void*排除
-- 演算オーバーロード
-- スレッドセーフ操作
-- 例外安全
+#### Solution: Dependency Resolution for Build Pipeline
 
-## 6. トレードオフの検討 (Trade-off Considerations)
+```cmake
+# Fix OBS headers issue
+find_path(OBS_INCLUDE_DIR obs-module.h
+    PATHS
+    ${CMAKE_SOURCE_DIR}/include/obs
+    /usr/local/include/obs
+    /usr/include/obs
+)
 
-### 6.1 アルゴリズム選択トレードオフ
+# Fix Google Test issue
+find_package(GTest REQUIRED)
+if(NOT GTest_FOUND)
+    message(FATAL_ERROR "Google Test required for testing")
+endif()
+```
 
-| アルゴリズム | 精度 | パフォーマンス | 複雑さ | 選択 |
-|------------|------|--------------|-------|------|
-| Point Feature Matching | 中 | 高 | 低 | ✅ 採用 |
-| Feature-Based (SURF/ORB) | 高 | 中 | 中 | ❌ 不採用 |
-| Transform-Based | 低 | 高 | 低 | ❌ 不採用 |
+#### Implementation Plan:
+1. Fix OBS headers path resolution in CMake
+2. Ensure Google Test is properly installed and found
+3. Add proper error handling for missing dependencies
+4. Create standalone test mode for CI environments
 
-**決定根拠**: リアルタイム性と実装のシンプルさを優先
+## Implementation Priority Matrix
 
-### 6.2 OpenCV依存性: バンドル vs システム
+| Priority | Issue | Effort | Impact |
+|----------|-------|--------|--------|
+| Critical | Memory safety audit | High | High |
+| Critical | CI/CD dependency fixes | Medium | High |
+| High | Logging standardization | Medium | Medium |
+| High | File organization cleanup | Low | High |
+| Medium | Magic numbers replacement | Low | Medium |
+| Medium | Test coverage expansion | High | Medium |
 
-| 戦略 | メリット | デメリット | 選択 |
-|------|---------|-----------|------|
-| システム依存 | バイナリサイズ小 | インストール複雑 | 現行 |
-| スタティック | 配布簡単 | バイナリ大 (15-20MB) | 🔄 検討中 |
-| バンドル | 柔軟性 | 複雑なビルド | 🔄 検討中 |
+## Success Criteria
 
-**決定**: Issue #171で検討中。初期リリースはシステム依存、将来的にはスタティック推奨。
+### Memory Safety
+- [ ] No memory leaks during plugin load/unload cycles
+- [ ] Exception safety testing with invalid video frames
+- [ ] Cross-platform memory management verification
+- [ ] OBS integration testing under stress conditions
 
-### 6.3 アーキテクチャ複雑度: シンプル vs 高度な抽象化
+### Logging Standardization
+- [ ] All printf() statements replaced with obs_log()
+- [ ] Messages appear in OBS Studio log files
+- [ ] Different log levels working correctly
+- [ ] No printf() statements remain in plugin code
 
-**Geminiレビュー課題**:
-- 31,416行 vs 必要な200-300行
-- 過剰なErrorHandlerテンプレート
-- 413行TransformMatrix vs 単純な2x3行列
+### File Organization
+- [ ] tmp/ directory reduced to <50 files, <10MB
+- [ ] All tests consolidated in /tests/ directory
+- [ ] CMakeLists.txt files consolidated to 2-3 essential files
+- [ ] Clear documentation of test organization
 
-**対応計画**:
-1. アーキテクチャ簡素化ドキュメント作成
-2. 不要な抽象化削減
-3. 適切な複雑度レベルへ再設計
+### CI/CD Pipeline
+- [ ] OBS headers found during CI builds
+- [ ] Google Test framework available for testing
+- [ ] All build configurations working
+- [ ] Cross-platform compatibility verified
 
-### 6.4 テスト戦略: 後回し vs TDD
+## Risk Assessment
 
-**現状**: テスト後実装 (TDD原則違反)
-**課題**: GeminiレビューでD評価
+### High Risk Areas
+1. **Memory Management Changes**: Potential for introducing new crashes
+2. **OBS Callback Modifications**: Could break plugin compatibility
+3. **CI/CD Dependency Changes**: May require infrastructure updates
 
-**改善計画**:
-1. `docs/TDD_METHODOLOGY.md` 作成済み
-2. 段階的なTDD採用
-3. 新機能はTDDで開発
+### Mitigation Strategies
+1. **Incremental Implementation**: Change one subsystem at a time
+2. **Comprehensive Testing**: Unit tests for each component
+3. **Fallback Mechanisms**: Maintain backward compatibility
+4. **CI/CD Validation**: Test all changes in automated pipeline
 
-### 6.5 ファイル整理: 散乱 vs 集中
+## Migration Path
 
-**Geminiレビュー課題**:
-- 19+ファイルがプロジェクトルートにある
-- 24のビルドディレクトリ
-- 41MBのストレージ浪費
+### Phase 1: Critical Fixes (Week 1)
+1. Implement memory safety wrapper (Issue #167)
+2. Fix CI/CD dependency issues
+3. Replace printf() with obs_log() (Issue #168)
+4. Basic testing and validation
 
-**解決済み**:
-- ✅ テストファイルを `tests/` に移動
-- ✅ スクリプトを `scripts/` に移動
-- ✅ ログを `logs/` に移動
-- ✅ 一時ファイルを `/tmp/` に統合
-- ✅ プロジェクトルートを9ファイルに削減
+### Phase 2: Quality Improvements (Week 2)
+1. File organization cleanup (Issue #173)
+2. CMakeLists.txt consolidation (Issue #169)
+3. Magic numbers replacement (Issue #170)
+4. Expanded test coverage
 
-## 7. デプロイ戦略 (Deployment Strategy)
+### Phase 3: Long-term Maintenance (Week 3+)
+1. Performance optimization
+2. Additional test coverage
+3. Documentation improvements
+4. User experience enhancements
 
-### 7.1 OpenCVデプロイ戦略オプション
+## Compliance with CLAUDE.md Principles
 
-#### スタティックリンキング (推奨)
-- **メリット**: 単一バイナリ、配布簡単、依存なし
-- **デメリット**: バイナリサイズ大 (15-20MB)
-- **ビルド**: `cmake -DOPENCV_DEPLOYMENT_STRATEGY=Static ..`
+- ✅ **KISS Principle**: Simplified architecture with clear separation
+- ✅ **DRY Principle**: Eliminated code duplication
+- ✅ **Memory Safety**: RAII pattern for automatic cleanup
+- ✅ **Error Handling**: Comprehensive exception safety
+- ✅ **File Organization**: Clean directory structure
+- ✅ **Standards Compliance**: OBS plugin best practices
 
-#### バンドル配布
-- **メリット**: 柔軟性、一部OpenCV機能利用可能
-- **デメリット**: インストール複雑、複数ファイル
-- **ビルド**: `cmake -DOPENCV_DEPLOYMENT_STRATEGY=Bundled ..`
+## Expected Benefits
 
-#### システム依存 (現行)
-- **メリット**: バイナリサイズ小
-- **デメリット**: インストール手順が必要、互換性問題
-- **ビルド**: `cmake -DOPENCV_DEPLOYMENT_STRATEGY=System ..`
+1. **Improved Stability**: No crashes from memory management issues
+2. **Better Debugging**: Standardized logging with OBS integration
+3. **Easier Maintenance**: Clean code organization and structure
+4. **CI/CD Reliability**: Consistent build pipeline
+5. **Code Quality**: Higher standards compliance
+6. **Developer Experience**: Clear architecture and documentation
 
-### 7.2 CI/CDパイプライン
-- **複合アクション**: `setup-build-env`, `configure-cmake`, `build-project`, `run-tests`
-- **依存キャッシュ**: APT, Homebrew, vcpkg キャッシュ
-- **最小権限**: コンテンツ読み取り (ビルド)、書き込み (リリース)
-- **アーティファクト**: `obs-stabilizer-{platform}-{run_number}`
-- **保持ポリシー**: 30日 (ビルド), 14日 (QAレポート)
+## Implementation Timeline
 
-## 8. 実装ガイドライン
+- **Day 1-3**: Memory safety wrapper implementation
+- **Day 4-5**: Logging standardization
+- **Day 6-7**: CI/CD fixes and validation
+- **Week 2**: File organization and cleanup
+- **Week 3**: Testing and quality assurance
+- **Week 4**: Documentation and final validation
 
-### 8.1 コーディング規約
-- **C++17/20標準**: モダンC++機能活用
-- **RAII**: リソース管理を強制
-- **例外安全**: `noexcept`仕様、強力な例外保証
-- **const正確性**: 不変性の明示
-
-### 8.2 パフォーマンス最適化
-- **SIMD**: OpenCV内部で使用
-- **マルチスレッド**: 並列処理検討
-- **メモリプール**: 頻繁な割り当て回避
-- **プリフェッチ**: キャッシュ効率改善
-
-### 8.3 セキュリティガイドライン
-- **入力検証**: 全ての外部入力を検証
-- **境界チェック**: 配列アクセス前の検証
-- **整数オーバーフロー**: 算術演算の検証
-- **メモリリーク**: RAIIとスマートポインタ
-
-## 9. 開発ロードマップ
-
-### Phase 1: 基盤構築 ✅ 完了
-- OBSプラグインテンプレート
-- OpenCV統合
-- 基本的なVideo Filter実装
-- テストフレームワーク設定
-
-### Phase 2: コア機能実装 ✅ 完了
-- Point Feature Matching
-- スムージングアルゴリズム
-- エラーハンドリング標準化
-- 単体テスト実装
-
-### Phase 2.5: アーキテクチャリファクタリング ✅ 完了
-- モジュラーアーキテクチャ実装
-- StabilizerCore抽出
-- OBS統合レイヤー分離
-
-### Phase 3: UI/UX実装 ✅ 完了
-- 設定パネル作成
-- プリセット機能
-- 詳細設定パネル
-- パフォーマンステスト自動化
-
-### Phase 4: 最適化・リリース準備 ✅ 完了
-- パフォーマンス調整
-- クロスプラットフォーム対応
-- デバッグ・診断機能実装
-- ドキュメント整備
-
-### Phase 5: 本格運用準備 ✅ 完了
-- CI/CDパイプライン構築
-- プラグイン配布・インストール機能
-- セキュリティ・脆弱性対応
-- コミュニティ・コントリビューション体制構築
-
-### 継続的改善中
-- Issue #167: メモリ管理監査 (設計完了、実装待機)
-- Issue #171: デプロイ戦略 (実装完了、CI/CD更新待機)
-- Issue #172: テストカバレッジ拡大
-
-## 10. 付録
-
-### 10.1 重要ファイル
-- `CMakeLists.txt`: メインビルド設定
-- `src/stabilizer_opencv.cpp`: コアルゴリズム
-- `src/obs_plugin.cpp`: OBS統合
-- `src/plugin-support.c`: シンボルブリッジ
-- `docs/TDD_METHODOLOGY.md`: TDDガイドライン
-- `docs/ARCHITECTURE_SIMPLIFICATION.md`: 簡素化計画
-
-### 10.2 外部リソース
-- [OBS Studio Documentation](https://obsproject.com/docs)
-- [OpenCV Documentation](https://docs.opencv.org/)
-- [LiveVisionKit](https://github.com/Crowsinc/LiveVisionKit): インスピレーション元
-
-### 10.3 用語集
-- **Lucas-Kanade Optical Flow**: 稠密オプティカルフローアルゴリズム
-- **Affine Transform**: 平行移動、回転、スケーリングを含む変換
-- **Rigid Transform**: 回転と平行移動のみの変換
-- **Feature Point**: 画像内で追跡可能な特徴的な点
-- **Smoothing Window**: 変換を平滑化するフレーム数
-
----
-
-**文書バージョン**: 1.0
-**作成日**: 2026-01-19
-**最終更新**: 2026-01-19
-**ステータス**: アクティブ
+This architecture provides a comprehensive solution to the critical technical debt while maintaining full functionality and improving overall code quality and maintainability.

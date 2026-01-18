@@ -34,6 +34,19 @@ public:
         bool use_harris = false;           // Use Harris detector
         float k = 0.04f;                   // Harris detector parameter
         bool debug_mode = false;           // Enable debug output
+
+        // Motion thresholds and limits
+        float frame_motion_threshold = 0.25f; // Motion threshold to trigger stabilization
+        float max_displacement = 1000.0f;     // Maximum allowed feature displacement
+        double tracking_error_threshold = 50.0; // LK tracking error threshold
+        
+        // RANSAC parameters
+        float ransac_threshold_min = 1.0f;
+        float ransac_threshold_max = 10.0f;
+        
+        // Point validation
+        float min_point_spread = 10.0f;       // Minimum spread of feature points
+        float max_coordinate = 100000.0f;      // Maximum valid coordinate value
     };
 
     struct PerformanceMetrics {
@@ -129,6 +142,29 @@ private:
     void log_performance(double processing_time);
     bool validate_frame(const cv::Mat& frame);
     void clear_state();
+    
+    // Lock-free helper methods (take parameters as arguments)
+    bool detect_features_impl(const cv::Mat& gray, std::vector<cv::Point2f>& points, 
+                            const StabilizerParams& params);
+    bool track_features_impl(const cv::Mat& prev_gray, const cv::Mat& curr_gray,
+                            std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts,
+                            const StabilizerParams& params);
+    cv::Mat estimate_transform_impl(const std::vector<cv::Point2f>& prev_pts,
+                                  const std::vector<cv::Point2f>& curr_pts,
+                                  const StabilizerParams& params);
+    cv::Mat smooth_transforms_impl(const StabilizerParams& params);
+    cv::Mat apply_transform_impl(const cv::Mat& frame, const cv::Mat& transform,
+                                const StabilizerParams& params);
+
+    // Named constants for magic numbers
+    static constexpr int MIN_FEATURES_FOR_TRACKING = 4;
+    static constexpr int MAX_POINTS_TO_PROCESS = 1000;
+    static constexpr int MIN_IMAGE_SIZE = 32;
+    static constexpr int MAX_IMAGE_WIDTH = 7680;
+    static constexpr int MAX_IMAGE_HEIGHT = 4320;
+    static constexpr double MAX_TRANSFORM_SCALE = 100.0;
+    static constexpr double MAX_TRANSLATION = 2000.0;
+    static constexpr double TRACKING_ERROR_THRESHOLD = 50.0;
 };
 
 /**
@@ -169,6 +205,13 @@ public:
     static bool validate_min_distance(float value);
     static bool validate_block_size(int value);
     static bool validate_harris_k(float value);
+    static bool validate_frame_motion_threshold(float value);
+    static bool validate_max_displacement(float value);
+    static bool validate_tracking_error_threshold(double value);
+    static bool validate_ransac_threshold_min(float value);
+    static bool validate_ransac_threshold_max(float value);
+    static bool validate_min_point_spread(float value);
+    static bool validate_max_coordinate(float value);
     
     static bool validate_all(const StabilizerCore::StabilizerParams& params);
     static std::vector<std::string> get_validation_errors(const StabilizerCore::StabilizerParams& params);

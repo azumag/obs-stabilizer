@@ -50,10 +50,13 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
+
 # Source files
 set(SOURCES
     src/stabilizer_opencv.cpp
     src/core/stabilizer_core.cpp
+    src/obs/obs_integration.cpp
     src/plugin-support.c
     src/obs_stubs.c
 )
