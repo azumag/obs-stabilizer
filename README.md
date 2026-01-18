@@ -502,8 +502,8 @@ copy build\Release\obs-stabilizer.dll %APPDATA%\obs-studio\plugins\
 ### 📋 **Technical Debt Status: IN PROGRESS**
 - **Issue #166**: tmp directory cleanup ✅ **RESOLVED** (Reduced from 1,482 files/64MB to 124 files/1.3MB)
 - **Issue #173**: FINAL TECHNICAL DEBT ASSESSMENT - Remaining Maintenance Issues 🔵 **IN PROGRESS**
-  - **Issue #168**: Logging standardization (obs_log vs printf) 🔄 **IN PROGRESS**
-  - **Issue #169**: Build system consolidation (CMakeLists.txt files) 🔄 **IN PROGRESS**
+  - **Issue #168**: Logging standardization (obs_log vs printf) ✅ **RESOLVED** (printf replaced with obs_log in production code)
+  - **Issue #169**: Build system consolidation (CMakeLists.txt files) ✅ **RESOLVED** (Consolidated to 1 essential CMakeLists.txt)
   - **Issue #167**: Memory management audit ⏳ **PENDING**
   - **Issue #171**: Deployment strategy (OpenCV dependencies) ⏳ **PENDING**
   - **Issue #172**: Test coverage expansion ⏳ **PENDING**

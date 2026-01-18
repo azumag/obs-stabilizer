@@ -117,6 +117,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/obs_stubs.c")
     list(APPEND TEST_SOURCES src/obs_stubs.c)
 endif()
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/plugin-support.c")
+    list(APPEND TEST_SOURCES src/plugin-support.c)
+endif()
 
 # Create test executable if we have test sources
 if(TEST_SOURCES)
