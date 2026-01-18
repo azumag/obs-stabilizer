@@ -6,6 +6,7 @@
 
 #include <obs-module.h>
 #include "core/stabilizer_core.hpp"
+#include "core/stabilizer_wrapper.hpp"
 #include <memory>
 #include <cstring>
 #include <opencv2/opencv.hpp>
@@ -14,10 +15,10 @@
 
 // OBS module declarations - using existing macros from stub headers
 
-// Plugin filter data structure using the new modular architecture
+// Plugin filter data structure using the new modular architecture with RAII wrapper
 struct stabilizer_filter {
     obs_source_t *source;
-    std::unique_ptr<StabilizerCore> stabilizer;
+    StabilizerWrapper stabilizer;  // Using RAII wrapper for memory safety
     bool initialized;
     StabilizerCore::StabilizerParams params;
     
@@ -88,7 +89,7 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
         }
 
         context->source = source;
-        context->stabilizer = std::make_unique<StabilizerCore>();
+        // StabilizerWrapper is automatically RAII-managed, no need for manual delete
         context->initialized = false;
         context->frame_count = 0;
         context->avg_processing_time = 0.0;
@@ -130,7 +131,7 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
 {
     try {
         struct stabilizer_filter *context = (struct stabilizer_filter *)data;
-        if (!context || !context->stabilizer) {
+        if (!context) {
             obs_log(LOG_ERROR, "Invalid context in filter update");
             return;
         }
@@ -140,7 +141,12 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
         if (StabilizerCore::validate_parameters(new_params)) {
             context->params = new_params;
             if (context->initialized) {
-                context->stabilizer->update_parameters(new_params);
+                // Re-initialize with new parameters
+                uint32_t width = obs_source_get_width(context->source);
+                uint32_t height = obs_source_get_height(context->source);
+                if (width > 0 && height > 0) {
+                    context->stabilizer.initialize(width, height, new_params);
+                }
             }
         } else {
             obs_log(LOG_ERROR, "Invalid parameters in filter update");
@@ -301,16 +307,16 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
     
     // Direct parameter access with defaults - OBS API functions don't throw exceptions
     // Use safe defaults if keys don't exist
-    params.enabled = obs_data_get_bool(settings, "enabled");
-    params.smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
-    params.max_correction = (float)obs_data_get_double(settings, "max_correction");
-    params.feature_count = (int)obs_data_get_int(settings, "feature_count");
-    params.quality_level = (float)obs_data_get_double(settings, "quality_level");
-    params.min_distance = (float)obs_data_get_double(settings, "min_distance");
-    params.block_size = (int)obs_data_get_int(settings, "block_size");
-    params.use_harris = obs_data_get_bool(settings, "use_harris");
-    params.k = (float)obs_data_get_double(settings, "k");
-    params.debug_mode = obs_data_get_bool(settings, "debug_mode");
+    params.enabled = obs_data_get_bool(const_cast<obs_data_t*>(settings), "enabled");
+    params.smoothing_radius = (int)obs_data_get_int(const_cast<obs_data_t*>(settings), "smoothing_radius");
+    params.max_correction = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "max_correction");
+    params.feature_count = (int)obs_data_get_int(const_cast<obs_data_t*>(settings), "feature_count");
+    params.quality_level = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "quality_level");
+    params.min_distance = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "min_distance");
+    params.block_size = (int)obs_data_get_int(const_cast<obs_data_t*>(settings), "block_size");
+    params.use_harris = obs_data_get_bool(const_cast<obs_data_t*>(settings), "use_harris");
+    params.k = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "k");
+    params.debug_mode = obs_data_get_bool(const_cast<obs_data_t*>(settings), "debug_mode");
     
     // Validate and clamp parameters
     params.smoothing_radius = std::clamp(params.smoothing_radius, 5, 200);

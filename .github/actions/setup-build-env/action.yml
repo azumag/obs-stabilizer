@@ -36,6 +36,7 @@ runs:
           ninja-build \
           build-essential \
           libopencv-dev \
+          libgtest-dev \
           pkg-config \
           qtbase5-dev \
           qtbase5-dev-tools
@@ -55,7 +56,7 @@ runs:
       if: inputs.platform == 'macos'
       shell: bash
       run: |
-        brew install cmake ninja opencv pkg-config
+        brew install cmake ninja opencv pkg-config googletest
 
     - name: Setup MSVC (Windows)
       if: inputs.platform == 'windows'

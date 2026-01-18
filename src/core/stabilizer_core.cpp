@@ -165,7 +165,6 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         }
         
         // Update shared transforms and get smoothed result
-        cv::Mat smoothed_transform;
         {
             std::lock_guard<std::mutex> lock(mutex_);
             transforms_.push_back(transform);
@@ -179,8 +178,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         }
         
         // Perform expensive smoothing operation without holding the lock
-        smoothed_transform = smooth_transforms();
-        }
+        cv::Mat smoothed_transform = smooth_transforms();
         
         if (smoothed_transform.empty()) {
             last_error_ = "Failed to smooth transforms";
@@ -563,9 +561,6 @@ cv::Mat StabilizerCore::apply_transform_impl(const cv::Mat& frame, const cv::Mat
     } catch (const std::exception& e) {
         return cv::Mat();
     }
-}
-    
-    return true;
 }
 
 void StabilizerCore::clear_state() {

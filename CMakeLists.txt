@@ -27,9 +27,20 @@ else()
     message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
 endif()
 
-# OBS paths - use local headers
-set(OBS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/obs")
-set(OBS_FRONTEND_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/obs-frontend-api")
+# OBS paths - find headers in standard locations or use local headers
+find_path(OBS_INCLUDE_DIR obs-module.h
+    PATHS
+    ${CMAKE_SOURCE_DIR}/include/obs
+    /usr/local/include/obs
+    /usr/include/obs
+)
+find_path(OBS_FRONTEND_INCLUDE_DIR obs-frontend-api.h
+    PATHS
+    ${CMAKE_SOURCE_DIR}/include/obs-frontend-api
+    /usr/local/include/obs-frontend-api
+    /usr/include/obs-frontend-api
+)
+
 set(OBS_LIB_DIR "/Applications/OBS.app/Contents/Frameworks")
 
 # Check if OBS headers exist
