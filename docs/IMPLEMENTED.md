@@ -50,7 +50,7 @@ This document outlines the implementation work completed based on the architectu
 - Reduced from 3 files to 2 files (meets 1-2 target)
 - Eliminated duplicate performance test configuration
 - Simplified build system maintenance
-- Enhanced performance test capabilities with better compiler optimizations
+- Performance test optimizations use -O3 flag for cross-platform compatibility
 
 ### Issue #166: tmp Directory Cleanup ✅ COMPLETED
 
@@ -91,11 +91,11 @@ This document outlines the implementation work completed based on the architectu
 - `src/CMakeLists-perftest.txt` - Duplicate performance test configuration (36 lines)
 
 #### Files Enhanced:
-- `CMakeLists.txt:88-100` - Enhanced performance test configuration with better optimization flags
+- `CMakeLists.txt:88-100` - Performance test configuration with -O3 optimization for cross-platform compatibility
 
 #### Consolidation Strategy:
 1. **Performance Testing**: Merged `src/CMakeLists-perftest.txt` functionality into main CMakeLists.txt
-2. **Enhanced Optimization**: Added `-march=native` flag for performance tests from removed file
+2. **Cross-Platform Optimization**: Used -O3 flag for performance tests to ensure compatibility across all platforms
 3. **Simplified Structure**: Reduced to 2 CMakeLists.txt files serving distinct purposes
 
 #### Rationale for Keeping Both Files:
@@ -132,7 +132,7 @@ tests/              # All test files organized
 - **Build Times**: Optimized due to simplified CMake structure
 - **Repository Size**: Reduced by 64MB (tmp directory removal)
 - **Development Experience**: Cleaner, more organized project structure
-- **Performance Tests**: Enhanced with `-march=native` optimizations
+- **Performance Tests**: Use -O3 optimizations for cross-platform compatibility
 
 ## Verification and Testing
 
@@ -154,15 +154,20 @@ cmake -S . -B build-test
 # ✅ OpenCV 4.12.0 found
 # ✅ OBS headers detected
 # ✅ Google Test found
-# ✅ Performance test targets configured with enhanced optimizations
+# ✅ Performance test targets configured with -O3 optimizations
 
 # Build successful
 cmake --build build-test
 # ✅ Main plugin obs-stabilizer-opencv.so (155KB)
-# ✅ Enhanced performance tests built with -march=native
+# ✅ Performance tests built with -O3 optimizations
 # ✅ Unit tests built successfully
 # ✅ Zero compiler warnings for main plugin
 ```
+
+**Platform Compatibility Note:**
+The -O3 optimization flag is used for cross-platform compatibility.
+The -march=native flag was considered but excluded because it is not
+supported by Apple's clang on macOS ARM64 and would cause build failures.
 
 ## Compliance with Architecture Principles
 
@@ -262,7 +267,7 @@ Based on review agent feedback, addressed the build system consolidation issues:
 - **Build System**: 2 CMakeLists.txt files (1 main + 1 specialized)
 - **Compiler Warnings**: 0 for main plugin
 - **Functionality**: 100% preserved
-- **Performance**: Enhanced with -march=native optimizations
+- **Performance**: Performance tests use -O3 optimizations for cross-platform compatibility
 
 ---
 
