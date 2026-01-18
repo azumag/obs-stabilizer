@@ -176,13 +176,34 @@ public:
         std::cout << "Max processing time: " << max_time << " ms" << std::endl;
         std::cout << "Average FPS capacity: " << std::setprecision(1) << avg_fps << " fps" << std::endl;
 
-        // Performance targets
-        bool fps30_target = avg_time <= 33.3;
-        bool fps60_target = avg_time <= 16.7;
+        // Performance targets based on ARCHITECTURE.md requirements
+        double target_time;
+        std::string resolution_name;
+        
+        if (prev_frame.cols == 640 && prev_frame.rows == 480) {
+            target_time = 2.0; // 720p: <2ms/フレーム (60fps+対応可能)
+            resolution_name = "480p (SD)";
+        } else if (prev_frame.cols == 1280 && prev_frame.rows == 720) {
+            target_time = 2.0; // 720p: <2ms/フレーム (60fps+対応可能)
+            resolution_name = "720p (HD)";
+        } else if (prev_frame.cols == 1920 && prev_frame.rows == 1080) {
+            target_time = 4.0; // 1080p: <4ms/フレーム (30fps+対応可能)
+            resolution_name = "1080p (Full HD)";
+        } else if (prev_frame.cols == 2560 && prev_frame.rows == 1440) {
+            target_time = 8.0; // 1440p: <8ms/フレーム
+            resolution_name = "1440p (QHD)";
+        } else {
+            target_time = 15.0; // Default conservative target
+            resolution_name = "Unknown";
+        }
+        
+        bool target_met = avg_time <= target_time;
 
-        std::cout << "\n=== Target Analysis ===" << std::endl;
-        std::cout << "30 FPS target (33.3ms): " << (fps30_target ? "✓ PASS" : "✗ FAIL") << std::endl;
-        std::cout << "60 FPS target (16.7ms): " << (fps60_target ? "✓ PASS" : "✗ FAIL") << std::endl;
+        std::cout << "\n=== ARCHITECTURE.md Target Analysis ===" << std::endl;
+        std::cout << "Resolution: " << resolution_name << std::endl;
+        std::cout << "Target time: " << target_time << "ms" << std::endl;
+        std::cout << "Actual time: " << std::fixed << std::setprecision(2) << avg_time << "ms" << std::endl;
+        std::cout << "Target: " << (target_met ? "✓ PASS" : "✗ FAIL") << std::endl;
 
         // Show frame time distribution
         std::cout << "\n=== Frame Time Distribution ===" << std::endl;
@@ -200,8 +221,8 @@ public:
         std::cout << "Frames > 33.3ms: " << over_33ms << " ("
                   << (100.0 * over_33ms / processing_times.size()) << "%)" << std::endl;
 
-        // Return true only if we at least meet 30fps requirement
-        return fps30_target;
+        // Return true only if we meet ARCHITECTURE.md targets
+        return target_met;
     }
 };
 
@@ -270,21 +291,24 @@ bool runPerformanceTests() {
 int main() {
     std::cout << "OBS Stabilizer Performance Test" << std::endl;
     std::cout << "OpenCV Version: " << CV_VERSION << std::endl;
-    std::cout << "Testing stabilization performance against real-time requirements..." << std::endl;
+    std::cout << "Testing against ARCHITECTURE.md performance requirements:" << std::endl;
+    std::cout << "- 720p: <2ms/frame (60fps+ support)" << std::endl;
+    std::cout << "- 1080p: <4ms/frame (30fps+ support)" << std::endl;
+    std::cout << "- 1440p: <8ms/frame" << std::endl;
+    std::cout << "- 4K: <15ms/frame" << std::endl;
 
     bool all_tests_passed = runPerformanceTests();
 
     std::cout << "\n" << std::string(60, '=') << std::endl;
     std::cout << "Performance testing completed!" << std::endl;
-    std::cout << "Results show processing times for each configuration." << std::endl;
-    std::cout << "Target: ≤33.3ms per frame for 30fps real-time processing" << std::endl;
+    std::cout << "Results verified against ARCHITECTURE.md requirements." << std::endl;
 
     if (all_tests_passed) {
-        std::cout << "\n✓ ALL PERFORMANCE TESTS PASSED" << std::endl;
+        std::cout << "\n✓ ALL ARCHITECTURE PERFORMANCE TARGETS MET" << std::endl;
         return 0;  // Success
     } else {
-        std::cout << "\n✗ SOME PERFORMANCE TESTS FAILED" << std::endl;
-        std::cout << "Performance requirements not met - please optimize or adjust targets" << std::endl;
+        std::cout << "\n✗ SOME ARCHITECTURE PERFORMANCE TARGETS FAILED" << std::endl;
+        std::cout << "Performance requirements from ARCHITECTURE.md not met - optimization required" << std::endl;
         return 1;  // Failure - TDD Red state
     }
 }

@@ -19,19 +19,19 @@ struct stabilizer_filter {
     
     // Parameters - stored from create function to avoid settings crash
     bool enabled;
-    int smoothing_radius;
-    float max_correction;
-    int feature_count;
-    float quality_level;
-    float min_distance;
-    int block_size;
-    bool use_harris;
-    float k;
-    int winSize;
-    int maxLevel;
-    int maxCount;
-    float epsilon;
-    float minEigThreshold;
+    int smoothing_radius;         // Number of frames to average for smoothing (10-100 recommended)
+    float max_correction;         // Maximum correction percentage (10.0-100.0)
+    int feature_count;            // Number of feature points to track (100-1000 recommended)
+    float quality_level;          // Minimal accepted quality of corners (0.001-0.1)
+    float min_distance;           // Minimum possible Euclidean distance between corners (10-100 pixels)
+    int block_size;               // Size of an average block for computing a derivative covariation matrix (3 recommended)
+    bool use_harris;              // Use Harris detector instead of cornerMinEigenVal
+    float k;                      // Free parameter of Harris detector (0.04 recommended)
+    int winSize;                  // Size of the search window at each pyramid level (15-31 recommended)
+    int maxLevel;                 // 0-based maximal pyramid level number (3 recommended)
+    int maxCount;                 // Maximum number of iterations (20-30 recommended)
+    float epsilon;                // Desired accuracy (0.01 recommended)
+    float minEigThreshold;       // Minimal eigen threshold (0.0001-0.001)
     
     // OpenCV data for stabilization
     cv::Mat prev_gray;
@@ -135,6 +135,13 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
     
     // Read settings if available (safe in create function)
     if (settings) {
+        // Handle preset first
+        const char *preset = obs_data_get_string(settings, "preset");
+        if (preset && strlen(preset) > 0 && strcmp(preset, "custom") != 0) {
+            apply_preset(settings, preset);
+            obs_log(LOG_INFO, "Applied preset: %s", preset);
+        }
+        
         filter->enabled = obs_data_get_bool(settings, "enabled");
         filter->smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
         filter->max_correction = (float)obs_data_get_double(settings, "max_correction");
@@ -143,10 +150,11 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
         filter->min_distance = (float)obs_data_get_double(settings, "min_distance");
         filter->debug_mode = obs_data_get_bool(settings, "debug_mode");
         
-        obs_log(LOG_INFO, "Loaded settings - enabled: %s, smoothing: %d, features: %d",
+        obs_log(LOG_INFO, "Loaded settings - enabled: %s, smoothing: %d, features: %d, preset: %s",
                 filter->enabled ? "true" : "false",
                 filter->smoothing_radius,
-                filter->feature_count);
+                filter->feature_count,
+                preset ? preset : "none");
     }
     
     // Initialize OpenCV structures
@@ -173,22 +181,52 @@ static void stabilizer_filter_destroy(void *data)
 
 static void stabilizer_filter_update(void *data, obs_data_t *settings)
 {
-    // WORKAROUND: Don't access settings in update function to avoid crash
-    // Settings are already read in create function
-    // See docs/issue_001_settings_crash.md for details
-    
     struct stabilizer_filter *filter = (struct stabilizer_filter *)data;
     if (!filter) {
         obs_log(LOG_WARNING, "Update called with NULL filter data");
         return;
     }
     
-    obs_log(LOG_DEBUG, "Stabilizer filter update called (settings access skipped to avoid crash)");
+    // Validate settings pointer before access
+    if (!settings) {
+        obs_log(LOG_WARNING, "Update called with NULL settings");
+        return;
+    }
     
-    // NOTE: If we need to update settings in the future, we should:
-    // 1. Use properties callbacks instead of update
-    // 2. Or find a way to validate settings pointer before access
-    // 3. Or investigate OBS API for proper settings handling
+    std::lock_guard<std::mutex> lock(filter->mutex);
+    
+    // Handle preset changes
+    const char *preset = obs_data_get_string(settings, "preset");
+    if (preset && strlen(preset) > 0 && strcmp(preset, "custom") != 0) {
+        apply_preset(settings, preset);
+        obs_log(LOG_INFO, "Applied preset: %s", preset);
+    }
+    
+    // Update parameters safely
+    filter->enabled = obs_data_get_bool(settings, "enabled");
+    filter->smoothing_radius = (int)obs_data_get_int(settings, "smoothing_radius");
+    filter->max_correction = (float)obs_data_get_double(settings, "max_correction");
+    filter->feature_count = (int)obs_data_get_int(settings, "feature_count");
+    filter->quality_level = (float)obs_data_get_double(settings, "quality_level");
+    filter->min_distance = (float)obs_data_get_double(settings, "min_distance");
+    filter->debug_mode = obs_data_get_bool(settings, "debug_mode");
+    
+    // Validate parameter ranges
+    if (filter->smoothing_radius < 5) filter->smoothing_radius = 5;
+    if (filter->smoothing_radius > 100) filter->smoothing_radius = 100;
+    if (filter->max_correction < 10.0f) filter->max_correction = 10.0f;
+    if (filter->max_correction > 100.0f) filter->max_correction = 100.0f;
+    if (filter->feature_count < 50) filter->feature_count = 50;
+    if (filter->feature_count > 500) filter->feature_count = 500;
+    if (filter->quality_level < 0.001f) filter->quality_level = 0.001f;
+    if (filter->quality_level > 0.1f) filter->quality_level = 0.1f;
+    if (filter->min_distance < 10.0f) filter->min_distance = 10.0f;
+    if (filter->min_distance > 100.0f) filter->min_distance = 100.0f;
+    
+    obs_log(LOG_DEBUG, "Settings updated - enabled: %s, smoothing: %d, features: %d",
+            filter->enabled ? "true" : "false",
+            filter->smoothing_radius,
+            filter->feature_count);
 }
 
 static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_source_frame *frame)
@@ -296,11 +334,19 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
                     if (frame->format == VIDEO_FORMAT_BGRA) {
                         cv::Mat stabilized;
                         cv::warpPerspective(current_frame, stabilized, stabilization_transform,
-                                          current_frame.size(), cv::INTER_LINEAR,
-                                          cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0, 0));
+                                           current_frame.size(), cv::INTER_LINEAR,
+                                           cv::BORDER_CONSTANT, cv::Scalar(0, 0, 0, 0));
                         
-                        // Copy back to frame
-                        memcpy(frame->data[0], stabilized.data, frame->linesize[0] * height);
+                        // Safe copy with overflow detection
+                        size_t required_size = (size_t)frame->linesize[0] * (size_t)height;
+                        if (frame->linesize[0] > 0 && height > 0 && 
+                            required_size / (size_t)frame->linesize[0] == (size_t)height &&
+                            required_size <= stabilized.total() * stabilized.elemSize()) {
+                            memcpy(frame->data[0], stabilized.data, required_size);
+                        } else {
+                            obs_log(LOG_ERROR, "Frame size overflow detected: linesize=%u, height=%u", 
+                                    frame->linesize[0], height);
+                        }
                     }
                     
                     if (filter->debug_mode && filter->frame_count % 30 == 0) {
@@ -346,8 +392,44 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
     return frame;
 }
 
+// Preset configurations
+static void apply_preset(obs_data_t *settings, const char *preset_name)
+{
+    if (strcmp(preset_name, "gaming") == 0) {
+        obs_data_set_int(settings, "smoothing_radius", 15);
+        obs_data_set_set_double(settings, "max_correction", 30.0);
+        obs_data_set_int(settings, "feature_count", 300);
+        obs_data_set_set_double(settings, "quality_level", 0.005);
+        obs_data_set_set_double(settings, "min_distance", 20.0);
+    } else if (strcmp(preset_name, "streaming") == 0) {
+        obs_data_set_int(settings, "smoothing_radius", 30);
+        obs_data_set_set_double(settings, "max_correction", 50.0);
+        obs_data_set_int(settings, "feature_count", 200);
+        obs_data_set_set_double(settings, "quality_level", 0.01);
+        obs_data_set_set_double(settings, "min_distance", 30.0);
+    } else if (strcmp(preset_name, "recording") == 0) {
+        obs_data_set_int(settings, "smoothing_radius", 60);
+        obs_data_set_set_double(settings, "max_correction", 80.0);
+        obs_data_set_int(settings, "feature_count", 150);
+        obs_data_set_set_double(settings, "quality_level", 0.02);
+        obs_data_set_set_double(settings, "min_distance", 40.0);
+    }
+}
+
+// Preset callback function
+static bool preset_changed_callback(obs_properties_t *props, obs_property_t *property, 
+                                   obs_data_t *settings)
+{
+    const char *preset = obs_data_get_string(settings, "preset");
+    if (preset && strlen(preset) > 0) {
+        apply_preset(settings, preset);
+    }
+    return true;
+}
+
 static void stabilizer_filter_get_defaults(obs_data_t *settings)
 {
+    obs_data_set_default_string(settings, "preset", "streaming");
     obs_data_set_default_bool(settings, "enabled", true);
     obs_data_set_default_int(settings, "smoothing_radius", 30);
     obs_data_set_default_double(settings, "max_correction", 50.0);
@@ -362,6 +444,16 @@ static obs_properties_t *stabilizer_filter_get_properties(void *data)
     UNUSED_PARAMETER(data);
     
     obs_properties_t *props = obs_properties_create();
+    
+    // Preset selection
+    obs_property_t *preset_list = obs_properties_add_list(props, "preset", "Preset",
+                                                         OBS_COMBO_TYPE_LIST, 
+                                                         OBS_COMBO_FORMAT_STRING);
+    obs_property_list_add_string(preset_list, "Custom", "custom");
+    obs_property_list_add_string(preset_list, "Gaming (Low Latency)", "gaming");
+    obs_property_list_add_string(preset_list, "Streaming (Balanced)", "streaming");
+    obs_property_list_add_string(preset_list, "Recording (High Quality)", "recording");
+    obs_property_set_modified_callback(preset_list, preset_changed_callback);
     
     obs_properties_add_bool(props, "enabled", "Enable Stabilization");
     
