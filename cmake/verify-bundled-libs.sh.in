@@ -1,0 +1,65 @@
+#!/bin/bash
+# Verification script for bundled OpenCV libraries
+
+set -e
+
+BUNDLED_DIR="@CMAKE_BINARY_DIR@/opencv-libraries"
+PLUGIN_FILE="@CMAKE_BINARY_DIR@/obs-stabilizer-opencv.so"
+
+echo "Verifying bundled OpenCV libraries..."
+echo "Bundled directory: ${BUNDLED_DIR}"
+echo "Plugin file: ${PLUGIN_FILE}"
+
+# Check if bundled directory exists
+if [ ! -d "${BUNDLED_DIR}" ]; then
+    echo "ERROR: Bundled directory does not exist"
+    exit 1
+fi
+
+# Check if plugin file exists
+if [ ! -f "${PLUGIN_FILE}" ]; then
+    echo "ERROR: Plugin file does not exist"
+    exit 1
+fi
+
+# List bundled libraries
+echo "Bundled libraries:"
+ls -la "${BUNDLED_DIR}"/
+
+# Check plugin dependencies
+echo "Plugin dependencies:"
+if command -v otool >/dev/null 2>&1; then
+    # macOS
+    otool -L "${PLUGIN_FILE}"
+elif command -v ldd >/dev/null 2>&1; then
+    # Linux
+    ldd "${PLUGIN_FILE}"
+elif command -v objdump >/dev/null 2>&1; then
+    # Windows (with objdump)
+    objdump -p "${PLUGIN_FILE}" | grep "DLL Name"
+else
+    echo "WARNING: Cannot check plugin dependencies on this platform"
+fi
+
+# Check for bundled OpenCV libraries
+echo "Checking for required OpenCV libraries..."
+REQUIRED_LIBS=("libopencv_core" "libopencv_imgproc" "libopencv_video" "libopencv_features2d" "libopencv_calib3d" "libopencv_flann")
+
+for lib in "${REQUIRED_LIBS[@]}"; do
+    found=false
+    for file in "${BUNDLED_DIR}"/*; do
+        if [[ "$(basename "$file")" == ${lib}* ]]; then
+            found=true
+            echo "✓ Found ${lib}"
+            break
+        fi
+    done
+    
+    if [ "$found" = false ]; then
+        echo "✗ Missing ${lib}"
+        exit 1
+    fi
+done
+
+echo "All required OpenCV libraries are bundled correctly!"
+exit 0

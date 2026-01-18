@@ -5,11 +5,28 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_ARCHITECTURES "arm64")
 
-# Find OpenCV
-find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d)
-message(STATUS "OpenCV version: ${OpenCV_VERSION}")
-message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
-message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+# Deployment strategy selection (Issue #171)
+option(OPENCV_DEPLOYMENT_STRATEGY "OpenCV deployment strategy" 
+       "System" CACHE STRING "Static|Bundled|Hybrid|System")
+
+set_property(CACHE OPENCV_DEPLOYMENT_STRATEGY 
+             PROPERTY STRINGS "Static;Bundled;Hybrid;System")
+
+message(STATUS "OpenCV Deployment Strategy: ${OPENCV_DEPLOYMENT_STRATEGY}")
+
+# Load strategy-specific configuration
+if(OPENCV_DEPLOYMENT_STRATEGY STREQUAL "Static" OR 
+   OPENCV_DEPLOYMENT_STRATEGY STREQUAL "Hybrid")
+    include(${CMAKE_SOURCE_DIR}/cmake/StaticOpenCV.cmake)
+elseif(OPENCV_DEPLOYMENT_STRATEGY STREQUAL "Bundled")
+    include(${CMAKE_SOURCE_DIR}/cmake/BundledOpenCV.cmake)
+else()
+    # System dependencies (default/current approach)
+    find_package(OpenCV REQUIRED COMPONENTS core imgproc video features2d calib3d flann)
+    message(STATUS "OpenCV version: ${OpenCV_VERSION}")
+    message(STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+    message(STATUS "OpenCV include dirs: ${OpenCV_INCLUDE_DIRS}")
+endif()
 
 # OBS paths - use local headers
 set(OBS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include/obs")
@@ -44,10 +61,12 @@ set(SOURCES
 # Create plugin library
 add_library(obs-stabilizer-opencv MODULE ${SOURCES})
 
-# Link libraries
-target_link_libraries(obs-stabilizer-opencv
-    ${OpenCV_LIBS}
-)
+# Link libraries - only for system dependencies
+if(OPENCV_DEPLOYMENT_STRATEGY STREQUAL "System")
+    target_link_libraries(obs-stabilizer-opencv
+        ${OpenCV_LIBS}
+    )
+endif()
 
 # macOS specific settings
 if(APPLE)
