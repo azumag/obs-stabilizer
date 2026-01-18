@@ -120,7 +120,22 @@ src/
 
 ### High Priority
 
-#### 1. Logging Standardization (Issue #168) ✅ **RESOLVED**
+#### 1. Memory Management Audit (Issue #167) ⚠️ **ACTIVE**
+**Problem**: C++ memory management mixing with OBS C callbacks
+
+**Current State**:
+- stabilizer_opencv.cpp: Uses calloc/free for struct containing C++ objects
+- stabilizer_filter.cpp: Uses new/delete for struct containing C++ objects
+- C++ objects (cv::Mat, std::vector, std::deque, std::mutex) not properly initialized/destroyed
+
+**Solution**: Implement proper C++ object lifecycle management in OBS callbacks
+- Use placement new for C++ objects in C-allocated memory
+- Ensure proper destructor calls before freeing memory
+- Consider converting to pure C implementation for OBS compatibility
+
+**Impact**: High effort, High impact
+
+#### 2. Logging Standardization (Issue #168) ✅ **RESOLVED**
 **Problem**: Mixed usage of printf() and obs_log() across codebase
 
 **Current State**:
@@ -136,7 +151,7 @@ src/
 
 **Impact**: Medium effort, Medium impact
 
-#### 2. Build System Consolidation (Issue #169) ✅ **RESOLVED**
+#### 3. Build System Consolidation (Issue #169) ✅ **RESOLVED**
 **Problem**: Multiple CMakeLists.txt files create maintenance burden
 
 **Current State**:
@@ -155,15 +170,6 @@ src/
 
 ### Medium Priority
 
-#### 3. Memory Management Audit (Issue #167)
-**Problem**: C++ new/delete mixing with OBS C callbacks
-
-**Current State**: Functional but needs formal audit
-
-**Solution**: Review memory management patterns, ensure proper RAII usage
-
-**Impact**: High effort, High impact
-
 #### 4. Deployment Strategy (Issue #171)
 **Problem**: OpenCV dependency creates end-user installation complexity
 
@@ -173,9 +179,18 @@ src/
 
 **Impact**: High effort, Medium impact
 
+#### 5. Magic Numbers (Issue #170)
+**Problem**: Magic numbers throughout stabilizer.cpp impact maintainability
+
+**Current State**: Hard-coded values in algorithm parameters
+
+**Solution**: Replace with named constants or configuration parameters
+
+**Impact**: Medium effort, Medium impact
+
 ### Low Priority
 
-#### 5. Test Coverage Expansion (Issue #172)
+#### 6. Test Coverage Expansion (Issue #172)
 **Problem**: Limited automated testing of stabilization algorithms
 
 **Current State**: Manual testing only for OBS integration
@@ -206,17 +221,21 @@ src/
 
 ## Implementation Roadmap
 
-### Phase 1: High Priority Items (Current Sprint)
-- [x] Standardize logging to obs_log() in production code
-- [x] Consolidate CMakeLists.txt files
+### Phase 1: Memory Management Audit (Current Sprint)
+- [ ] Audit C++ object lifecycle in OBS callbacks
+- [ ] Implement proper placement new/destructor calls
+- [ ] Add memory leak detection tests
+- [ ] Document memory management best practices
 
 ### Phase 2: Medium Priority Items
-- [ ] Complete memory management audit
 - [ ] Design deployment strategy
+- [ ] Replace magic numbers with constants
+- [ ] Expand automated test coverage
 
 ### Phase 3: Low Priority Items
-- [ ] Expand test coverage
 - [ ] Performance optimization
+- [ ] GPU acceleration support
+- [ ] Enhanced algorithms
 
 ## Metrics and Success Criteria
 
@@ -275,446 +294,406 @@ src/
 | 2025-08-04 | 1.0 | azumag | Initial architecture documentation |
 | 2025-08-04 | 1.1 | azumag | Updated with Issue #173 technical debt items |
 | 2026-01-18 | 1.2 | azumag | Added tmp directory cleanup design (Issue #166) |
+| 2026-01-19 | 2.0 | azumag | Renamed previous version, focused on Issue #167 memory management audit |
 
 ---
 
-# Issue #166: tmp Directory Cleanup Design
+# Issue #167: Memory Management Audit Design
 
 ## Overview
 
-This section outlines the architecture and implementation strategy for cleaning up the `tmp/` directory to resolve issue #166: "[CRITICAL CLEANUP] tmp directory cleanup - 1,482 files (64MB) violating CLAUDE.md principles".
+This section outlines architecture and implementation strategy for resolving Issue #167: "[MEMORY SAFETY] Critical C++/C memory management audit required in OBS integration".
 
-## Current State Analysis
+## Problem Analysis
 
-### Current Directory Structure
+### Current Memory Management Patterns
 
+#### 1. stabilizer_opencv.cpp (Main Implementation)
+**Create Function**:
+```cpp
+static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source)
+{
+    struct stabilizer_filter *filter = (struct stabilizer_filter *)calloc(1, sizeof(struct stabilizer_filter));
+    // ... initialization ...
+    return filter;
+}
 ```
-tmp/
-├── build/                      # CMake build artifacts + plugin binary
-├── scripts/                     # 10 test/cleanup scripts
-├── tests/                       # Test source files + CMake artifacts
-├── PLUGIN_LOADING_SOLUTION.md
-├── plugin_test_framework_design.md
-├── PLUGIN_TEST_FRAMEWORK_GUIDE.md
-├── README.md
-└── TEST_FRAMEWORK_IMPLEMENTATION_REPORT.md
+
+**Destroy Function**:
+```cpp
+static void stabilizer_filter_destroy(void *data)
+{
+    struct stabilizer_filter *filter = (struct stabilizer_filter *)data;
+    if (filter) {
+        free(filter);
+    }
+}
 ```
 
-### Current Metrics
-- **Total files**: 124 files
-- **Total size**: 1.3MB
-- **Markdown documentation**: 5 files
-- **Shell scripts**: 10 files
-- **Test source files**: 7 files
-- **CMake build artifacts**: 3 CMakeFiles directories + associated files
+**Problem**: C++ objects in struct not properly initialized/destroyed:
+- `cv::Mat prev_gray`
+- `std::vector<cv::Point2f> prev_pts`
+- `std::deque<cv::Mat> transforms`
+- `cv::Mat cumulative_transform`
+- `std::mutex mutex`
 
-### Problems Identified
+#### 2. stabilizer_filter.cpp (Alternative Implementation)
+**Create Function**:
+```cpp
+static void *minimal_stabilizer_create(obs_data_t *settings, obs_source_t *source)
+{
+    minimal_stabilizer_data *data = new minimal_stabilizer_data;
+    // ... initialization ...
+    return data;
+}
+```
 
-1. **Documentation scattered**: 5 markdown files in tmp/ instead of docs/
-2. **Duplicate scripts**: tmp/scripts/ contains scripts that duplicate functionality in scripts/
-3. **Build artifacts**: CMakeFiles and intermediate build files in tmp/
-4. **Test files in wrong location**: Test source files in tmp/tests/ instead of tests/
-5. **CLAUDE.md violation**: Violates "一時ファイルは一箇所のディレクトリにまとめよ" principle
+**Destroy Function**:
+```cpp
+static void minimal_stabilizer_destroy(void *data)
+{
+    minimal_stabilizer_data *filter = (minimal_stabilizer_data *)data;
+    if (filter) {
+        pthread_mutex_destroy(&filter->mutex);
+        if (filter->prev_frame) {
+            bfree(filter->prev_frame);
+        }
+        delete filter;
+    }
+}
+```
+
+**Problem**: C++ objects mixed with C-style memory management:
+- `std::deque<Transform> transform_history`
+- `std::deque<Transform> smoothed_transforms`
+- `pthread_mutex_t mutex`
 
 ## Functional Requirements
 
-### FR-1: Documentation Organization
-- Move all markdown files from tmp/ to docs/ directory
-- Ensure documentation is properly integrated with existing docs/
+### FR-1: Proper C++ Object Lifecycle
+- Ensure all C++ objects are properly constructed
+- Ensure all C++ objects are properly destructed
+- No memory leaks during plugin load/unload cycles
 
-### FR-2: Script Consolidation
-- Remove duplicate scripts from tmp/scripts/
-- Preserve any unique functionality from tmp/scripts/
-- Ensure all scripts follow project conventions
+### FR-2: OBS Callback Compatibility
+- Memory allocation must be compatible with OBS C callbacks
+- Memory deallocation must not crash OBS shutdown
+- Exception handling must not propagate to OBS runtime
 
-### FR-3: Build Artifact Cleanup
-- Remove all CMakeFiles directories from tmp/
-- Remove intermediate build artifacts (.ninja_*, cmake_install.cmake, etc.)
-- Preserve actual plugin binaries needed for testing
-
-### FR-4: Test File Organization
-- Move test source files from tmp/tests/ to tests/ directory
-- Preserve test functionality while removing build artifacts
-
-### FR-5: Directory Compliance
-- Reduce tmp/ to <50 files
-- Reduce tmp/ to <10MB
-- Ensure tmp/ only contains legitimate temporary files
+### FR-3: Cross-Platform Memory Safety
+- Consistent behavior across macOS, Windows, Linux
+- Platform-specific memory management handled correctly
+- No undefined behavior from mixing C/C++ allocation
 
 ## Non-Functional Requirements
 
 ### NFR-1: Performance
-- Cleanup operation must complete in <5 seconds
-- No impact on build system functionality
+- Memory allocation overhead < 1% of frame processing time
+- No performance regression compared to current implementation
 
-### NFR-2: Compatibility
-- Preserve all existing functionality
-- No breaking changes to existing scripts or tests
+### NFR-2: Maintainability
+- Clear memory management patterns
+- Well-documented lifecycle
+- Easy to audit and verify
 
-### NFR-3: Maintainability
-- Follow CLAUDE.md principles
-- Adhere to YAGNI, DRY, KISS principles
-- Ensure future tmp/ usage policies are clear
-
-### NFR-4: Safety
-- No deletion of files that might be needed
-- Backup strategy for any files being removed
-- Reversible operations where possible
+### NFR-3: Safety
+- No null pointer dereferences
+- No double-free or use-after-free
+- Exception safety guarantees
 
 ## Acceptance Criteria
 
-### AC-1: Documentation
-- [ ] All 5 markdown files moved to docs/
-- [ ] No markdown files remain in tmp/
-- [ ] Documentation is accessible and organized
+### AC-1: Memory Leak Testing
+- [ ] No memory leaks detected in plugin load/unload cycles
+- [ ] Valgrind/AddressSanitizer reports no issues
+- [ ] Memory usage stable over extended operation
 
-### AC-2: Scripts
-- [ ] Duplicate scripts removed from tmp/scripts/
-- [ ] Unique functionality preserved in scripts/
-- [ ] No test scripts remain in tmp/scripts/
+### AC-2: Exception Safety
+- [ ] No exceptions propagate to OBS callbacks
+- [ ] Graceful handling of allocation failures
+- [ ] Safe cleanup on error conditions
 
-### AC-3: Build Artifacts
-- [ ] All CMakeFiles directories removed from tmp/
-- [ ] Intermediate build files removed
-- [ ] Plugin binaries preserved if needed for testing
+### AC-3: Cross-Platform Validation
+- [ ] Tests pass on macOS
+- [ ] Tests pass on Windows
+- [ ] Tests pass on Linux
 
-### AC-4: Test Files
-- [ ] Test source files moved to tests/ directory
-- [ ] Build artifacts removed from tmp/tests/
-- [ ] Tests remain functional
-
-### AC-5: Directory Size
-- [ ] tmp/ contains <50 files
-- [ ] tmp/ size <10MB
-- [ ] tmp/ structure is clean and organized
-
-### AC-6: Project Compliance
-- [ ] Follows CLAUDE.md principles
-- [ ] Documentation updated (README.md if needed)
-- [ ] Git commit with cleanup changes
+### AC-4: Code Quality
+- [ ] Compiler warnings resolved
+- [ ] Static analysis passes
+- [ ] Code review approved
 
 ## Design Architecture
 
-### File Migration Strategy
+### Solution Options Analysis
 
-#### Phase 1: Documentation Migration
+#### Option 1: Placement New (Recommended for stabilizer_opencv.cpp)
+**Approach**: Use placement new to construct C++ objects in C-allocated memory
 
-**Source**: tmp/*.md
-**Destination**: docs/
+**Implementation**:
+```cpp
+// In create function
+static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source)
+{
+    // Allocate memory with calloc
+    struct stabilizer_filter *filter = (struct stabilizer_filter *)calloc(1, sizeof(struct stabilizer_filter));
+    if (!filter) return nullptr;
+    
+    // Construct C++ objects using placement new
+    new (&filter->prev_gray) cv::Mat();
+    new (&filter->prev_pts) std::vector<cv::Point2f>();
+    new (&filter->transforms) std::deque<cv::Mat>();
+    new (&filter->cumulative_transform) cv::Mat();
+    new (&filter->mutex) std::mutex();
+    
+    // ... other initialization ...
+    return filter;
+}
 
-**Actions**:
-1. `PLUGIN_LOADING_SOLUTION.md` → `docs/plugin-loading-solution.md`
-2. `plugin_test_framework_design.md` → `docs/plugin-test-framework-design.md`
-3. `PLUGIN_TEST_FRAMEWORK_GUIDE.md` → `docs/plugin-test-framework-guide.md`
-4. `README.md` → `docs/tmp-README.md` (if unique content exists)
-5. `TEST_FRAMEWORK_IMPLEMENTATION_REPORT.md` → `docs/test-framework-implementation-report.md`
-
-**Rationale**: Documentation should live in the docs/ directory for better organization and discoverability.
-
-#### Phase 2: Script Consolidation
-
-**Analysis**:
-Compare tmp/scripts/ with scripts/ to identify duplicates and unique functionality.
-
-**Duplicate Scripts (to be removed)**:
-- `clean_plugins.sh` - Duplicates cleanup functionality
-- `test_plugin_loading.sh` - Duplicates existing test scripts
-- `monitor_obs_logs.sh` - May have unique utility
-
-**Unique Scripts (to be preserved)**:
-- `fix_obs_crash.sh` - Unique crash fix utility
-- `interactive_filter_test.sh` - Interactive testing utility
-- `test_filter_functionality.sh` - Specific filter testing
-- `test_plugin_crash_fix.sh` - Crash fix testing
-- `verify_filter_status.sh` - Status verification
-
-**Actions**:
-1. Compare scripts with existing ones in scripts/
-2. Remove clear duplicates
-3. Move unique scripts to scripts/ or scripts/integration/
-4. Remove tmp/scripts/ directory
-
-**Rationale**: Consolidate all scripts in one location (scripts/) to follow DRY principle.
-
-#### Phase 3: Build Artifact Cleanup
-
-**Source**: tmp/build/, tmp/tests/CMakeFiles/
-
-**Actions**:
-1. Remove all CMakeFiles directories
-2. Remove intermediate build files:
-   - `.ninja_deps`
-   - `.ninja_log`
-   - `build.ninja`
-   - `cmake_install.cmake`
-   - `CMakeCache.txt`
-   - `Makefile`
-   - `CTestTestfile.cmake`
-
-**Preserve**:
-- `test-stabilizer.plugin` binary if needed for current testing
-- Any other required binaries
-
-**Rationale**: Build artifacts should not be tracked in version control and should be cleaned up.
-
-#### Phase 4: Test File Organization
-
-**Source**: tmp/tests/*.cpp, tmp/tests/CMakeLists.txt
-
-**Destination**: tests/
-
-**Actions**:
-1. Move test source files to tests/:
-   - `stabilizer_core.cpp` → `tests/stabilizer_core.cpp`
-   - `test_feature_tracking.cpp` → `tests/test_feature_tracking.cpp`
-   - `test_main.cpp` → `tests/test_main.cpp`
-   - `test_mocks.hpp` → `tests/test_mocks.hpp`
-   - `test_stabilizer_core.cpp` → `tests/test_stabilizer_core.cpp`
-   - `test_transform_smoothing.cpp` → `tests/test_transform_smoothing.cpp`
-   - `test-ui-implementation.cpp` → `tests/test-ui-implementation.cpp`
-
-2. Remove build artifacts from tmp/tests/
-3. Remove tmp/tests/ directory after migration
-
-**Rationale**: Test files belong in the tests/ directory for consistent project structure.
-
-### Implementation Plan
-
-#### Step 1: Backup and Verification
-```bash
-# Create backup of tmp/ directory
-cp -r tmp tmp_backup_$(date +%Y%m%d)
-
-# Count files before cleanup
-find tmp -type f | wc -l
-du -sh tmp
+// In destroy function
+static void stabilizer_filter_destroy(void *data)
+{
+    struct stabilizer_filter *filter = (struct stabilizer_filter *)data;
+    if (filter) {
+        // Destroy C++ objects explicitly
+        filter->prev_gray.~cv::Mat();
+        filter->prev_pts.~vector<cv::Point2f>();
+        filter->transforms.~deque<cv::Mat>();
+        filter->cumulative_transform.~cv::Mat();
+        filter->mutex.~mutex();
+        
+        free(filter);
+    }
+}
 ```
 
-#### Step 2: Documentation Migration
-```bash
-# Move markdown files to docs/
-mv tmp/PLUGIN_LOADING_SOLUTION.md docs/plugin-loading-solution.md
-mv tmp/plugin_test_framework_design.md docs/plugin-test-framework-design.md
-mv tmp/PLUGIN_TEST_FRAMEWORK_GUIDE.md docs/plugin-test-framework-guide.md
-mv tmp/TEST_FRAMEWORK_IMPLEMENTATION_REPORT.md docs/test-framework-implementation-report.md
+**Pros**:
+- Minimal code changes
+- Maintains C allocation pattern
+- Compatible with OBS callbacks
 
-# Check if tmp/README.md has unique content before moving
-if [ -s tmp/README.md ]; then
-    mv tmp/README.md docs/tmp-README.md
-fi
+**Cons**:
+- Manual destructor calls required
+- Error-prone if order is wrong
+- Complex to understand
+
+#### Option 2: Smart Pointers (Recommended for stabilizer_filter.cpp)
+**Approach**: Replace new/delete with std::unique_ptr
+
+**Implementation**:
+```cpp
+// In create function
+static void *minimal_stabilizer_create(obs_data_t *settings, obs_source_t *source)
+{
+    auto data = std::make_unique<minimal_stabilizer_data>();
+    // ... initialization ...
+    return data.release();
+}
+
+// In destroy function
+static void minimal_stabilizer_destroy(void *data)
+{
+    auto filter = std::unique_ptr<minimal_stabilizer_data>(
+        static_cast<minimal_stabilizer_data*>(data)
+    );
+    // unique_ptr destructor will automatically clean up
+}
 ```
 
-#### Step 3: Script Analysis and Consolidation
-```bash
-# Analyze scripts for duplicates
-for script in tmp/scripts/*.sh; do
-    script_name=$(basename "$script")
-    if [ -f "scripts/$script_name" ]; then
-        echo "Duplicate found: $script_name"
-        # Compare content to determine if truly duplicate
-        diff "$script" "scripts/$script_name"
-    fi
-done
+**Pros**:
+- Automatic memory management
+- Exception-safe
+- Modern C++ idiom
 
-# Move unique scripts to scripts/
-mv tmp/scripts/fix_obs_crash.sh scripts/
-mv tmp/scripts/interactive_filter_test.sh scripts/integration/
-mv tmp/scripts/test_filter_functionality.sh scripts/integration/
-mv tmp/scripts/test_plugin_crash_fix.sh scripts/integration/
-mv tmp/scripts/verify_filter_status.sh scripts/integration/
+**Cons**:
+- Requires C++11 or later (already satisfied)
+- Still mixing C/C++ patterns
 
-# Remove duplicate scripts
-rm tmp/scripts/clean_plugins.sh
-rm tmp/scripts/test_plugin_loading.sh
-rm tmp/scripts/monitor_obs_logs.sh  # After verifying it's a duplicate
+#### Option 3: Pure C Implementation (Not Recommended)
+**Approach**: Convert all C++ code to C
 
-# Remove empty tmp/scripts/ directory
-rmdir tmp/scripts
+**Implementation**:
+- Replace std::vector with dynamic arrays
+- Replace std::deque with linked lists
+- Replace cv::Mat with custom struct
+- Replace std::mutex with pthread_mutex_t
+
+**Pros**:
+- Pure C compatibility
+- No C++ runtime overhead
+
+**Cons**:
+- Massive code rewrite
+- Loss of C++ benefits
+- High maintenance burden
+
+### Recommended Solution
+
+**Hybrid Approach**: Use Option 1 for stabilizer_opencv.cpp, Option 2 for stabilizer_filter.cpp
+
+**Rationale**:
+1. **stabilizer_opencv.cpp**: Heavily dependent on OpenCV (C++), placement new is most appropriate
+2. **stabilizer_filter.cpp**: Uses standard C++ containers, smart pointers are cleaner
+
+## Implementation Plan
+
+### Phase 1: stabilizer_opencv.cpp Refactoring
+
+#### Step 1: Update Create Function
+```cpp
+static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source)
+{
+    obs_log(LOG_INFO, "Creating OpenCV stabilizer filter");
+    
+    // Allocate memory
+    struct stabilizer_filter *filter = (struct stabilizer_filter *)calloc(1, sizeof(struct stabilizer_filter));
+    if (!filter) {
+        obs_log(LOG_ERROR, "Failed to allocate memory for stabilizer filter");
+        return nullptr;
+    }
+    
+    // Construct C++ objects using placement new
+    try {
+        new (&filter->prev_gray) cv::Mat();
+        new (&filter->prev_pts) std::vector<cv::Point2f>();
+        new (&filter->transforms) std::deque<cv::Mat>();
+        new (&filter->cumulative_transform) cv::Mat();
+        new (&filter->mutex) std::mutex();
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "Failed to construct C++ objects: %s", e.what());
+        free(filter);
+        return nullptr;
+    }
+    
+    // ... rest of initialization ...
+    return filter;
+}
 ```
 
-#### Step 4: Build Artifact Cleanup
-```bash
-# Remove CMakeFiles directories
-find tmp -type d -name "CMakeFiles" -exec rm -rf {} +
-
-# Remove intermediate build files
-find tmp -name ".ninja_deps" -delete
-find tmp -name ".ninja_log" -delete
-find tmp -name "build.ninja" -delete
-find tmp -name "cmake_install.cmake" -delete
-find tmp -name "CMakeCache.txt" -delete
-find tmp -name "Makefile" -delete
-find tmp -name "CTestTestfile.cmake" -delete
-
-# Remove build directory if empty or only contains plugin binary
-if [ -f tmp/build/test-stabilizer.plugin ]; then
-    # Keep plugin binary, remove other files
-    cd tmp/build
-    rm -rf CMakeFiles .ninja_* build.ninja cmake_install.cmake CMakeCache.txt
-    cd ../..
-else
-    # Remove entire build directory
-    rm -rf tmp/build
-fi
+#### Step 2: Update Destroy Function
+```cpp
+static void stabilizer_filter_destroy(void *data)
+{
+    struct stabilizer_filter *filter = (struct stabilizer_filter *)data;
+    
+    if (filter) {
+        obs_log(LOG_INFO, "Destroying OpenCV stabilizer filter");
+        
+        // Destroy C++ objects explicitly in reverse order of construction
+        filter->mutex.~mutex();
+        filter->cumulative_transform.~cv::Mat();
+        filter->transforms.~deque<cv::Mat>();
+        filter->prev_pts.~vector<cv::Point2f>();
+        filter->prev_gray.~cv::Mat();
+        
+        free(filter);
+    }
+}
 ```
 
-#### Step 5: Test File Migration
-```bash
-# Move test source files to tests/
-mv tmp/tests/stabilizer_core.cpp tests/
-mv tmp/tests/test_feature_tracking.cpp tests/
-mv tmp/tests/test_main.cpp tests/
-mv tmp/tests/test_mocks.hpp tests/
-mv tmp/tests/test_stabilizer_core.cpp tests/
-mv tmp/tests/test_transform_smoothing.cpp tests/
-mv tmp/tests/test-ui-implementation.cpp tests/
+### Phase 2: stabilizer_filter.cpp Refactoring
 
-# Remove build artifacts from tmp/tests/
-rm -rf tmp/tests/CMakeFiles
-rm -rf tmp/tests/build-test
-rm tmp/tests/cmake_install.cmake
-rm tmp/tests/CMakeCache.txt
-rm tmp/tests/CMakeLists.txt
-rm tmp/tests/Makefile
-rm tmp/tests/CTestTestfile.cmake
-
-# Remove empty directories
-rmdir tmp/tests/tests 2>/dev/null || true
-rmdir tmp/tests/legacy 2>/dev/null || true
-rmdir tmp/tests
+#### Step 1: Update Create Function
+```cpp
+static void *minimal_stabilizer_create(obs_data_t *settings, obs_source_t *source)
+{
+    try {
+        auto data = std::make_unique<minimal_stabilizer_data>();
+        
+        data->context = source;
+        data->enabled = true;
+        data->smoothing_window = 5;
+        data->stabilization_strength = 0.8f;
+        data->prev_frame = nullptr;
+        data->frame_width = 0;
+        data->frame_height = 0;
+        
+        pthread_mutex_init(&data->mutex, nullptr);
+        
+        if (settings) {
+            data->enabled = obs_data_get_bool(settings, "enabled");
+            data->smoothing_window = (int)obs_data_get_int(settings, "smoothing_window");
+            data->stabilization_strength = (float)obs_data_get_double(settings, "strength");
+        }
+        
+        return data.release();
+    } catch (const std::exception& e) {
+        obs_log(LOG_ERROR, "Failed to create stabilizer: %s", e.what());
+        return nullptr;
+    }
+}
 ```
 
-#### Step 6: Final Verification
-```bash
-# Count files after cleanup
-find tmp -type f | wc -l
-du -sh tmp
-
-# Verify no documentation files remain
-ls tmp/*.md 2>/dev/null && echo "ERROR: Markdown files remain in tmp/" || echo "OK: No markdown files in tmp/"
-
-# Verify no scripts remain
-ls tmp/scripts/ 2>/dev/null && echo "ERROR: Scripts remain in tmp/scripts/" || echo "OK: No scripts in tmp/scripts/"
-
-# Verify no CMakeFiles remain
-find tmp -type d -name "CMakeFiles" && echo "ERROR: CMakeFiles directories remain in tmp/" || echo "OK: No CMakeFiles in tmp/"
+#### Step 2: Update Destroy Function
+```cpp
+static void minimal_stabilizer_destroy(void *data)
+{
+    if (data) {
+        auto filter = std::unique_ptr<minimal_stabilizer_data>(
+            static_cast<minimal_stabilizer_data*>(data)
+        );
+        
+        pthread_mutex_destroy(&filter->mutex);
+        
+        if (filter->prev_frame) {
+            bfree(filter->prev_frame);
+        }
+        
+        // unique_ptr destructor automatically deletes filter
+    }
+}
 ```
 
-### Trade-offs and Considerations
+### Phase 3: Testing
 
-#### Trade-off 1: Build Artifact Preservation
-**Option A**: Remove all build artifacts
-- **Pros**: Cleanest result, smallest tmp/ size
-- **Cons**: May require rebuilding for testing
+#### Memory Leak Testing
+```bash
+# Build with AddressSanitizer
+cmake -DCMAKE_CXX_FLAGS="-fsanitize=address -g" -DCMAKE_C_FLAGS="-fsanitize=address -g" ..
+cmake --build .
 
-**Option B**: Preserve plugin binaries
-- **Pros**: Faster testing, no rebuild needed
-- **Cons**: Larger tmp/ size, not following strict YAGNI
+# Run tests
+./stabilizer_tests
 
-**Decision**: Option B - Preserve plugin binaries for current testing convenience
+# Run plugin with leak detection
+valgrind --leak-check=full --track-origins=yes ./obs-stabilizer-opencv
+```
 
-#### Trade-off 2: Script Consolidation
-**Option A**: Move all scripts to scripts/
-- **Pros**: Single location for all scripts
-- **Cons**: May clutter scripts/ with rarely used utilities
-
-**Option B**: Keep some scripts in tmp/ for quick access
-- **Pros**: Convenience for active development
-- **Cons**: Violates "one directory" principle
-
-**Decision**: Option A - Move all scripts to scripts/ to follow CLAUDE.md principles
-
-#### Trade-off 3: Test File Migration
-**Option A**: Merge with existing tests/
-- **Pros**: Consistent test organization
-- **Cons**: Potential conflicts with existing test files
-
-**Option B**: Keep separate tmp_tests/ directory
-- **Pros**: Clear separation, no conflicts
-- **Cons**: Additional directory, violates "single location" principle
-
-**Decision**: Option A - Merge with existing tests/ for consistency
+#### Exception Safety Testing
+- Test with invalid video frames
+- Test with out-of-memory conditions
+- Test with concurrent access patterns
 
 ## Testing Strategy
 
-### Pre-Cleanup Validation
-1. Count files and size of tmp/ directory
-2. Document all files in tmp/ directory
-3. Create backup of tmp/ directory
+### Pre-Implementation Testing
+1. Benchmark current memory usage
+2. Identify memory leak patterns
+3. Document current behavior
 
-### Post-Cleanup Validation
-1. Verify all documentation files moved to docs/
-2. Verify all scripts moved to scripts/ or scripts/integration/
-3. Verify test files moved to tests/
-4. Verify no CMakeFiles directories remain
-5. Verify tmp/ size <50 files and <10MB
-6. Run existing tests to ensure functionality preserved
-7. Verify scripts still work after migration
-
-### Rollback Plan
-If cleanup causes issues:
-1. Restore from backup: `cp -r tmp_backup_YYYYMMDD tmp`
-2. Identify problematic changes
-3. Fix issues and retry cleanup
-
-## Future Prevention
-
-### Git Configuration
-Add entries to .gitignore to prevent future accumulation:
-```gitignore
-# Build artifacts
-tmp/build/
-tmp/tests/CMakeFiles/
-tmp/tests/build-test/
-tmp/**/CMakeFiles/
-tmp/**/.ninja*
-tmp/**/build.ninja
-tmp/**/cmake_install.cmake
-tmp/**/CMakeCache.txt
-tmp/**/Makefile
-
-# Documentation (should be in docs/)
-tmp/*.md
-
-# Scripts (should be in scripts/)
-tmp/scripts/
-```
-
-### Policies
-1. Documentation must go in docs/ directory
-2. Scripts must go in scripts/ or scripts/integration/
-3. Test files must go in tests/ directory
-4. Build artifacts should be cleaned up after use
-5. tmp/ is for temporary, ephemeral files only
-
-### Automated Cleanup
-Create a script to periodically clean tmp/:
-```bash
-scripts/clean-tmp.sh
-```
+### Post-Implementation Testing
+1. Verify no memory leaks with valgrind/ASan
+2. Test exception safety with invalid inputs
+3. Verify cross-platform behavior
+4. Performance regression testing
 
 ## Related Issues
 
-- Issue #166: [CRITICAL CLEANUP] tmp directory cleanup
-- Issue #93: [Technical Debt] Test files scattered in tmp directory
+- Issue #167: [MEMORY SAFETY] Critical C++/C memory management audit
+- Issue #168: [CODE QUALITY] Replace printf() logging with OBS logging system ✅ RESOLVED
+- Issue #169: [BUILD SYSTEM] Consolidate duplicate CMakeLists.txt files ✅ RESOLVED
 
 ## Success Metrics
 
-- tmp/ contains <50 files
-- tmp/ size <10MB
-- All documentation in docs/
-- All scripts in scripts/
-- All tests in tests/
-- No CMakeFiles in tmp/
-- All existing functionality preserved
-- README.md updated if needed
+- No memory leaks detected
+- Exception safety verified
+- Cross-platform compatibility confirmed
+- Performance regression < 5%
 
 ## Timeline Estimate
 
-- **Phase 1 (Documentation Migration)**: 15 minutes
-- **Phase 2 (Script Consolidation)**: 30 minutes
-- **Phase 3 (Build Artifact Cleanup)**: 15 minutes
-- **Phase 4 (Test File Migration)**: 20 minutes
-- **Testing and Validation**: 30 minutes
+- **Phase 1 (stabilizer_opencv.cpp)**: 2 hours
+- **Phase 2 (stabilizer_filter.cpp)**: 1 hour
+- **Phase 3 (Testing)**: 2 hours
 
-**Total Estimated Time**: 2 hours
+**Total Estimated Time**: 5 hours
