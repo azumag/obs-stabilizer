@@ -390,16 +390,29 @@ extern "C" {
 
 // Filter info structure
 static struct obs_source_info stabilizer_opencv_filter = {
-    .id = "stabilizer_opencv_filter",
-    .type = OBS_SOURCE_TYPE_FILTER,
-    .output_flags = OBS_SOURCE_VIDEO,
-    .get_name = stabilizer_filter_get_name,
-    .create = stabilizer_filter_create,
-    .destroy = stabilizer_filter_destroy,
-    .update = stabilizer_filter_update,
-    .get_defaults = stabilizer_filter_get_defaults,
-    .get_properties = stabilizer_filter_get_properties,
-    .filter_video = stabilizer_filter_video
+    "stabilizer_opencv_filter",
+    OBS_SOURCE_TYPE_FILTER,
+    OBS_SOURCE_VIDEO,
+    stabilizer_filter_get_name,
+    stabilizer_filter_create,
+    stabilizer_filter_destroy,
+    NULL,
+    NULL,
+    stabilizer_filter_update,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    stabilizer_filter_video,
+    stabilizer_filter_get_properties,
+    stabilizer_filter_get_defaults,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
 };
 
 // Module load

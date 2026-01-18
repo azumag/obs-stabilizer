@@ -75,16 +75,29 @@ static void stabilizer_filter_defaults(obs_data_t* settings) {
 
 // Filter definition
 static struct obs_source_info stabilizer_filter_info = {
-    .id = "stabilizer_filter",
-    .type = OBS_SOURCE_TYPE_FILTER,
-    .output_flags = OBS_SOURCE_VIDEO,
-    .get_name = stabilizer_filter_name,
-    .create = stabilizer_filter_create,
-    .destroy = stabilizer_filter_destroy,
-    .update = stabilizer_filter_update,
-    .filter_video = stabilizer_filter_video,
-    .get_properties = stabilizer_filter_properties,
-    .get_defaults = stabilizer_filter_defaults,
+    "stabilizer_filter",
+    OBS_SOURCE_TYPE_FILTER,
+    OBS_SOURCE_VIDEO,
+    stabilizer_filter_name,
+    stabilizer_filter_create,
+    stabilizer_filter_destroy,
+    NULL,
+    NULL,
+    stabilizer_filter_update,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    stabilizer_filter_video,
+    stabilizer_filter_properties,
+    stabilizer_filter_defaults,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
 };
 
 void register_stabilizer_filter() {

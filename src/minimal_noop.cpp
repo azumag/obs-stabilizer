@@ -28,13 +28,29 @@ static struct obs_source_frame *noop_filter_video(void *data, struct obs_source_
 }
 
 static struct obs_source_info noop_filter = {
-    .id = "noop_filter",
-    .type = OBS_SOURCE_TYPE_FILTER,
-    .output_flags = OBS_SOURCE_VIDEO,
-    .get_name = noop_filter_get_name,
-    .create = noop_filter_create,
-    .destroy = noop_filter_destroy,
-    .filter_video = noop_filter_video
+    "noop_filter",
+    OBS_SOURCE_TYPE_FILTER,
+    OBS_SOURCE_VIDEO,
+    noop_filter_get_name,
+    noop_filter_create,
+    noop_filter_destroy,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    noop_filter_video,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
 };
 
 bool obs_module_load(void)

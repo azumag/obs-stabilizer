@@ -336,16 +336,29 @@ static obs_properties_t *minimal_stabilizer_get_properties(void *data)
 
 // Register the filter
 static struct obs_source_info minimal_stabilizer_filter = {
-    .id = "minimal_stabilizer_filter",
-    .type = OBS_SOURCE_TYPE_FILTER,
-    .output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC,
-    .get_name = minimal_stabilizer_get_name,
-    .create = minimal_stabilizer_create,
-    .destroy = minimal_stabilizer_destroy,
-    .update = minimal_stabilizer_update,
-    .filter_video = minimal_stabilizer_filter_video,
-    .get_defaults = minimal_stabilizer_get_defaults,
-    .get_properties = minimal_stabilizer_get_properties
+    "minimal_stabilizer_filter",
+    OBS_SOURCE_TYPE_FILTER,
+    OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC,
+    minimal_stabilizer_get_name,
+    minimal_stabilizer_create,
+    minimal_stabilizer_destroy,
+    NULL,
+    NULL,
+    minimal_stabilizer_update,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    minimal_stabilizer_filter_video,
+    minimal_stabilizer_get_properties,
+    minimal_stabilizer_get_defaults,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
 };
 
 // Module load - export with different name to avoid conflict
