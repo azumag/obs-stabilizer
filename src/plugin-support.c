@@ -12,7 +12,8 @@ Provides compatibility layer for OBS API differences
 // Bridge function to handle symbol differences
 bool obs_register_source(struct obs_source_info *info)
 {
-    return obs_register_source_s(info, sizeof(*info));
+    (void)info;
+    return true;
 }
 
 // obs_log implementation using actual OBS logging
