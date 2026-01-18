@@ -41,14 +41,12 @@ jobs:
     
     - name: Run tests with coverage
       run: |
-        cd src/tests
-        cmake -S . -B ../../tmp/builds/test-coverage -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage"
-        cmake --build ../../tmp/builds/test-coverage
-        if [ -f "../../tmp/builds/test-coverage/stabilizer_tests" ]; then
-          ../../tmp/builds/test-coverage/stabilizer_tests
+        cd tmp/builds/coverage
+        if [ -f "stabilizer_tests" ]; then
+          ./stabilizer_tests
         else
           echo "Test executable not found, skipping test run"
-          ls -la ../../tmp/builds/test-coverage/
+          ls -la
         fi
     
     - name: Generate coverage report
