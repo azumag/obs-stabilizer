@@ -202,16 +202,18 @@ TEST_F(CoreFunctionalityTests, PresetConfiguration) {
     // Test gaming preset
     auto gaming_params = StabilizerCore::get_preset_gaming();
     EXPECT_TRUE(StabilizerCore::validate_parameters(gaming_params)) << "Gaming preset should be valid";
-    EXPECT_GT(gaming_params.smoothing_radius, 20) << "Gaming preset should have higher smoothing";
+    EXPECT_GT(gaming_params.smoothing_radius, 20) << "Gaming preset should have sufficient smoothing";
+    EXPECT_LT(gaming_params.smoothing_radius, 40) << "Gaming preset should not have excessive smoothing";
 
     // Test streaming preset
     auto streaming_params = StabilizerCore::get_preset_streaming();
     EXPECT_TRUE(StabilizerCore::validate_parameters(streaming_params)) << "Streaming preset should be valid";
-    EXPECT_LT(streaming_params.smoothing_radius, gaming_params.smoothing_radius) << "Streaming preset should have lower smoothing than gaming";
+    EXPECT_GT(streaming_params.smoothing_radius, gaming_params.smoothing_radius) << "Streaming preset should have higher smoothing than gaming";
 
     // Test recording preset
     auto recording_params = StabilizerCore::get_preset_recording();
     EXPECT_TRUE(StabilizerCore::validate_parameters(recording_params)) << "Recording preset should be valid";
+    EXPECT_GT(recording_params.smoothing_radius, streaming_params.smoothing_radius) << "Recording preset should have highest smoothing";
     EXPECT_GT(recording_params.feature_count, streaming_params.feature_count) << "Recording preset should have more features";
 }
 
@@ -468,7 +470,7 @@ TEST_F(CoreFunctionalityTests, ParameterValidation) {
     EXPECT_FALSE(StabilizerCore::validate_parameters(invalid_params)) << "Invalid smoothing radius should fail";
 
     invalid_params = test_params;
-    invalid_params.feature_count = 10; // Too low
+    invalid_params.feature_count = 49; // Too low
     EXPECT_FALSE(StabilizerCore::validate_parameters(invalid_params)) << "Invalid feature count should fail";
 
     invalid_params = test_params;

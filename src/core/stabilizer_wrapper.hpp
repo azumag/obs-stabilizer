@@ -123,6 +123,63 @@ public:
         }
         return "Not initialized";
     }
+    
+    /**
+     * @brief Get current performance metrics
+     * @return Performance metrics structure
+     */
+    StabilizerCore::PerformanceMetrics get_performance_metrics() {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (stabilizer) {
+            return stabilizer->get_performance_metrics();
+        }
+        return {};
+    }
+    
+    /**
+     * @brief Update stabilization parameters
+     * @param params New parameters
+     */
+    void update_parameters(const StabilizerCore::StabilizerParams& params) {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (stabilizer) {
+            stabilizer->update_parameters(params);
+        }
+    }
+    
+    /**
+     * @brief Get current parameters
+     * @return The current stabilizer parameters
+     */
+    StabilizerCore::StabilizerParams get_current_params() {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (stabilizer) {
+            return stabilizer->get_current_params();
+        }
+        return {};
+    }
+    
+    /**
+     * @brief Reset the stabilizer state
+     */
+    void reset() {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (stabilizer) {
+            stabilizer->reset();
+        }
+    }
+    
+    /**
+     * @brief Check if wrapper is ready
+     * @return true if stabilizer is ready
+     */
+    bool is_ready() {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (stabilizer) {
+            return stabilizer->is_ready();
+        }
+        return false;
+    }
 };
 
 #endif // STABILIZER_WRAPPER_HPP

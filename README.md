@@ -510,7 +510,7 @@ copy build\Release\obs-stabilizer.dll %APPDATA%\obs-studio\plugins\
    - **Issue #93**: Test files scattered in tmp directory ✅ **RESOLVED** (All tests consolidated in tests/ directory)
    - **Issue #171**: Deployment strategy (OpenCV dependencies) ⏳ **PENDING** (Medium priority)
    - **Issue #172**: Test coverage expansion ⏳ **PENDING** (Medium priority)
-   - **Issue #174**: BUILD: Integration tests fail to compile 🔴 **NEW HIGH PRIORITY** (Missing StabilizerCore methods - enable_stabilization, update_configuration, get_metrics, smoothing_radius access)
+   - [x] **Issue #174**: BUILD: Integration tests fail to compile ✅ **RESOLVED** (Fixed test_data_generator function signature mismatch, CMakeLists.txt test configuration, variable scope issues, missing includes, and nullptr handling)
   - **Architecture Documentation**: ✅ **UPDATED** - docs/ARCHITECTURE.md updated with Issue #167 memory management design
   - **CI/CD Fixes**: ✅ **RESOLVED** - Fixed designated initializer compatibility and QA workflow test execution
   - **Issue #70**: Remove unused legacy compatibility macros ✅ **RESOLVED** (Legacy compatibility macros removed from config_macros.hpp)
