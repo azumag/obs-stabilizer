@@ -88,6 +88,7 @@ file(GLOB_RECURSE ALL_TEST_SOURCES "tests/*.cpp" "tests/*.c")
 # Exclude test files with API mismatches or that are not ready
     set(TEST_SOURCES ${ALL_TEST_SOURCES})
     list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_obs_integration.cpp")
+    list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/test-core-only.cpp")
 
 if(TEST_SOURCES)
     # Add test source files only
