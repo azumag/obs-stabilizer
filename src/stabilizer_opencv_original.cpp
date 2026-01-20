@@ -216,16 +216,16 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
     filter->debug_mode = obs_data_get_bool(settings, "debug_mode");
     
     // Validate parameter ranges
-    if (filter->smoothing_radius < 5) filter->smoothing_radius = 5;
-    if (filter->smoothing_radius > 100) filter->smoothing_radius = 100;
-    if (filter->max_correction < 10.0f) filter->max_correction = 10.0f;
-    if (filter->max_correction > 100.0f) filter->max_correction = 100.0f;
-    if (filter->feature_count < 50) filter->feature_count = 50;
-    if (filter->feature_count > 500) filter->feature_count = 500;
-    if (filter->quality_level < 0.001f) filter->quality_level = 0.001f;
-    if (filter->quality_level > 0.1f) filter->quality_level = 0.1f;
-    if (filter->min_distance < 10.0f) filter->min_distance = 10.0f;
-    if (filter->min_distance > 100.0f) filter->min_distance = 100.0f;
+    if (filter->smoothing_radius < SAFETY::MIN_SMOOTHING_OVERRIDE) filter->smoothing_radius = SAFETY::MIN_SMOOTHING_OVERRIDE;
+    if (filter->smoothing_radius > SAFETY::MAX_SMOOTHING_OVERRIDE) filter->smoothing_radius = SAFETY::MAX_SMOOTHING_OVERRIDE;
+    if (filter->max_correction < SAFETY::MIN_CORRECTION_OVERRIDE) filter->max_correction = SAFETY::MIN_CORRECTION_OVERRIDE;
+    if (filter->max_correction > SAFETY::MAX_CORRECTION_OVERRIDE) filter->max_correction = SAFETY::MAX_CORRECTION_OVERRIDE;
+    if (filter->feature_count < SAFETY::MIN_FEATURES_OVERRIDE) filter->feature_count = SAFETY::MIN_FEATURES_OVERRIDE;
+    if (filter->feature_count > SAFETY::MAX_FEATURES_OVERRIDE) filter->feature_count = SAFETY::MAX_FEATURES_OVERRIDE;
+    if (filter->quality_level < SAFETY::MIN_QUALITY_OVERRIDE) filter->quality_level = SAFETY::MIN_QUALITY_OVERRIDE;
+    if (filter->quality_level > SAFETY::MAX_QUALITY_OVERRIDE) filter->quality_level = SAFETY::MAX_QUALITY_OVERRIDE;
+    if (filter->min_distance < SAFETY::MIN_DISTANCE_OVERRIDE) filter->min_distance = SAFETY::MIN_DISTANCE_OVERRIDE;
+    if (filter->min_distance > SAFETY::MAX_DISTANCE_OVERRIDE) filter->min_distance = SAFETY::MAX_DISTANCE_OVERRIDE;
     
     obs_log(LOG_DEBUG, "Settings updated - enabled: %s, smoothing: %d, features: %d",
             filter->enabled ? "true" : "false",
@@ -358,7 +358,7 @@ static struct obs_source_frame *stabilizer_filter_video(void *data, struct obs_s
                     }
                 }
                 
-                if (good_prev.size() >= 4) {
+                if (good_prev.size() >= OPENCV_PARAMS::MIN_FEATURES_FOR_TRANSFORM) {
                     // Calculate transform
                     cv::Mat transform = calculate_transform(good_prev, good_curr);
                     
@@ -495,11 +495,11 @@ static void stabilizer_filter_get_defaults(obs_data_t *settings)
 {
     obs_data_set_default_string(settings, "preset", "streaming");
     obs_data_set_default_bool(settings, "enabled", true);
-    obs_data_set_default_int(settings, "smoothing_radius", 30);
-    obs_data_set_default_double(settings, "max_correction", 50.0);
-    obs_data_set_default_int(settings, "feature_count", 200);
-    obs_data_set_default_double(settings, "quality_level", 0.01);
-    obs_data_set_default_double(settings, "min_distance", 30.0);
+    obs_data_set_default_int(settings, "smoothing_radius", PARAM_RANGES::SMOOTHING_DEFAULT);
+    obs_data_set_default_double(settings, "max_correction", PARAM_RANGES::CORRECTION_DEFAULT);
+    obs_data_set_default_int(settings, "feature_count", PARAM_RANGES::FEATURES_DEFAULT);
+    obs_data_set_default_double(settings, "quality_level", PARAM_RANGES::QUALITY_DEFAULT);
+    obs_data_set_default_double(settings, "min_distance", PARAM_RANGES::DISTANCE_DEFAULT);
     obs_data_set_default_bool(settings, "debug_mode", false);
 }
 

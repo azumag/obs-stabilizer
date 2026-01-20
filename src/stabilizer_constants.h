@@ -62,6 +62,9 @@ namespace OPENCV_PARAMS {
     constexpr int REFRESH_FEATURE_THRESHOLD_DIVISOR = 2;  // Refresh when < features/2
     constexpr int REFRESH_FRAME_INTERVAL = 10;              // Refresh every N frames
     constexpr int MIN_FEATURES_AFTER_REFRESH = 50;          // Minimum features after tracking
+    
+    // Transform calculation
+    constexpr int MIN_FEATURES_FOR_TRANSFORM = 4;  // Minimum 4 point pairs for perspective transform (homography)
 }
 
 // Preset configurations
