@@ -84,12 +84,43 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     }
 
     std::vector<cv::Point2f> curr_pts;
-    if (!track_features(prev_gray_, gray, prev_pts_, curr_pts)) {
+    curr_pts.resize(prev_pts_.size());
+    float tracking_success_rate = 0.0f;
+    if (!track_features(prev_gray_, gray, prev_pts_, curr_pts, tracking_success_rate)) {
+        consecutive_tracking_failures_++;
+        if (consecutive_tracking_failures_ >= 5) {
+            detect_features(gray, prev_pts_);
+            consecutive_tracking_failures_ = 0;
+            frames_since_last_refresh_ = 0;
+        }
         auto end_time = std::chrono::high_resolution_clock::now();
         double processing_time = std::chrono::duration<double>(end_time - start_time).count();
         metrics_.frame_count++;
         metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
         return frame;
+    }
+
+    consecutive_tracking_failures_ = 0;
+    frames_since_last_refresh_++;
+
+    if (tracking_success_rate < params_.feature_refresh_threshold && frames_since_last_refresh_ >= 30) {
+        int adaptive_count = params_.feature_count;
+        if (tracking_success_rate < 0.3f) {
+            adaptive_count = params_.adaptive_feature_max;
+        } else if (tracking_success_rate > 0.7f) {
+            adaptive_count = params_.adaptive_feature_min;
+        }
+
+        std::vector<cv::Point2f> new_features;
+        cv::goodFeaturesToTrack(gray, new_features, adaptive_count,
+                              params_.quality_level, params_.min_distance,
+                              cv::Mat(), params_.block_size,
+                              params_.use_harris, params_.k);
+
+        if (!new_features.empty() && new_features.size() >= MIN_FEATURES_FOR_TRACKING) {
+            prev_pts_ = new_features;
+            frames_since_last_refresh_ = 0;
+        }
     }
 
     cv::Mat transform = estimate_transform(prev_pts_, curr_pts);
@@ -105,19 +136,19 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     if (transforms_.size() > params_.smoothing_radius) {
         transforms_.pop_front();
     }
-    
+
     cv::Mat smoothed_transform = smooth_transforms();
-    
-    prev_gray_ = gray.clone();
+
+    gray.copyTo(prev_gray_);
     prev_pts_ = curr_pts;
 
     cv::Mat result = apply_transform(frame, smoothed_transform);
-    
+
     auto end_time = std::chrono::high_resolution_clock::now();
     double processing_time = std::chrono::duration<double>(end_time - start_time).count();
     metrics_.frame_count++;
     metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
-    
+
     return result;
 }
 
@@ -127,7 +158,8 @@ bool StabilizerCore::detect_features(const cv::Mat& gray, std::vector<cv::Point2
 }
 
 bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& curr_gray,
-                                  std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts) {
+                                  std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts,
+                                  float& success_rate) {
     if (prev_gray.empty() || curr_gray.empty() || prev_gray.size() != curr_gray.size()) {
         return false;
     }
@@ -137,24 +169,33 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
 
     std::vector<uchar> status;
     std::vector<float> err;
-    cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err);
+
+    cv::Size winSize(params_.optical_flow_window_size, params_.optical_flow_window_size);
+    cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30, 0.01);
+
+    cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err,
+                              winSize, params_.optical_flow_pyramid_levels, termcrit,
+                              cv::OPTFLOW_USE_INITIAL_FLOW);
 
     size_t i = 0;
+    size_t tracked = 0;
     for (size_t j = 0; j < status.size(); j++) {
         if (status[j]) {
             prev_pts[i] = prev_pts[j];
             curr_pts[i] = curr_pts[j];
             i++;
+            tracked++;
         }
     }
     prev_pts.resize(i);
     curr_pts.resize(i);
 
+    success_rate = static_cast<float>(tracked) / static_cast<float>(prev_pts.size());
     return i >= MIN_FEATURES_FOR_TRACKING;
 }
 
 cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_pts,
-                                           const std::vector<cv::Point2f>& curr_pts) {
+                                             std::vector<cv::Point2f>& curr_pts) {
     cv::Mat transform = cv::estimateAffinePartial2D(prev_pts, curr_pts);
     if (transform.empty()) {
         // Fallback to identity matrix if estimation fails
@@ -191,6 +232,8 @@ void StabilizerCore::reset() {
     transforms_.clear();
     cumulative_transform_ = cv::Mat::eye(3, 3, CV_64F);
     metrics_ = {};
+    consecutive_tracking_failures_ = 0;
+    frames_since_last_refresh_ = 0;
 }
 
 void StabilizerCore::clear_state() {
@@ -239,6 +282,24 @@ StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
     if (params.k < Harris::MIN_K || params.k > Harris::MAX_K) {
         return false;
     }
+
+    if (params.optical_flow_pyramid_levels < 0 || params.optical_flow_pyramid_levels > 5) {
+        return false;
+    }
+    if (params.optical_flow_window_size < 5 || params.optical_flow_window_size > 31 ||
+        params.optical_flow_window_size % 2 == 0) {
+        return false;
+    }
+    if (params.feature_refresh_threshold < 0.0f || params.feature_refresh_threshold > 1.0f) {
+        return false;
+    }
+    if (params.adaptive_feature_min < 50 || params.adaptive_feature_min > params.adaptive_feature_max) {
+        return false;
+    }
+    if (params.adaptive_feature_max < params.adaptive_feature_min || params.adaptive_feature_max > 2000) {
+        return false;
+    }
+
     return true;
 }
 
@@ -253,6 +314,11 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() {
     params.use_harris = false;
     params.k = 0.04f;
     params.enabled = true;
+    params.optical_flow_pyramid_levels = 3;
+    params.optical_flow_window_size = 21;
+    params.feature_refresh_threshold = 0.6f;
+    params.adaptive_feature_min = 100;
+    params.adaptive_feature_max = 400;
     return params;
 }
 
@@ -267,6 +333,11 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_streaming() {
     params.use_harris = false;
     params.k = 0.04f;
     params.enabled = true;
+    params.optical_flow_pyramid_levels = 3;
+    params.optical_flow_window_size = 21;
+    params.feature_refresh_threshold = 0.5f;
+    params.adaptive_feature_min = 150;
+    params.adaptive_feature_max = 500;
     return params;
 }
 
@@ -281,6 +352,11 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() {
     params.use_harris = false;
     params.k = 0.04f;
     params.enabled = true;
+    params.optical_flow_pyramid_levels = 4;
+    params.optical_flow_window_size = 31;
+    params.feature_refresh_threshold = 0.4f;
+    params.adaptive_feature_min = 300;
+    params.adaptive_feature_max = 800;
     return params;
 }
 

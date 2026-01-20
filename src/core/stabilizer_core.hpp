@@ -59,6 +59,13 @@ public:
         // Point validation
         float min_point_spread = 10.0f;       // Minimum spread of feature points
         float max_coordinate = 100000.0f;      // Maximum valid coordinate value
+
+        // Algorithm optimization parameters (Phase 2)
+        int optical_flow_pyramid_levels = 3;   // Pyramid levels for optical flow (0-5)
+        int optical_flow_window_size = 21;       // Search window size (must be odd, 5-31)
+        float feature_refresh_threshold = 0.5f;   // Refresh features when tracking success < this (0.0-1.0)
+        int adaptive_feature_min = 100;          // Minimum adaptive feature count
+        int adaptive_feature_max = 500;          // Maximum adaptive feature count
     };
 
     struct PerformanceMetrics {
@@ -137,9 +144,10 @@ private:
     // Core algorithm implementation
     bool detect_features(const cv::Mat& gray, std::vector<cv::Point2f>& points);
     bool track_features(const cv::Mat& prev_gray, const cv::Mat& curr_gray,
-                      std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts);
+                      std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts,
+                      float& success_rate);
     cv::Mat estimate_transform(const std::vector<cv::Point2f>& prev_pts,
-                              const std::vector<cv::Point2f>& curr_pts);
+                              std::vector<cv::Point2f>& curr_pts);
     cv::Mat smooth_transforms();
     cv::Mat apply_transform(const cv::Mat& frame, const cv::Mat& transform);
 
@@ -148,20 +156,24 @@ private:
     uint32_t width_ = 0;
     uint32_t height_ = 0;
     bool first_frame_ = true;
-    
+
     StabilizerParams params_;
-    
+
     // OpenCV data structures
     cv::Mat prev_gray_;
     std::vector<cv::Point2f> prev_pts_;
     std::deque<cv::Mat> transforms_;
     cv::Mat cumulative_transform_;
-    
+
     // Performance monitoring
     PerformanceMetrics metrics_;
-    
+
     // Error handling
     std::string last_error_;
+
+    // Algorithm optimization state (Phase 2)
+    int consecutive_tracking_failures_ = 0;
+    int frames_since_last_refresh_ = 0;
 
     // Named constants for magic numbers
     static constexpr int MIN_FEATURES_FOR_TRACKING = 4;
