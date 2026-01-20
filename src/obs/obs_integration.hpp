@@ -125,23 +125,12 @@ private:
     static void log_error(const std::string& message);
     static void log_info(const std::string& message);
 
+    // Include shared parameter constants
+    #include "core/stabilizer_constants.hpp"
+
     // Constants
     static constexpr const char* FILTER_NAME = "Video Stabilizer";
     static constexpr const char* FILTER_ID = "stabilizer_filter";
-    static constexpr int MIN_SMOOTHING_RADIUS = 5;
-    static constexpr int MAX_SMOOTHING_RADIUS = 200;
-    static constexpr float MIN_MAX_CORRECTION = 1.0f;
-    static constexpr float MAX_MAX_CORRECTION = 100.0f;
-    static constexpr int MIN_FEATURE_COUNT = 50;
-    static constexpr int MAX_FEATURE_COUNT = 2000;
-    static constexpr float MIN_QUALITY_LEVEL = 0.001f;
-    static constexpr float MAX_QUALITY_LEVEL = 0.1f;
-    static constexpr float MIN_MIN_DISTANCE = 1.0f;
-    static constexpr float MAX_MIN_DISTANCE = 200.0f;
-    static constexpr int MIN_BLOCK_SIZE = 3;
-    static constexpr int MAX_BLOCK_SIZE = 31;
-    static constexpr float MIN_HARRIS_K = 0.01f;
-    static constexpr float MAX_HARRIS_K = 0.1f;
 };
 
 /**

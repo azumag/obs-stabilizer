@@ -126,11 +126,11 @@ obs_properties_t* OBSIntegration::get_properties(void* data) {
     
     // Basic parameters
     obs_properties_add_int_slider(props, "smoothing_radius", "Smoothing Radius", 
-                                  MIN_SMOOTHING_RADIUS, MAX_SMOOTHING_RADIUS, 1);
+                                  StabilizerConstants::Smoothing::MIN_RADIUS, StabilizerConstants::Smoothing::MAX_RADIUS, 1);
     obs_properties_add_float_slider(props, "max_correction", "Max Correction (%)", 
-                                   MIN_MAX_CORRECTION, MAX_MAX_CORRECTION, 0.5);
+                                   StabilizerConstants::Correction::MIN_MAX, StabilizerConstants::Correction::MAX_MAX, 0.5);
     obs_properties_add_int_slider(props, "feature_count", "Feature Count", 
-                                  MIN_FEATURE_COUNT, MAX_FEATURE_COUNT, 10);
+                                  StabilizerConstants::Features::MIN_COUNT, StabilizerConstants::Features::MAX_COUNT, 10);
     
     // Advanced parameters group
     obs_property_t* advanced_group = obs_properties_create_group(props, "advanced_group", 
@@ -141,11 +141,11 @@ obs_properties_t* OBSIntegration::get_properties(void* data) {
     obs_properties_add_float_slider(props, "min_distance", "Min Distance", 
                                     1.0, 200.0, 1.0);
     obs_properties_add_int_slider(props, "block_size", "Block Size", 
-                                   MIN_BLOCK_SIZE, MAX_BLOCK_SIZE, 2);
+                                   StabilizerConstants::Block::MIN_SIZE, StabilizerConstants::Block::MAX_SIZE, 2);
     
     obs_properties_add_bool(props, "use_harris", "Use Harris Detector");
     obs_properties_add_float_slider(props, "k", "Harris K Parameter", 
-                                    MIN_HARRIS_K, MAX_HARRIS_K, 0.001);
+                                    StabilizerConstants::Harris::MIN_K, StabilizerConstants::Harris::MAX_K, 0.001);
     
     // Debug options
     obs_properties_add_bool(props, "debug_mode", "Debug Mode");
@@ -200,20 +200,20 @@ StabilizerCore::StabilizerParams OBSIntegration::settings_to_params(obs_data_t* 
 void OBSIntegration::params_to_settings(const StabilizerCore::StabilizerParams& params, obs_data_t* settings) {
     obs_data_set_bool(settings, "enabled", params.enabled);
     OBSDataConverter::set_int_validated(settings, "smoothing_radius", params.smoothing_radius, 
-                                       MIN_SMOOTHING_RADIUS, MAX_SMOOTHING_RADIUS);
+                                       StabilizerConstants::Smoothing::MIN_RADIUS, StabilizerConstants::Smoothing::MAX_RADIUS);
     OBSDataConverter::set_double_validated(settings, "max_correction", params.max_correction, 
-                                           MIN_MAX_CORRECTION, MAX_MAX_CORRECTION);
+                                           StabilizerConstants::Correction::MIN_MAX, StabilizerConstants::Correction::MAX_MAX);
     OBSDataConverter::set_int_validated(settings, "feature_count", params.feature_count, 
-                                       MIN_FEATURE_COUNT, MAX_FEATURE_COUNT);
+                                       StabilizerConstants::Features::MIN_COUNT, StabilizerConstants::Features::MAX_COUNT);
     OBSDataConverter::set_double_validated(settings, "quality_level", params.quality_level, 
                                            0.001, 0.1);
     OBSDataConverter::set_double_validated(settings, "min_distance", params.min_distance, 
                                            1.0, 200.0);
     OBSDataConverter::set_int_validated(settings, "block_size", params.block_size, 
-                                       MIN_BLOCK_SIZE, MAX_BLOCK_SIZE);
+                                       StabilizerConstants::Block::MIN_SIZE, StabilizerConstants::Block::MAX_SIZE);
     obs_data_set_bool(settings, "use_harris", params.use_harris);
     OBSDataConverter::set_double_validated(settings, "k", params.k, 
-                                           MIN_HARRIS_K, MAX_HARRIS_K);
+                                           StabilizerConstants::Harris::MIN_K, StabilizerConstants::Harris::MAX_K);
     obs_data_set_bool(settings, "debug_mode", params.debug_mode);
 }
 

@@ -1,12 +1,15 @@
 #ifndef BUILD_STANDALONE
 
 #include "core/stabilizer_core.hpp"
+#include "core/stabilizer_constants.hpp"
 #include <vector>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <sstream>
 #include <iomanip>
+
+using namespace StabilizerConstants;
 
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
@@ -180,26 +183,26 @@ StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
     return params_;
 }
 
-bool StabilizerCore::validate_parameters(const StabilizerCore::StabilizerParams& params) {
-    if (params.smoothing_radius < 1 || params.smoothing_radius > 200) {
+ bool StabilizerCore::validate_parameters(const StabilizerCore::StabilizerParams& params) {
+    if (params.smoothing_radius < Smoothing::MIN_RADIUS || params.smoothing_radius > Smoothing::MAX_RADIUS) {
         return false;
     }
-    if (params.max_correction < 0.0f || params.max_correction > 100.0f) {
+    if (params.max_correction < Correction::MIN_MAX || params.max_correction > Correction::MAX_MAX) {
         return false;
     }
-    if (params.feature_count < 50 || params.feature_count > 2000) {
+    if (params.feature_count < Features::MIN_COUNT || params.feature_count > Features::MAX_COUNT) {
         return false;
     }
-    if (params.quality_level <= 0.0f || params.quality_level > 0.1f) {
+    if (params.quality_level < Quality::MIN_LEVEL || params.quality_level > Quality::MAX_LEVEL) {
         return false;
     }
-    if (params.min_distance < 1.0f || params.min_distance > 200.0f) {
+    if (params.min_distance < Distance::MIN || params.min_distance > Distance::MAX) {
         return false;
     }
-    if (params.block_size < 3 || params.block_size > 31) {
+    if (params.block_size < Block::MIN_SIZE || params.block_size > Block::MAX_SIZE) {
         return false;
     }
-    if (params.k < 0.01f || params.k > 0.1f) {
+    if (params.k < Harris::MIN_K || params.k > Harris::MAX_K) {
         return false;
     }
     return true;
