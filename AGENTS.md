@@ -2,7 +2,10 @@
 
 作業が完了したらコミットしてプッシュすること
 
-TASK: Issue #185 completed - FRAME_UTILS implementation complete
+TASK: Issue #187 created - Move standalone test files from src directory
+
+New Issues:
+- Issue #187: CODE ORGANIZATION: Move standalone test files from src directory
 
 Completed Issues:
 - Issue #181: CODE QUALITY: Fixed memory management and removed dead code
@@ -10,5 +13,6 @@ Completed Issues:
 - Issue #183: CODE QUALITY: Fixed memory management and thread safety in frame buffer
 - Issue #184: CODE QUALITY: Inconsistent parameter validation and code duplication
 - Issue #185: BUILD: FRAME_UTILS header not included - incomplete code consolidation
+- Issue #186: ARCH: Refactor for architectural simplification (CLOSED - claims were incorrect)
 
-Next: Check for new issues or identify code problems to create new issue
+Next: Address issue #187 - move standalone test files from src directory
