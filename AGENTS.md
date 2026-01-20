@@ -2,13 +2,12 @@
 
 作業が完了したらコミットしてプッシュすること
 
-TASK:
-#179 - CODE CLEANUP: Consolidate test files and remove test_data directory
-- Remove src/tests/ directory (3 test files)
-- Remove tests/test_data/ directory if empty
-- Consolidate test constants and data generation
-- Remove deprecated comment in stabilizer_core.cpp
-- Verify all 76 tests still pass
+TASK: Issue #180 - TEST: Fix failing unit tests and test script issues
 
-
-
+- Fix 2 failing unit tests (Initialization and PresetConfiguration)
+- Create or update test-core-only.cpp for test script
+- Standardize contradictory test expectations
+- Add parameter validation to initialize() function
+- Update README.md after completion
+- Commit and push changes
+- Close issue #180

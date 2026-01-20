@@ -14,6 +14,13 @@ using namespace StabilizerConstants;
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
     std::lock_guard<std::mutex> lock(mutex_);
+    
+    // Validate parameters before initialization
+    if (!validate_parameters(params)) {
+        last_error_ = "Invalid parameters provided to initialize";
+        return false;
+    }
+    
     width_ = width;
     height_ = height;
     params_ = params;
