@@ -29,13 +29,33 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
 cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     auto start_time = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(mutex_);
-    
-    if (frame.empty() || !params_.enabled) {
+
+    if (frame.empty()) {
+        last_error_ = "Empty frame provided";
+        return frame;
+    }
+
+    if (!validate_frame(frame)) {
+        last_error_ = "Invalid frame dimensions";
+        return cv::Mat();
+    }
+
+    if (!params_.enabled) {
         return frame;
     }
 
     cv::Mat gray;
-    cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+    int num_channels = frame.channels();
+    if (num_channels == 4) {
+        cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+    } else if (num_channels == 3) {
+        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+    } else if (num_channels == 1) {
+        gray = frame.clone();
+    } else {
+        last_error_ = "Unsupported frame format";
+        return cv::Mat();
+    }
 
     if (first_frame_) {
         detect_features(gray, prev_pts_);
@@ -101,6 +121,13 @@ bool StabilizerCore::detect_features(const cv::Mat& gray, std::vector<cv::Point2
 
 bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& curr_gray,
                                   std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts) {
+    if (prev_gray.empty() || curr_gray.empty() || prev_gray.size() != curr_gray.size()) {
+        return false;
+    }
+    if (prev_pts.empty()) {
+        return false;
+    }
+
     std::vector<uchar> status;
     std::vector<float> err;
     cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err);
@@ -157,6 +184,7 @@ void StabilizerCore::reset() {
     prev_pts_.clear();
     transforms_.clear();
     cumulative_transform_ = cv::Mat::eye(3, 3, CV_64F);
+    metrics_ = {};
 }
 
 void StabilizerCore::clear_state() {
@@ -250,7 +278,16 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() {
     return params;
 }
 
-bool StabilizerCore::validate_frame(const cv::Mat&) {
+bool StabilizerCore::validate_frame(const cv::Mat& frame) {
+    if (frame.empty()) {
+        return false;
+    }
+    if (frame.rows < MIN_IMAGE_SIZE || frame.cols < MIN_IMAGE_SIZE) {
+        return false;
+    }
+    if (frame.rows > MAX_IMAGE_HEIGHT || frame.cols > MAX_IMAGE_WIDTH) {
+        return false;
+    }
     return true;
 }
 

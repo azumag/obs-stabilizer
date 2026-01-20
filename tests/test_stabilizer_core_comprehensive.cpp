@@ -192,8 +192,8 @@ TEST_F(StabilizerCoreTests, ParameterImpactOnFeatureDetection) {
     stabilizer2.process_frame(frame);
 
     // Both should process frames successfully
-    EXPECT_FALSE(stabilizer1.get_performance_metrics().frame_count > 0);
-    EXPECT_FALSE(stabilizer2.get_performance_metrics().frame_count > 0);
+    EXPECT_GT(stabilizer1.get_performance_metrics().frame_count, 0);
+    EXPECT_GT(stabilizer2.get_performance_metrics().frame_count, 0);
 }
 
 TEST_F(StabilizerCoreTests, QualityLevelImpact) {
@@ -211,8 +211,8 @@ TEST_F(StabilizerCoreTests, QualityLevelImpact) {
     stabilizer2.process_frame(frame);
 
     // Both should process frames successfully
-    EXPECT_FALSE(stabilizer1.get_performance_metrics().frame_count > 0);
-    EXPECT_FALSE(stabilizer2.get_performance_metrics().frame_count > 0);
+    EXPECT_GT(stabilizer1.get_performance_metrics().frame_count, 0);
+    EXPECT_GT(stabilizer2.get_performance_metrics().frame_count, 0);
 }
 
 TEST_F(StabilizerCoreTests, MinDistanceImpact) {
@@ -230,8 +230,8 @@ TEST_F(StabilizerCoreTests, MinDistanceImpact) {
     stabilizer2.process_frame(frame);
 
     // Both should process frames successfully
-    EXPECT_FALSE(stabilizer1.get_performance_metrics().frame_count > 0);
-    EXPECT_FALSE(stabilizer2.get_performance_metrics().frame_count > 0);
+    EXPECT_GT(stabilizer1.get_performance_metrics().frame_count, 0);
+    EXPECT_GT(stabilizer2.get_performance_metrics().frame_count, 0);
 }
 
 TEST_F(StabilizerCoreTests, BlockSizeImpact) {
@@ -249,8 +249,8 @@ TEST_F(StabilizerCoreTests, BlockSizeImpact) {
     stabilizer2.process_frame(frame);
 
     // Both should process frames successfully
-    EXPECT_FALSE(stabilizer1.get_performance_metrics().frame_count > 0);
-    EXPECT_FALSE(stabilizer2.get_performance_metrics().frame_count > 0);
+    EXPECT_GT(stabilizer1.get_performance_metrics().frame_count, 0);
+    EXPECT_GT(stabilizer2.get_performance_metrics().frame_count, 0);
 }
 
 TEST_F(StabilizerCoreTests, HarrisDetectorImpact) {
@@ -268,8 +268,8 @@ TEST_F(StabilizerCoreTests, HarrisDetectorImpact) {
     stabilizer2.process_frame(frame);
 
     // Both should process frames successfully
-    EXPECT_FALSE(stabilizer1.get_performance_metrics().frame_count > 0);
-    EXPECT_FALSE(stabilizer2.get_performance_metrics().frame_count > 0);
+    EXPECT_GT(stabilizer1.get_performance_metrics().frame_count, 0);
+    EXPECT_GT(stabilizer2.get_performance_metrics().frame_count, 0);
 }
 
 TEST_F(StabilizerCoreTests, ProcessingWithEmptyFrame) {
