@@ -2,5 +2,11 @@
 
 作業が完了したらコミットしてプッシュすること
 
-TASK: https://github.com/azumag/obs-stabilizer/issues/176 - CODE CLEANUP: Remove unused legacy file stabilizer_opencv_original.cpp
+TASK:
+#177 - CODE CLEANUP: Remove unused legacy test files
+- Remove tests/test-core-only.cpp
+- Remove tests/test-compile.cpp
+- Remove tests/integration-test.cpp
+- Update CMakeLists.txt to remove exclusion lines
+- Verify all tests still pass (76/76)
 

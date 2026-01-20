@@ -576,7 +576,8 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 
 ### 📋 **Technical Debt Status: COMPREHENSIVELY RESOLVED**
 - **Issue #173**: FINAL TECHNICAL DEBT ASSESSMENT - Remaining Maintenance Issues ✅ **ALL HIGH-PRIORITY ISSUES RESOLVED**
-   - **Issue #175**: TEST: Multiple test failures in unit test suite ✅ **RESOLVED** (All 76 tests now passing - fixed frame validation, multiple format support, state management, and optical flow issues)
+    - **Issue #177**: CODE CLEANUP: Remove unused legacy test files ✅ **RESOLVED** (Removed tests/test-core-only.cpp, tests/test-compile.cpp, tests/integration-test.cpp - 432 lines removed, CMakeLists.txt updated)
+    - **Issue #175**: TEST: Multiple test failures in unit test suite ✅ **RESOLVED** (All 76 tests now passing - fixed frame validation, multiple format support, state management, and optical flow issues)
    - **Issue #168**: Logging standardization (obs_log vs printf) ✅ **VERIFIED RESOLVED** (Zero printf() calls in production code, verified in docs/REVIEW.md)
    - **Issue #169**: Build system consolidation (CMakeLists.txt files) ✅ **RESOLVED** (Single CMakeLists.txt in project root, no duplicate files)
    - **Issue #170**: Magic numbers with named constants ✅ **RESOLVED** (All magic numbers replaced with SAFETY and OPENCV_PARAMS constants - commit e15bb42)
