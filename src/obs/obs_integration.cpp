@@ -194,6 +194,9 @@ StabilizerCore::StabilizerParams OBSIntegration::settings_to_params(obs_data_t* 
     params.k = OBSDataConverter::get_double_safe(settings, "k", 0.04);
     params.debug_mode = OBSDataConverter::get_bool_safe(settings, "debug_mode", false);
     
+    // Apply centralized parameter validation for consistency
+    params = VALIDATION::validate_parameters(params);
+    
     return params;
 }
 
@@ -225,44 +228,8 @@ cv::Mat OBSIntegration::obs_frame_to_cv_mat(const obs_source_frame* frame) {
     }
     
     try {
-        cv::Mat mat;
-        
-        switch (frame->format) {
-            case VIDEO_FORMAT_BGRA:
-                mat = cv::Mat(frame->height, frame->width, CV_8UC4, frame->data[0], frame->linesize[0]);
-                break;
-                
-            case VIDEO_FORMAT_BGRX:
-                 mat = cv::Mat(frame->height, frame->width, CV_8UC4, frame->data[0], frame->linesize[0]);
-                 // Convert X channel to Alpha
-                 break;
-                
-            case VIDEO_FORMAT_BGR3:
-                mat = cv::Mat(frame->height, frame->width, CV_8UC3, frame->data[0], frame->linesize[0]);
-                break;
-                
-            case VIDEO_FORMAT_NV12:
-                // Convert NV12 to BGRA
-                {
-                    cv::Mat yuv(frame->height + frame->height/2, frame->width, CV_8UC1, frame->data[0]);
-                    cv::cvtColor(yuv, mat, cv::COLOR_YUV2BGRA_NV12);
-                }
-                break;
-                
-            case VIDEO_FORMAT_I420:
-                // Convert I420 to BGRA
-                {
-                    cv::Mat yuv(frame->height + frame->height/2, frame->width, CV_8UC1, frame->data[0]);
-                    cv::cvtColor(yuv, mat, cv::COLOR_YUV2BGRA_I420);
-                }
-                break;
-                
-            default:
-                log_error("Unsupported frame format: " + std::to_string(frame->format));
-                return cv::Mat();
-        }
-        
-        return mat.clone();
+        // Use centralized frame conversion utility
+        return FRAME_UTILS::Conversion::obs_to_cv(frame);
         
     } catch (const cv::Exception& e) {
         log_error("OpenCV exception in obs_frame_to_cv_mat: " + std::string(e.what()));
@@ -276,66 +243,8 @@ obs_source_frame* OBSIntegration::cv_mat_to_obs_frame(const cv::Mat& mat, const 
     }
     
     try {
-        static std::mutex frame_buffer_mutex;
-        static struct {
-            std::vector<uint8_t> buffer;
-            obs_source_frame frame;
-            bool initialized;
-        } frame_buffer = { {}, {}, false };
-
-        std::lock_guard<std::mutex> lock(frame_buffer_mutex);
-
-        if (!frame_buffer.initialized) {
-            frame_buffer.frame = *reference_frame;
-            frame_buffer.initialized = true;
-        }
-
-        frame_buffer.frame.width = reference_frame->width;
-        frame_buffer.frame.height = reference_frame->height;
-        frame_buffer.frame.format = reference_frame->format;
-        frame_buffer.frame.timestamp = reference_frame->timestamp;
-
-        cv::Mat converted;
-        
-        switch (reference_frame->format) {
-            case VIDEO_FORMAT_BGRA:
-                if (mat.channels() == 4) {
-                    converted = mat;
-                } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGR2BGRA);
-                }
-                break;
-            case VIDEO_FORMAT_BGR3:
-                if (mat.channels() == 3) {
-                    converted = mat;
-                } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGRA2BGR);
-                }
-                break;
-            default:
-                log_error("Unsupported output format: " + std::to_string(reference_frame->format));
-                return nullptr;
-        }
-        
-        size_t required_size = converted.total() * converted.elemSize();
-        
-        if (frame_buffer.buffer.size() < required_size) {
-            frame_buffer.buffer.resize(required_size);
-        } else if (frame_buffer.buffer.size() > required_size * 2) {
-            frame_buffer.buffer.shrink_to_fit();
-        }
-        
-        frame_buffer.frame.data[0] = frame_buffer.buffer.data();
-        frame_buffer.frame.linesize[0] = static_cast<uint32_t>(converted.step);
-        
-        memcpy(frame_buffer.frame.data[0], converted.data, required_size);
-        
-        for (int i = 1; i < 8; i++) {
-            frame_buffer.frame.data[i] = nullptr;
-            frame_buffer.frame.linesize[i] = 0;
-        }
-        
-        return &frame_buffer.frame;
+        // Use centralized frame conversion utility with thread-safe buffer management
+        return FRAME_UTILS::FrameBuffer::create(mat, reference_frame);
         
     } catch (const std::exception& e) {
         log_error("Exception in cv_mat_to_obs_frame: " + std::string(e.what()));

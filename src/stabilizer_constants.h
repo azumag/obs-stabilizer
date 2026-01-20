@@ -119,9 +119,80 @@ namespace MEMORY {
     constexpr int DEBUG_OUTPUT_INTERVAL = 30;           // Log debug info every N frames
 }
 
+// Magic numbers replaced with named constants for maintainability
+namespace MAGIC_NUMBERS {
+    // Frame buffer management
+    constexpr int DATA_PLANES_COUNT = 8;              // Number of data planes in OBS frame
+    constexpr size_t MEMORY_GROWTH_FACTOR = 2;        // Buffer shrink threshold multiplier
+    
+    // Performance monitoring
+    constexpr int DEBUG_OUTPUT_INTERVAL = 30;          // Log debug info every N frames
+    
+    // Algorithm parameters
+    constexpr int DEFAULT_SEARCH_WINDOW = 30;          // LK optical flow search window
+    constexpr int MAX_PYRAMID_LEVELS = 3;              // Maximum pyramid levels for optical flow
+    constexpr double CONVERGENCE_EPSILON = 0.01;       // LK algorithm convergence threshold
+    
+    // Feature detection
+    constexpr int MIN_FEATURES_THRESHOLD = 4;          // Minimum features for transform calculation
+}
+
 // Video format constants
 namespace VIDEO_FORMATS {
     constexpr uint32_t FORMAT_BGRA = 0;  // BGRA format value
     constexpr uint32_t FORMAT_NV12 = 1;   // NV12 format value
     constexpr uint32_t FORMAT_I420 = 2;   // I420 format value
+}
+
+// Centralized parameter validation
+namespace VALIDATION {
+    // Type-safe validation template
+    template<typename T>
+    T clamp_value(T value, T min_val, T max_val) {
+        return (value < min_val) ? min_val : (value > max_val) ? max_val : value;
+    }
+    
+
+    
+    // Parameter range definitions
+    namespace RANGES {
+        constexpr int SMOOTHING_MIN = PARAM_RANGES::SMOOTHING_MIN;      // Consistent with PARAM_RANGES
+        constexpr int SMOOTHING_MAX = PARAM_RANGES::SMOOTHING_MAX;     // Consistent with PARAM_RANGES
+        constexpr float CORRECTION_MIN = SAFETY::MIN_CORRECTION_OVERRIDE;  // Absolute minimum
+        constexpr float CORRECTION_MAX = SAFETY::MAX_CORRECTION_OVERRIDE; // Absolute maximum
+        constexpr int FEATURES_MIN = PARAM_RANGES::FEATURES_MIN;       // Consistent with PARAM_RANGES
+        constexpr int FEATURES_MAX = PARAM_RANGES::FEATURES_MAX;      // Consistent with PARAM_RANGES
+        constexpr float QUALITY_MIN = PARAM_RANGES::QUALITY_MIN;   // Consistent with PARAM_RANGES
+        constexpr float QUALITY_MAX = PARAM_RANGES::QUALITY_MAX;    // Consistent with PARAM_RANGES
+        constexpr float DISTANCE_MIN = PARAM_RANGES::DISTANCE_MIN;  // Consistent with PARAM_RANGES
+        constexpr float DISTANCE_MAX = PARAM_RANGES::DISTANCE_MAX; // Consistent with PARAM_RANGES
+        constexpr int BLOCK_SIZE_MIN = OPENCV_PARAMS::BLOCK_SIZE_DEFAULT;      // Consistent with OPENCV_PARAMS
+        constexpr int BLOCK_SIZE_MAX = 31;     // Safe upper limit
+        constexpr float K_MIN = OPENCV_PARAMS::HARRIS_K_DEFAULT;         // Consistent with OPENCV_PARAMS
+        constexpr float K_MAX = 0.1f;          // Safe upper limit
+    }
+    
+    // Complete parameter validation function
+    template<typename Params>
+    Params validate_parameters(const Params& params) {
+        Params validated = params;
+        
+        validated.smoothing_radius = clamp_value(validated.smoothing_radius, 
+                                                 RANGES::SMOOTHING_MIN, RANGES::SMOOTHING_MAX);
+        validated.max_correction = clamp_value(validated.max_correction, 
+                                               RANGES::CORRECTION_MIN, RANGES::CORRECTION_MAX);
+        validated.feature_count = clamp_value(validated.feature_count, 
+                                             RANGES::FEATURES_MIN, RANGES::FEATURES_MAX);
+        validated.quality_level = clamp_value(validated.quality_level, 
+                                              RANGES::QUALITY_MIN, RANGES::QUALITY_MAX);
+        validated.min_distance = clamp_value(validated.min_distance, 
+                                            RANGES::DISTANCE_MIN, RANGES::DISTANCE_MAX);
+        validated.block_size = clamp_value(validated.block_size, RANGES::BLOCK_SIZE_MIN, RANGES::BLOCK_SIZE_MAX);
+        if (validated.block_size % SAFETY::EVEN_NUMBER_VALIDATION_THRESHOLD == 0) {
+            validated.block_size++;
+        }
+        validated.k = clamp_value(validated.k, RANGES::K_MIN, RANGES::K_MAX);
+        
+        return validated;
+    }
 }

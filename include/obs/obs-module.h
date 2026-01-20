@@ -8,6 +8,9 @@ extern "C" {
 #include <stdbool.h>
 #include <stdarg.h>
 
+// Include magic number constants
+#include "stabilizer_constants_c.h"
+
 // Basic OBS types
 typedef struct obs_source obs_source_t;
 typedef struct obs_data obs_data_t;
@@ -78,8 +81,8 @@ enum video_format {
 
 // Video frame structure
 struct obs_source_frame {
-    uint8_t *data[8];
-    uint32_t linesize[8];
+    uint8_t *data[DATA_PLANES_COUNT];
+    uint32_t linesize[DATA_PLANES_COUNT];
     uint32_t width;
     uint32_t height;
     uint64_t timestamp;

@@ -324,15 +324,8 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
     params.k = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "k");
     params.debug_mode = obs_data_get_bool(const_cast<obs_data_t*>(settings), "debug_mode");
     
-    // Validate and clamp parameters
-    params.smoothing_radius = std::clamp(params.smoothing_radius, 5, 200);
-    params.max_correction = std::clamp(params.max_correction, 1.0f, 100.0f);
-    params.feature_count = std::clamp(params.feature_count, 50, 2000);
-    params.quality_level = std::clamp(params.quality_level, 0.001f, 0.1f);
-    params.min_distance = std::clamp(params.min_distance, 1.0f, 200.0f);
-    params.block_size = std::clamp(params.block_size, 3, 31);
-    if (params.block_size % EVEN_NUMBER_VALIDATION_THRESHOLD == 0) params.block_size++;
-    params.k = std::clamp(params.k, 0.01f, 0.1f);
+    // Use centralized parameter validation for consistency
+    params = VALIDATION::validate_parameters(params);
     
     return params;
 }
@@ -351,7 +344,7 @@ static void params_to_settings(const StabilizerCore::StabilizerParams& params, o
     obs_data_set_bool(settings, "debug_mode", params.debug_mode);
 }
 
-// Frame conversion functions
+// Frame conversion functions using centralized utilities
 static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
 {
     if (!frame || !frame->data[0]) {
@@ -359,43 +352,8 @@ static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
     }
     
     try {
-        cv::Mat mat;
-        
-        switch (frame->format) {
-            case VIDEO_FORMAT_BGRA:
-                mat = cv::Mat(frame->height, frame->width, CV_8UC4, frame->data[0], frame->linesize[0]);
-                break;
-                
-            case VIDEO_FORMAT_BGRX:
-                mat = cv::Mat(frame->height, frame->width, CV_8UC4, frame->data[0], frame->linesize[0]);
-                break;
-                
-            case VIDEO_FORMAT_BGR3:
-                mat = cv::Mat(frame->height, frame->width, CV_8UC3, frame->data[0], frame->linesize[0]);
-                break;
-                
-            case VIDEO_FORMAT_NV12:
-                // Convert NV12 to BGRA
-                {
-                    cv::Mat yuv(frame->height + frame->height/2, frame->width, CV_8UC1, frame->data[0]);
-                    cv::cvtColor(yuv, mat, cv::COLOR_YUV2BGRA_NV12);
-                }
-                break;
-                
-            case VIDEO_FORMAT_I420:
-                // Convert I420 to BGRA
-                {
-                    cv::Mat yuv(frame->height + frame->height/2, frame->width, CV_8UC1, frame->data[0]);
-                    cv::cvtColor(yuv, mat, cv::COLOR_YUV2BGRA_I420);
-                }
-                break;
-                
-            default:
-                obs_log(LOG_ERROR, "Unsupported frame format: %d", frame->format);
-                return cv::Mat();
-        }
-        
-        return mat.clone();
+        // Use centralized frame conversion utility
+        return FRAME_UTILS::Conversion::obs_to_cv(frame);
         
     } catch (const cv::Exception& e) {
         obs_log(LOG_ERROR, "OpenCV exception in obs_frame_to_cv_mat: %s", e.what());
@@ -414,7 +372,7 @@ static struct {
 } frame_buffer = { {}, {}, false };
 
 /**
- * Converts an OpenCV Mat to an OBS source frame.
+ * Converts an OpenCV Mat to an OBS source frame using centralized utilities.
  * 
  * This function creates a complete copy of the frame data and does NOT modify the reference frame.
  * The returned frame uses our internal frame_buffer and is safe for the caller to use.
@@ -430,83 +388,8 @@ static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_sourc
     }
     
     try {
-        std::lock_guard<std::mutex> lock(frame_buffer_mutex);
-        
-        // Initialize frame buffer if needed
-        if (!frame_buffer.initialized) {
-            frame_buffer.frame = *reference_frame;  // Copy structure
-            frame_buffer.initialized = true;
-        }
-        
-        // Update frame properties from reference
-        frame_buffer.frame.width = reference_frame->width;
-        frame_buffer.frame.height = reference_frame->height;
-        frame_buffer.frame.format = reference_frame->format;
-        frame_buffer.frame.timestamp = reference_frame->timestamp;
-        frame_buffer.frame.flip = reference_frame->flip;
-        
-        // Copy color matrix and range data
-        memcpy(frame_buffer.frame.color_matrix, reference_frame->color_matrix, 
-               sizeof(reference_frame->color_matrix));
-        frame_buffer.frame.full_range = reference_frame->full_range;
-        memcpy(frame_buffer.frame.color_range_min, reference_frame->color_range_min,
-               sizeof(reference_frame->color_range_min));
-        memcpy(frame_buffer.frame.color_range_max, reference_frame->color_range_max,
-               sizeof(reference_frame->color_range_max));
-        
-        // Convert mat to the appropriate format
-        cv::Mat converted;
-        
-        switch (reference_frame->format) {
-            case VIDEO_FORMAT_BGRA:
-                if (mat.channels() == 4) {
-                    converted = mat.clone();
-                } else if (mat.channels() == 3) {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGR2BGRA);
-                } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_GRAY2BGRA);
-                }
-                break;
-                
-            case VIDEO_FORMAT_BGR3:
-                if (mat.channels() == 3) {
-                    converted = mat.clone();
-                } else if (mat.channels() == 4) {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGRA2BGR);
-                } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_GRAY2BGR);
-                }
-                break;
-                
-            default:
-                obs_log(LOG_ERROR, "Unsupported output format: %d", reference_frame->format);
-                return nullptr;
-        }
-        
-        // Calculate required buffer size
-        size_t required_size = converted.total() * converted.elemSize();
-        
-        // Reallocate buffer if needed
-        if (frame_buffer.buffer.size() < required_size) {
-            frame_buffer.buffer.resize(required_size);
-        } else if (frame_buffer.buffer.size() > required_size * 2) {
-            frame_buffer.buffer.shrink_to_fit();
-        }
-        
-        // Update frame data pointers to use our buffer
-        frame_buffer.frame.data[0] = frame_buffer.buffer.data();
-        frame_buffer.frame.linesize[0] = static_cast<uint32_t>(converted.step);
-        
-        // Copy converted data to buffer
-        memcpy(frame_buffer.frame.data[0], converted.data, required_size);
-        
-        // Clear other data planes
-        for (int i = 1; i < 8; i++) {
-            frame_buffer.frame.data[i] = nullptr;
-            frame_buffer.frame.linesize[i] = 0;
-        }
-        
-        return &frame_buffer.frame;
+        // Use centralized frame conversion utility with thread-safe buffer management
+        return FRAME_UTILS::FrameBuffer::create(mat, reference_frame);
         
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception in cv_mat_to_obs_frame: %s", e.what());
