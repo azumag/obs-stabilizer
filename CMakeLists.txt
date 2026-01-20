@@ -47,6 +47,11 @@ set(SOURCES
     src/plugin-support.c
 )
 
+# Frame utils is only needed when OBS headers are available
+if(OBS_INCLUDE_DIR AND OBS_FRONTEND_INCLUDE_DIR)
+    list(APPEND SOURCES src/core/frame_utils.cpp)
+endif()
+
 # --- Main Plugin Target ---
 add_library(obs-stabilizer-opencv MODULE ${SOURCES})
 

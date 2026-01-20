@@ -5,6 +5,7 @@
 
 #ifdef HAVE_OBS_HEADERS
 #include "obs_integration.hpp"
+#include "core/frame_utils.hpp"
 #include <algorithm>
 #include <sstream>
 #include <iomanip>

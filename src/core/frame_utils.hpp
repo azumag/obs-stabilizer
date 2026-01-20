@@ -5,6 +5,12 @@
 
 #pragma once
 
+#ifdef HAVE_OBS_HEADERS
+#include <obs-module.h>
+#else
+#include "obs-module.h"
+#endif
+
 #include <opencv2/opencv.hpp>
 #include <mutex>
 #include <vector>

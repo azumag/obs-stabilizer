@@ -6,6 +6,7 @@
 
 #ifdef HAVE_OBS_HEADERS
 #include <obs-module.h>
+#include "core/frame_utils.hpp"
 #endif
 
 #include "core/stabilizer_core.hpp"
