@@ -163,22 +163,6 @@ private:
     // Error handling
     std::string last_error_;
 
-    // Utility methods
-    void log_performance(double processing_time);
-    
-    // Lock-free helper methods (take parameters as arguments)
-    bool detect_features_impl(const cv::Mat& gray, std::vector<cv::Point2f>& points, 
-                            const StabilizerParams& params);
-    bool track_features_impl(const cv::Mat& prev_gray, const cv::Mat& curr_gray,
-                            std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts,
-                            const StabilizerParams& params);
-    cv::Mat estimate_transform_impl(const std::vector<cv::Point2f>& prev_pts,
-                                  const std::vector<cv::Point2f>& curr_pts,
-                                  const StabilizerParams& params);
-    cv::Mat smooth_transforms_impl(const StabilizerParams& params);
-    cv::Mat apply_transform_impl(const cv::Mat& frame, const cv::Mat& transform,
-                                const StabilizerParams& params);
-
     // Named constants for magic numbers
     static constexpr int MIN_FEATURES_FOR_TRACKING = 4;
     static constexpr int MAX_POINTS_TO_PROCESS = 1000;

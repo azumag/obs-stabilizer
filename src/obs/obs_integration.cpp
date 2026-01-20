@@ -276,11 +276,14 @@ obs_source_frame* OBSIntegration::cv_mat_to_obs_frame(const cv::Mat& mat, const 
     }
     
     try {
+        static std::mutex frame_buffer_mutex;
         static struct {
             std::vector<uint8_t> buffer;
             obs_source_frame frame;
             bool initialized;
         } frame_buffer = { {}, {}, false };
+
+        std::lock_guard<std::mutex> lock(frame_buffer_mutex);
 
         if (!frame_buffer.initialized) {
             frame_buffer.frame = *reference_frame;
@@ -315,8 +318,11 @@ obs_source_frame* OBSIntegration::cv_mat_to_obs_frame(const cv::Mat& mat, const 
         }
         
         size_t required_size = converted.total() * converted.elemSize();
+        
         if (frame_buffer.buffer.size() < required_size) {
             frame_buffer.buffer.resize(required_size);
+        } else if (frame_buffer.buffer.size() > required_size * 2) {
+            frame_buffer.buffer.shrink_to_fit();
         }
         
         frame_buffer.frame.data[0] = frame_buffer.buffer.data();
@@ -510,6 +516,5 @@ void OBSDataConverter::set_double_validated(obs_data_t* data, const char* name, 
     
     double clamped_value = std::clamp(value, min_value, max_value);
     obs_data_set_double(data, name, clamped_value);
-}#endif // HAVE_OBS_HEADERS
-
+}
 #endif // HAVE_OBS_HEADERS
