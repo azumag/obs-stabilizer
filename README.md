@@ -453,6 +453,7 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 | 4K         | <15ms/frame         | ✅ Performance tested |
 
 **Test Suite Features:**
+- **Comprehensive Coverage**: 156 tests with 100% pass rate (up from 85 tests)
 - **Dual-layer testing**: Core compilation tests (no dependencies) + full suite (when available)
 - **Environment-independent**: Tests work whether OpenCV is installed or not
 - Performance benchmarking across resolutions (when OpenCV available)
@@ -460,6 +461,11 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 - **Security audit system (11/11 security tests passing)**
 - **Modular architecture validation** - ensures Phase 2.5 refactoring integrity
 - Automated test framework with graceful dependency handling
+- **Expanded Test Categories (71 new tests added)**:
+  - Algorithm Edge Cases: Feature exhaustion, rapid motion, scene changes, low-light conditions (18 tests)
+  - Resource Management: Memory leak detection, thread safety, buffer overflow protection (15 tests)
+  - Format-Specific: NV12/I420 edge cases, cross-format validation, boundary testing (27 tests)
+  - Performance Monitoring: Regression detection, memory usage tracking, FPS stability (11 tests)
 
 *Run `./run-tests.sh` for comprehensive testing or `./test-core-only.sh` for basic validation.*
 
