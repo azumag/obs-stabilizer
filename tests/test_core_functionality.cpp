@@ -9,8 +9,10 @@
 #include <opencv2/opencv.hpp>
 #include "core/stabilizer_core.hpp"
 #include "test_data_generator.hpp"
+#include "test_constants.hpp"
 
 using namespace TestDataGenerator;
+using namespace TestConstants;
 
 class CoreFunctionalityTests : public ::testing::Test {
 protected:
@@ -36,11 +38,11 @@ protected:
 // Core Algorithm Tests
 TEST_F(CoreFunctionalityTests, FeatureDetectionWithStaticFrames) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate static frames
-    cv::Mat frame1 = generate_test_frame(640, 480, 0);
-    cv::Mat frame2 = generate_test_frame(640, 480, 0);
+    cv::Mat frame1 = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
+    cv::Mat frame2 = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     cv::Mat result1 = stabilizer.process_frame(frame1);
     cv::Mat result2 = stabilizer.process_frame(frame2);
@@ -53,12 +55,12 @@ TEST_F(CoreFunctionalityTests, FeatureDetectionWithStaticFrames) {
 
 TEST_F(CoreFunctionalityTests, FeatureDetectionWithMotion) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with horizontal motion
     std::vector<cv::Mat> frames;
-    for (int i = 0; i < 20; i++) {
-        cv::Mat frame = generate_horizontal_motion_frame(generate_test_frame(640, 480, 0), i, 20);
+    for (int i = 0; i < FrameCount::SHORT_SEQUENCE; i++) {
+        cv::Mat frame = generate_horizontal_motion_frame(generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0), i, Motion::SMALL_MOTION);
         frames.push_back(frame.clone());
     }
 
@@ -69,17 +71,17 @@ TEST_F(CoreFunctionalityTests, FeatureDetectionWithMotion) {
     }
 
     auto metrics = stabilizer.get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 20) << "All frames should be processed";
+    EXPECT_EQ(metrics.frame_count, FrameCount::SHORT_SEQUENCE) << "All frames should be processed";
 }
 
 TEST_F(CoreFunctionalityTests, TransformSmoothingWithRotation) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with rotation
     std::vector<cv::Mat> frames;
-    for (int i = 0; i < 30; i++) {
-        cv::Mat frame = generate_rotation_frame(generate_test_frame(640, 480, 0), i, 30, 5.0f);
+    for (int i = 0; i < FrameCount::STANDARD_SEQUENCE; i++) {
+        cv::Mat frame = generate_rotation_frame(generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0), i, FrameCount::STANDARD_SEQUENCE, Motion::MEDIUM_ROTATION);
         frames.push_back(frame.clone());
     }
 
@@ -90,17 +92,17 @@ TEST_F(CoreFunctionalityTests, TransformSmoothingWithRotation) {
     }
 
     auto metrics = stabilizer.get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 30) << "All frames should be processed";
+    EXPECT_EQ(metrics.frame_count, FrameCount::STANDARD_SEQUENCE) << "All frames should be processed";
 }
 
 TEST_F(CoreFunctionalityTests, TransformSmoothingWithZoom) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with zoom
     std::vector<cv::Mat> frames;
-    for (int i = 0; i < 30; i++) {
-        cv::Mat frame = generate_zoom_frame(generate_test_frame(640, 480, 0), i, 30, 1.2f);
+    for (int i = 0; i < FrameCount::STANDARD_SEQUENCE; i++) {
+        cv::Mat frame = generate_zoom_frame(generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0), i, FrameCount::STANDARD_SEQUENCE, Motion::DEFAULT_ZOOM);
         frames.push_back(frame.clone());
     }
 
@@ -111,23 +113,23 @@ TEST_F(CoreFunctionalityTests, TransformSmoothingWithZoom) {
     }
 
     auto metrics = stabilizer.get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 30) << "All frames should be processed";
+    EXPECT_EQ(metrics.frame_count, FrameCount::STANDARD_SEQUENCE) << "All frames should be processed";
 }
 
 TEST_F(CoreFunctionalityTests, TransformSmoothingWithComplexMotion) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with complex motion patterns
     std::vector<cv::Mat> frames;
     for (int i = 0; i < 50; i++) {
         cv::Mat frame;
         if (i % 3 == 0) {
-            frame = generate_horizontal_motion_frame(generate_test_frame(640, 480, 0), i, 50);
+            frame = generate_horizontal_motion_frame(generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0), i, Motion::LARGE_MOTION);
         } else if (i % 3 == 1) {
-            frame = generate_vertical_motion_frame(generate_test_frame(640, 480, 0), i, 50);
+            frame = generate_vertical_motion_frame(generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0), i, Motion::LARGE_MOTION);
         } else {
-            frame = generate_rotation_frame(generate_test_frame(640, 480, 0), i, 50, 3.0f);
+            frame = generate_rotation_frame(generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0), i, 50, 3.0f);
         }
         frames.push_back(frame.clone());
     }
@@ -139,57 +141,57 @@ TEST_F(CoreFunctionalityTests, TransformSmoothingWithComplexMotion) {
     }
 
     auto metrics = stabilizer.get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 50) << "All frames should be processed";
+    EXPECT_EQ(metrics.frame_count, Motion::LARGE_MOTION) << "All frames should be processed";
 }
 
 // Frame Processing Tests
 TEST_F(CoreFunctionalityTests, FrameProcessingWithDifferentFormats) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with different frame formats
     std::vector<int> formats = {CV_8UC1, CV_8UC3, CV_8UC4};
 
     for (int format : formats) {
-        cv::Mat frame = generate_frame_in_format(640, 480, format);
+        cv::Mat frame = generate_frame_in_format(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, format);
         cv::Mat result = stabilizer.process_frame(frame);
 
         EXPECT_FALSE(result.empty()) << "Frame in format " << format << " should be processed";
-        EXPECT_EQ(result.rows, 480) << "Height should be preserved";
-        EXPECT_EQ(result.cols, 640) << "Width should be preserved";
+        EXPECT_EQ(result.rows, Resolution::VGA_HEIGHT) << "Height should be preserved";
+        EXPECT_EQ(result.cols, Resolution::VGA_WIDTH) << "Width should be preserved";
     }
 }
 
 TEST_F(CoreFunctionalityTests, FrameProcessingWithHighResolution) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(1920, 1080, 0);
+    cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, 0);
     cv::Mat result = stabilizer.process_frame(frame);
 
     EXPECT_FALSE(result.empty()) << "High resolution frame should be processed";
-    EXPECT_EQ(result.rows, 1080) << "Height should be preserved";
-    EXPECT_EQ(result.cols, 1920) << "Width should be preserved";
+    EXPECT_EQ(result.rows, Resolution::HD_HEIGHT) << "Height should be preserved";
+    EXPECT_EQ(result.cols, Resolution::HD_WIDTH) << "Width should be preserved";
 }
 
 TEST_F(CoreFunctionalityTests, FrameProcessingWithLowResolution) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(320, 240, test_params);
+    stabilizer.initialize(Resolution::QVGA_WIDTH, Resolution::QVGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(320, 240, 0);
+    cv::Mat frame = generate_test_frame(Resolution::QVGA_WIDTH, Resolution::QVGA_HEIGHT, 0);
     cv::Mat result = stabilizer.process_frame(frame);
 
     EXPECT_FALSE(result.empty()) << "Low resolution frame should be processed";
-    EXPECT_EQ(result.rows, 240) << "Height should be preserved";
-    EXPECT_EQ(result.cols, 320) << "Width should be preserved";
+    EXPECT_EQ(result.rows, Resolution::QVGA_HEIGHT) << "Height should be preserved";
+    EXPECT_EQ(result.cols, Resolution::QVGA_WIDTH) << "Width should be preserved";
 }
 
 TEST_F(CoreFunctionalityTests, FrameProcessingWithFeatures) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frame with features
-    cv::Mat frame = create_frame_with_features(640, 480, 100);
+    cv::Mat frame = create_frame_with_features(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, Features::DEFAULT_COUNT);
     cv::Mat result = stabilizer.process_frame(frame);
 
     EXPECT_FALSE(result.empty()) << "Frame with features should be processed";
@@ -202,7 +204,7 @@ TEST_F(CoreFunctionalityTests, PresetConfiguration) {
     // Test gaming preset
     auto gaming_params = StabilizerCore::get_preset_gaming();
     EXPECT_TRUE(StabilizerCore::validate_parameters(gaming_params)) << "Gaming preset should be valid";
-    EXPECT_GT(gaming_params.smoothing_radius, 20) << "Gaming preset should have sufficient smoothing";
+    EXPECT_GT(gaming_params.smoothing_radius, Motion::SMALL_MOTION) << "Gaming preset should have sufficient smoothing";
     EXPECT_LT(gaming_params.smoothing_radius, 40) << "Gaming preset should not have excessive smoothing";
 
     // Test streaming preset
@@ -219,14 +221,14 @@ TEST_F(CoreFunctionalityTests, PresetConfiguration) {
 
 TEST_F(CoreFunctionalityTests, ParameterImpactOnFeatureDetection) {
     StabilizerCore stabilizer1;
-    stabilizer1.initialize(640, 480, test_params);
+    stabilizer1.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with different feature counts
     test_params.feature_count = 500;
     StabilizerCore stabilizer2;
-    stabilizer2.initialize(640, 480, test_params);
+    stabilizer2.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     stabilizer1.process_frame(frame);
     stabilizer2.process_frame(frame);
@@ -238,14 +240,14 @@ TEST_F(CoreFunctionalityTests, ParameterImpactOnFeatureDetection) {
 
 TEST_F(CoreFunctionalityTests, QualityLevelImpact) {
     StabilizerCore stabilizer1;
-    stabilizer1.initialize(640, 480, test_params);
+    stabilizer1.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with different quality levels
     test_params.quality_level = 0.001f;
     StabilizerCore stabilizer2;
-    stabilizer2.initialize(640, 480, test_params);
+    stabilizer2.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     stabilizer1.process_frame(frame);
     stabilizer2.process_frame(frame);
@@ -257,14 +259,14 @@ TEST_F(CoreFunctionalityTests, QualityLevelImpact) {
 
 TEST_F(CoreFunctionalityTests, MinDistanceImpact) {
     StabilizerCore stabilizer1;
-    stabilizer1.initialize(640, 480, test_params);
+    stabilizer1.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with different minimum distances
     test_params.min_distance = 50.0f;
     StabilizerCore stabilizer2;
-    stabilizer2.initialize(640, 480, test_params);
+    stabilizer2.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     stabilizer1.process_frame(frame);
     stabilizer2.process_frame(frame);
@@ -276,14 +278,14 @@ TEST_F(CoreFunctionalityTests, MinDistanceImpact) {
 
 TEST_F(CoreFunctionalityTests, BlockSizeImpact) {
     StabilizerCore stabilizer1;
-    stabilizer1.initialize(640, 480, test_params);
+    stabilizer1.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with different block sizes
     test_params.block_size = 5;
     StabilizerCore stabilizer2;
-    stabilizer2.initialize(640, 480, test_params);
+    stabilizer2.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     stabilizer1.process_frame(frame);
     stabilizer2.process_frame(frame);
@@ -295,14 +297,14 @@ TEST_F(CoreFunctionalityTests, BlockSizeImpact) {
 
 TEST_F(CoreFunctionalityTests, HarrisDetectorImpact) {
     StabilizerCore stabilizer1;
-    stabilizer1.initialize(640, 480, test_params);
+    stabilizer1.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with Harris detector enabled
     test_params.use_harris = true;
     StabilizerCore stabilizer2;
-    stabilizer2.initialize(640, 480, test_params);
+    stabilizer2.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     stabilizer1.process_frame(frame);
     stabilizer2.process_frame(frame);
@@ -314,7 +316,7 @@ TEST_F(CoreFunctionalityTests, HarrisDetectorImpact) {
 
 TEST_F(CoreFunctionalityTests, ProcessingWithEmptyFrame) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     cv::Mat empty_frame;
 
@@ -327,9 +329,9 @@ TEST_F(CoreFunctionalityTests, ProcessingWithEmptyFrame) {
 TEST_F(CoreFunctionalityTests, ProcessingWithDisabledStabilization) {
     StabilizerCore stabilizer;
     test_params.enabled = false;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     cv::Mat result = stabilizer.process_frame(frame);
 
@@ -342,9 +344,9 @@ TEST_F(CoreFunctionalityTests, ProcessingWithDisabledStabilization) {
 // Performance Testing
 TEST_F(CoreFunctionalityTests, PerformanceMetricsAccuracy) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     // Process a few frames
     for (int i = 0; i < 5; i++) {
@@ -360,9 +362,9 @@ TEST_F(CoreFunctionalityTests, PerformanceMetricsAccuracy) {
 
 TEST_F(CoreFunctionalityTests, HighFrequencyProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     // Process frames at high frequency
     for (int i = 0; i < 100; i++) {
@@ -371,7 +373,7 @@ TEST_F(CoreFunctionalityTests, HighFrequencyProcessing) {
     }
 
     auto metrics = stabilizer.get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 100) << "All high frequency frames should be processed";
+    EXPECT_EQ(metrics.frame_count, Features::DEFAULT_COUNT) << "All high frequency frames should be processed";
     EXPECT_LT(metrics.avg_processing_time, 1000.0) << "Processing time should be reasonable";
 }
 
@@ -379,10 +381,10 @@ TEST_F(CoreFunctionalityTests, MultipleStabilizerInstances) {
     StabilizerCore stabilizer1;
     StabilizerCore stabilizer2;
 
-    stabilizer1.initialize(640, 480, test_params);
-    stabilizer2.initialize(640, 480, test_params);
+    stabilizer1.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
+    stabilizer2.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     cv::Mat result1 = stabilizer1.process_frame(frame);
     cv::Mat result2 = stabilizer2.process_frame(frame);
@@ -397,9 +399,9 @@ TEST_F(CoreFunctionalityTests, MultipleStabilizerInstances) {
 
 TEST_F(CoreFunctionalityTests, StateManagement) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     // Process frames
     for (int i = 0; i < 10; i++) {
@@ -421,7 +423,7 @@ TEST_F(CoreFunctionalityTests, StateManagement) {
 
 TEST_F(CoreFunctionalityTests, ParameterUpdate) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Update parameters
     test_params.smoothing_radius = 20;
@@ -430,13 +432,13 @@ TEST_F(CoreFunctionalityTests, ParameterUpdate) {
 
     // Verify parameters were updated
     auto current_params = stabilizer.get_current_params();
-    EXPECT_EQ(current_params.smoothing_radius, 20) << "Smoothing radius should be updated";
+    EXPECT_EQ(current_params.smoothing_radius, Motion::SMALL_MOTION) << "Smoothing radius should be updated";
     EXPECT_EQ(current_params.feature_count, 500) << "Feature count should be updated";
 }
 
 TEST_F(CoreFunctionalityTests, ErrorHandling) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     cv::Mat empty_frame;
 
@@ -455,7 +457,7 @@ TEST_F(CoreFunctionalityTests, ReadyState) {
     EXPECT_FALSE(stabilizer.is_ready()) << "Should not be ready before initialization";
 
     // Should be ready after initialization
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
     EXPECT_TRUE(stabilizer.is_ready()) << "Should be ready after initialization";
 }
 

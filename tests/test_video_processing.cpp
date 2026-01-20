@@ -5,8 +5,10 @@
 #include <random>
 #include "core/stabilizer_core.hpp"
 #include "test_data_generator.hpp"
+#include "test_constants.hpp"
 
 using namespace TestDataGenerator;
+using namespace TestConstants;
 
 class VideoProcessingTests : public ::testing::Test {
 protected:
@@ -31,10 +33,10 @@ protected:
 
 TEST_F(VideoProcessingTests, NV12FrameProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frame in NV12 format
-    cv::Mat frame = generate_frame_in_format(640, 480, CV_8UC4);
+    cv::Mat frame = generate_frame_in_format(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, CV_8UC4);
 
     // Process the frame
     cv::Mat result = stabilizer.process_frame(frame);
@@ -48,10 +50,10 @@ TEST_F(VideoProcessingTests, NV12FrameProcessing) {
 
 TEST_F(VideoProcessingTests, I420FrameProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frame in I420 format
-    cv::Mat frame = generate_frame_in_format(640, 480, CV_8UC4);
+    cv::Mat frame = generate_frame_in_format(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, CV_8UC4);
 
     // Process the frame
     cv::Mat result = stabilizer.process_frame(frame);
@@ -65,7 +67,7 @@ TEST_F(VideoProcessingTests, I420FrameProcessing) {
 
 TEST_F(VideoProcessingTests, InvalidFrameHandling) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with empty frame
     cv::Mat empty_frame;
@@ -89,9 +91,9 @@ TEST_F(VideoProcessingTests, InvalidFrameHandling) {
 
 TEST_F(VideoProcessingTests, FrameSizePreservation) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat original_frame = generate_test_frame(640, 480, 0);
+    cv::Mat original_frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     cv::Mat result = stabilizer.process_frame(original_frame);
 
@@ -104,13 +106,13 @@ TEST_F(VideoProcessingTests, FrameSizePreservation) {
 
 TEST_F(VideoProcessingTests, FrameFormatPreservation) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with different frame formats
     std::vector<int> formats = {CV_8UC1, CV_8UC3, CV_8UC4};
 
     for (int format : formats) {
-        cv::Mat frame = generate_frame_in_format(640, 480, format);
+        cv::Mat frame = generate_frame_in_format(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, format);
         cv::Mat result = stabilizer.process_frame(frame);
 
         EXPECT_FALSE(result.empty()) << "Frame in format " << format << " should be processed";
@@ -121,9 +123,9 @@ TEST_F(VideoProcessingTests, FrameFormatPreservation) {
 
 TEST_F(VideoProcessingTests, MultipleFrameProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     // Process multiple frames
     for (int i = 0; i < 10; i++) {
@@ -141,12 +143,12 @@ TEST_F(VideoProcessingTests, MultipleFrameProcessing) {
 
 TEST_F(VideoProcessingTests, SequentialFrameProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate a sequence of frames with different patterns
     std::vector<cv::Mat> frames;
     for (int i = 0; i < 20; i++) {
-        cv::Mat frame = generate_test_frame(640, 480, i % 3);
+        cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, i % 3);
         frames.push_back(frame);
     }
 
@@ -162,7 +164,7 @@ TEST_F(VideoProcessingTests, SequentialFrameProcessing) {
 
 TEST_F(VideoProcessingTests, RandomFrameProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     std::random_device rd;
     std::mt19937 gen;
@@ -172,7 +174,7 @@ TEST_F(VideoProcessingTests, RandomFrameProcessing) {
     // Process random frames
     for (int i = 0; i < 30; i++) {
         int pattern = dist(gen);
-        cv::Mat frame = generate_test_frame(640, 480, pattern);
+        cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, pattern);
 
         cv::Mat result = stabilizer.process_frame(frame);
         EXPECT_FALSE(result.empty()) << "Random frame should be processed";
@@ -184,9 +186,9 @@ TEST_F(VideoProcessingTests, RandomFrameProcessing) {
 
 TEST_F(VideoProcessingTests, HighFrequencyFrameProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     // Process frames at high frequency
     for (int i = 0; i < 100; i++) {
@@ -201,10 +203,10 @@ TEST_F(VideoProcessingTests, HighFrequencyFrameProcessing) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithMotion) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with motion
-    std::vector<cv::Mat> frames = generate_test_sequence(20, 640, 480, "horizontal");
+    std::vector<cv::Mat> frames = generate_test_sequence(20, Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, "horizontal");
 
     // Process frames with motion
     for (const auto& frame : frames) {
@@ -218,10 +220,10 @@ TEST_F(VideoProcessingTests, FrameProcessingWithMotion) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithRotation) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with rotation
-    std::vector<cv::Mat> frames = generate_test_sequence(20, 640, 480, "rotation");
+    std::vector<cv::Mat> frames = generate_test_sequence(20, Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, "rotation");
 
     // Process frames with rotation
     for (const auto& frame : frames) {
@@ -235,10 +237,10 @@ TEST_F(VideoProcessingTests, FrameProcessingWithRotation) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithZoom) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with zoom
-    std::vector<cv::Mat> frames = generate_test_sequence(20, 640, 480, "zoom");
+    std::vector<cv::Mat> frames = generate_test_sequence(20, Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, "zoom");
 
     // Process frames with zoom
     for (const auto& frame : frames) {
@@ -252,14 +254,14 @@ TEST_F(VideoProcessingTests, FrameProcessingWithZoom) {
 
 TEST_F(VideoProcessingTests, MixedMotionFrameProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frames with mixed motion patterns
     std::vector<cv::Mat> frames;
     for (int i = 0; i < 30; i++) {
         std::string pattern = (i % 3 == 0) ? "horizontal" :
                              (i % 3 == 1) ? "vertical" : "rotation";
-        cv::Mat frame = generate_test_frame(640, 480, i % 3);
+        cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, i % 3);
 
         if (i % 3 == 0) {
             frame = generate_horizontal_motion_frame(frame, i, 30);
@@ -287,10 +289,10 @@ TEST_F(VideoProcessingTests, FrameProcessingWithDifferentResolutions) {
     test_params.smoothing_radius = 5;
 
     std::vector<std::pair<int, int>> resolutions = {
-        {320, 240},
-        {640, 480},
+        {Resolution::QVGA_WIDTH, Resolution::QVGA_HEIGHT},
+        {Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT},
         {1280, 720},
-        {1920, 1080}
+        {Resolution::HD_WIDTH, Resolution::HD_HEIGHT}
     };
 
     for (const auto& resolution : resolutions) {
@@ -307,13 +309,13 @@ TEST_F(VideoProcessingTests, FrameProcessingWithDifferentResolutions) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithDifferentColors) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Test with different color schemes
     std::vector<int> color_schemes = {0, 1, 2};  // 0: solid, 1: gradient, 2: checkerboard
 
     for (int scheme : color_schemes) {
-        cv::Mat frame = generate_test_frame(640, 480, scheme);
+        cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, scheme);
         cv::Mat result = stabilizer.process_frame(frame);
 
         EXPECT_FALSE(result.empty()) << "Frame with color scheme " << scheme << " should be processed";
@@ -324,10 +326,10 @@ TEST_F(VideoProcessingTests, FrameProcessingWithDifferentColors) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithFeatures) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frame with features
-    cv::Mat frame = create_frame_with_features(640, 480, 100);
+    cv::Mat frame = create_frame_with_features(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 100);
     cv::Mat result = stabilizer.process_frame(frame);
 
     EXPECT_FALSE(result.empty()) << "Frame with features should be processed";
@@ -337,10 +339,10 @@ TEST_F(VideoProcessingTests, FrameProcessingWithFeatures) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithComplexPatterns) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frame with complex patterns
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
     cv::Mat result = stabilizer.process_frame(frame);
 
     EXPECT_FALSE(result.empty()) << "Complex pattern frame should be processed";
@@ -350,10 +352,10 @@ TEST_F(VideoProcessingTests, FrameProcessingWithComplexPatterns) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithNoise) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frame with noise
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
     cv::Mat noisy_frame = frame.clone();
 
     // Add noise
@@ -370,10 +372,10 @@ TEST_F(VideoProcessingTests, FrameProcessingWithNoise) {
 
 TEST_F(VideoProcessingTests, FrameProcessingWithContrast) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
     // Generate frame with high contrast
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
     cv::Mat high_contrast = frame.clone();
 
     // Enhance contrast

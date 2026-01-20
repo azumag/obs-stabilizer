@@ -4,8 +4,10 @@
 #include <opencv2/opencv.hpp>
 #include "core/stabilizer_core.hpp"
 #include "test_data_generator.hpp"
+#include "test_constants.hpp"
 
 using namespace TestDataGenerator;
+using namespace TestConstants;
 
 class PerformanceBenchmarks : public ::testing::Test {
 protected:
@@ -31,9 +33,9 @@ protected:
 // Benchmark HD 30fps processing
 TEST_F(PerformanceBenchmarks, HD30FpsProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(1920, 1080, 0);
+    cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, 0);
 
     // Process 100 frames
     int iterations = 100;
@@ -65,14 +67,14 @@ TEST_F(PerformanceBenchmarks, HD30FpsProcessing) {
 // Benchmark Memory Usage
 TEST_F(PerformanceBenchmarks, MemoryUsage) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
     // Get initial memory usage
     auto metrics1 = stabilizer.get_performance_metrics();
 
     // Process frames
     for (int i = 0; i < 100; i++) {
-        cv::Mat frame = generate_test_frame(1920, 1080, i % 3);
+        cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, i % 3);
         stabilizer.process_frame(frame);
     }
 
@@ -125,9 +127,9 @@ TEST_F(PerformanceBenchmarks, HD720p60FpsProcessing) {
 // Benchmark 480p 60fps processing
 TEST_F(PerformanceBenchmarks, HD480p60FpsProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     // Process 100 frames
     int iterations = 100;
@@ -159,9 +161,9 @@ TEST_F(PerformanceBenchmarks, HD480p60FpsProcessing) {
 // Benchmark 360p 60fps processing
 TEST_F(PerformanceBenchmarks, HD360p60FpsProcessing) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 360, test_params);
+    stabilizer.initialize(Resolution::HD360_WIDTH, Resolution::HD360_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 360, 0);
+    cv::Mat frame = generate_test_frame(Resolution::HD360_WIDTH, Resolution::HD360_HEIGHT, 0);
 
     // Process 100 frames
     int iterations = 100;
@@ -194,9 +196,9 @@ TEST_F(PerformanceBenchmarks, HD360p60FpsProcessing) {
 TEST_F(PerformanceBenchmarks, HighFeatureCountPerformance) {
     StabilizerCore stabilizer;
     test_params.feature_count = 2000;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(1920, 1080, 0);
+    cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, 0);
 
     // Process 100 frames
     int iterations = 100;
@@ -229,9 +231,9 @@ TEST_F(PerformanceBenchmarks, HighFeatureCountPerformance) {
 TEST_F(PerformanceBenchmarks, HighSmoothingRadiusPerformance) {
     StabilizerCore stabilizer;
     test_params.smoothing_radius = 100;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(1920, 1080, 0);
+    cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, 0);
 
     // Process 100 frames
     int iterations = 100;
@@ -264,9 +266,9 @@ TEST_F(PerformanceBenchmarks, HighSmoothingRadiusPerformance) {
 TEST_F(PerformanceBenchmarks, LowQualityLevelPerformance) {
     StabilizerCore stabilizer;
     test_params.quality_level = 0.001f;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(1920, 1080, 0);
+    cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, 0);
 
     // Process 100 frames
     int iterations = 100;
@@ -299,9 +301,9 @@ TEST_F(PerformanceBenchmarks, LowQualityLevelPerformance) {
 TEST_F(PerformanceBenchmarks, HarrisDetectorPerformance) {
     StabilizerCore stabilizer;
     test_params.use_harris = true;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(1920, 1080, 0);
+    cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, 0);
 
     // Process 100 frames
     int iterations = 100;
@@ -333,9 +335,9 @@ TEST_F(PerformanceBenchmarks, HarrisDetectorPerformance) {
 // Stress test with high frame rate
 TEST_F(PerformanceBenchmarks, StressTestHighFrameRate) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(640, 480, test_params);
+    stabilizer.initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, test_params);
 
-    cv::Mat frame = generate_test_frame(640, 480, 0);
+    cv::Mat frame = generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 0);
 
     // Process 1000 frames
     int iterations = 1000;
@@ -370,10 +372,10 @@ TEST_F(PerformanceBenchmarks, StressTestHighFrameRate) {
 // Benchmark with motion patterns
 TEST_F(PerformanceBenchmarks, MotionPatternPerformance) {
     StabilizerCore stabilizer;
-    stabilizer.initialize(1920, 1080, test_params);
+    stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
     // Generate frames with motion
-    std::vector<cv::Mat> frames = generate_test_sequence(50, 1920, 1080, "horizontal");
+    std::vector<cv::Mat> frames = generate_test_sequence(FrameCount::LONG_SEQUENCE, Resolution::HD_WIDTH, Resolution::HD_HEIGHT, "horizontal");
 
     // Process all frames
     double total_time = 0.0;
@@ -407,9 +409,9 @@ TEST_F(PerformanceBenchmarks, MotionPatternPerformance) {
 // Benchmark with different resolutions
 TEST_F(PerformanceBenchmarks, ResolutionComparison) {
     std::vector<std::pair<int, int>> resolutions = {
-        {640, 480},
+        {Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT},
         {1280, 720},
-        {1920, 1080}
+        {Resolution::HD_WIDTH, Resolution::HD_HEIGHT}
     };
 
     std::cout << "Resolution Comparison Benchmark:" << std::endl;
@@ -450,9 +452,9 @@ TEST_F(PerformanceBenchmarks, FeatureConfigurationPerformance) {
     for (int feature_count : feature_counts) {
         StabilizerCore stabilizer;
         test_params.feature_count = feature_count;
-        stabilizer.initialize(1920, 1080, test_params);
+        stabilizer.initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, test_params);
 
-        cv::Mat frame = generate_test_frame(1920, 1080, 0);
+        cv::Mat frame = generate_test_frame(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, 0);
 
         // Process 100 frames
         int iterations = 100;
