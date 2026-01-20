@@ -331,7 +331,7 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
     params.quality_level = std::clamp(params.quality_level, 0.001f, 0.1f);
     params.min_distance = std::clamp(params.min_distance, 1.0f, 200.0f);
     params.block_size = std::clamp(params.block_size, 3, 31);
-    if (params.block_size % 2 == 0) params.block_size++; // Ensure odd number
+    if (params.block_size % EVEN_NUMBER_VALIDATION_THRESHOLD == 0) params.block_size++;
     params.k = std::clamp(params.k, 0.01f, 0.1f);
     
     return params;
@@ -406,6 +406,7 @@ static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
 // Frame buffer for safe frame modification (static to persist between calls)
 // This buffer ensures we never modify the reference frame in-place.
 // Instead, we create a complete copy of the frame data and return a pointer to our internal buffer.
+static std::mutex frame_buffer_mutex;
 static struct {
     std::vector<uint8_t> buffer;
     obs_source_frame frame;
@@ -429,6 +430,8 @@ static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_sourc
     }
     
     try {
+        std::lock_guard<std::mutex> lock(frame_buffer_mutex);
+        
         // Initialize frame buffer if needed
         if (!frame_buffer.initialized) {
             frame_buffer.frame = *reference_frame;  // Copy structure
@@ -486,6 +489,8 @@ static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_sourc
         // Reallocate buffer if needed
         if (frame_buffer.buffer.size() < required_size) {
             frame_buffer.buffer.resize(required_size);
+        } else if (frame_buffer.buffer.size() > required_size * 2) {
+            frame_buffer.buffer.shrink_to_fit();
         }
         
         // Update frame data pointers to use our buffer

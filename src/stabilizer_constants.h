@@ -109,6 +109,7 @@ namespace SAFETY {
     constexpr float MAX_QUALITY_OVERRIDE = 0.1f;     // Absolute maximum allowed
     constexpr float MIN_DISTANCE_OVERRIDE = 10.0f;   // Absolute minimum allowed
     constexpr float MAX_DISTANCE_OVERRIDE = 100.0f;  // Absolute maximum allowed
+    constexpr int EVEN_NUMBER_VALIDATION_THRESHOLD = 2;  // Used for odd number validation
 }
 
 // Memory and frame size limits
