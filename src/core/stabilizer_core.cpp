@@ -148,7 +148,6 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
 
 cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_pts,
                                            const std::vector<cv::Point2f>& curr_pts) {
-    // estimateRigidTransform is deprecated. Use estimateAffinePartial2D instead.
     cv::Mat transform = cv::estimateAffinePartial2D(prev_pts, curr_pts);
     if (transform.empty()) {
         // Fallback to identity matrix if estimation fails

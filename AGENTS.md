@@ -3,11 +3,12 @@
 作業が完了したらコミットしてプッシュすること
 
 TASK:
-#178 - CODE CLEANUP: Remove legacy archive directory and temporary files
-- Remove archives/ directory (1.6MB of build artifacts)
-- Remove all 8 .DS_Store files
-- Clean up log files (keep essential, remove test execution logs)
-- Verify repository size reduction
-- Ensure no build artifacts remain in version control
+#179 - CODE CLEANUP: Consolidate test files and remove test_data directory
+- Remove src/tests/ directory (3 test files)
+- Remove tests/test_data/ directory if empty
+- Consolidate test constants and data generation
+- Remove deprecated comment in stabilizer_core.cpp
+- Verify all 76 tests still pass
+
 
 
