@@ -25,7 +25,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     height_ = height;
     params_ = params;
     first_frame_ = true;
-    prev_gray_ = cv::Mat();
+    prev_gray_ = cv::Mat(height, width, CV_8UC1);
     prev_pts_.clear();
     transforms_.clear();
     cumulative_transform_ = cv::Mat::eye(3, 3, CV_64F);
@@ -58,7 +58,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     } else if (num_channels == 3) {
         cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
     } else if (num_channels == 1) {
-        gray = frame.clone();
+        gray = frame;
     } else {
         last_error_ = "Unsupported frame format";
         return cv::Mat();
@@ -186,7 +186,7 @@ void StabilizerCore::update_parameters(const StabilizerCore::StabilizerParams& p
 void StabilizerCore::reset() {
     std::lock_guard<std::mutex> lock(mutex_);
     first_frame_ = true;
-    prev_gray_ = cv::Mat();
+    prev_gray_ = cv::Mat(height_, width_, CV_8UC1);
     prev_pts_.clear();
     transforms_.clear();
     cumulative_transform_ = cv::Mat::eye(3, 3, CV_64F);
