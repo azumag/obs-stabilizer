@@ -576,6 +576,8 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 
 ### 📋 **Technical Debt Status: COMPREHENSIVELY RESOLVED**
 - **Issue #173**: FINAL TECHNICAL DEBT ASSESSMENT - Remaining Maintenance Issues ✅ **ALL HIGH-PRIORITY ISSUES RESOLVED**
+    - **Issue #182**: BUILD: Duplicate main() symbols causing test suite linker failure ✅ **RESOLVED** (Excluded test-core-only.cpp from Google Test suite - test-core-only.cpp remains as standalone script, test suite now builds successfully - 85/85 tests passing)
+    - **Issue #181**: CODE QUALITY: Critical memory management issues and code cleanup ✅ **RESOLVED** (Added mutex protection and shrink_to_fit() for bounded memory management in cv_mat_to_obs_frame, removed 6 unimplemented private method declarations, fixed duplicate #endif directive)
     - **Issue #180**: TEST: Fix failing unit tests and test script issues ✅ **RESOLVED** (All 85 tests now passing - fixed initialize() parameter validation, standardized contradictory test expectations, created missing test-core-only.cpp)
     - **Issue #177**: CODE CLEANUP: Remove unused legacy test files ✅ **RESOLVED** (Removed tests/test-core-only.cpp, tests/test-compile.cpp, tests/integration-test.cpp - 432 lines removed, CMakeLists.txt updated)
     - **Issue #175**: TEST: Multiple test failures in unit test suite ✅ **RESOLVED** (All 76 tests now passing - fixed frame validation, multiple format support, state management, and optical flow issues)
