@@ -3,10 +3,11 @@
 作業が完了したらコミットしてプッシュすること
 
 TASK:
-#177 - CODE CLEANUP: Remove unused legacy test files
-- Remove tests/test-core-only.cpp
-- Remove tests/test-compile.cpp
-- Remove tests/integration-test.cpp
-- Update CMakeLists.txt to remove exclusion lines
-- Verify all tests still pass (76/76)
+#178 - CODE CLEANUP: Remove legacy archive directory and temporary files
+- Remove archives/ directory (1.6MB of build artifacts)
+- Remove all 8 .DS_Store files
+- Clean up log files (keep essential, remove test execution logs)
+- Verify repository size reduction
+- Ensure no build artifacts remain in version control
+
 
