@@ -6,7 +6,16 @@
 
 #pragma once
 
+#ifdef HAVE_OBS_HEADERS
 #include <obs-module.h>
+#else
+// Stub definitions for standalone mode
+typedef void* obs_data_t;
+typedef void* obs_source_t;
+typedef void* obs_properties_t;
+typedef void* obs_property_t;
+typedef void obs_source_frame_t;
+#endif
 #include "core/stabilizer_core.hpp"
 #include <memory>
 #include <string>
@@ -75,7 +84,7 @@ public:
      * Get filter type
      * @return OBS source type
      */
-    static enum obs_source_type get_type(void* unused);
+    static int get_type(void* unused);
 
     /**
      * Apply preset configuration

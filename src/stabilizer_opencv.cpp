@@ -4,7 +4,10 @@
  * Maintains compatibility with existing OBS API structure
  */
 
+#ifdef HAVE_OBS_HEADERS
 #include <obs-module.h>
+#endif
+
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_wrapper.hpp"
 #include <memory>
@@ -15,6 +18,7 @@
 
 // OBS module declarations - using existing macros from stub headers
 
+#ifdef HAVE_OBS_HEADERS
 // Plugin filter data structure using the new modular architecture with RAII wrapper
 struct stabilizer_filter {
     obs_source_t *source;
@@ -64,9 +68,11 @@ static struct obs_source_info stabilizer_filter_info = {
     .get_properties = stabilizer_filter_properties,
     .get_defaults = stabilizer_filter_get_defaults,
 };
+#endif
 
 // Plugin implementation functions
 
+#ifdef HAVE_OBS_HEADERS
 static const char *stabilizer_filter_name(void *unused)
 {
     UNUSED_PARAMETER(unused);
@@ -543,3 +549,4 @@ MODULE_EXPORT void obs_module_set_pointer(obs_module_t *module)
 {
     (void)module;
 }
+#endif // HAVE_OBS_HEADERS

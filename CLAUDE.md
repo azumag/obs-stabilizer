@@ -1,5 +1,7 @@
 # OBS Stabilizer Plugin Project
 
+Detailed comments must be included in the source code to justify the implementation of such logic
+
 ## トラブルシューティング履歴
 
 ### OBS起動時の問題

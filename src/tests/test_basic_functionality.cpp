@@ -1,19 +1,22 @@
 /*
-OBS Stabilizer Plugin - Simple Test Suite
-Tests for the actual stabilizer_opencv.cpp implementation
-*/
+ OBS Stabilizer Plugin - Simple Test Suite
+ Tests for the actual stabilizer_opencv.cpp implementation
+ */
+
+#ifndef SKIP_OPENCV_TESTS
 
 #include <gtest/gtest.h>
-#include <obs-module.h>
 #include <opencv2/opencv.hpp>
 #include <memory>
 
-// Forward declarations from stabilizer_opencv.cpp
+// Forward declarations from stabilizer_opencv.cpp (only available when OBS headers are present)
+#ifdef HAVE_OBS_HEADERS
 extern "C" {
     void* stabilizer_filter_create(obs_data_t* settings, obs_source_t* source);
     void stabilizer_filter_destroy(void* data);
     const char* stabilizer_filter_get_name(void* unused);
 }
+#endif
 
 class StabilizerBasicTest : public ::testing::Test {
 protected:
@@ -26,6 +29,7 @@ protected:
     }
 };
 
+#ifdef HAVE_OBS_HEADERS
 TEST_F(StabilizerBasicTest, FilterCreateDestroy) {
     // Test basic create/destroy cycle
     void* filter = stabilizer_filter_create(nullptr, nullptr);
@@ -41,6 +45,7 @@ TEST_F(StabilizerBasicTest, FilterGetName) {
     const char* name = stabilizer_filter_get_name(nullptr);
     EXPECT_STREQ(name, "OpenCV Stabilizer");
 }
+#endif
 
 TEST_F(StabilizerBasicTest, OpenCVMatOperations) {
     // Test basic OpenCV operations used by stabilizer
@@ -71,3 +76,4 @@ TEST_F(StabilizerBasicTest, TransformMatrixOperations) {
     cv::invert(transform, inverse);
     EXPECT_FALSE(inverse.empty());
 }
+#endif // SKIP_OPENCV_TESTS

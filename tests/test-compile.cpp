@@ -21,42 +21,39 @@ struct obs_source_frame {
 
 // Test compilation of core module
 #ifdef ENABLE_STABILIZATION
-#include "src/core/stabilizer_core.hpp"
+#include "core/stabilizer_core.hpp"
 
 void test_core_compilation() {
-    using namespace obs_stabilizer;
-
     // Test basic instantiation
     auto core = std::make_unique<StabilizerCore>();
 
     // Test configuration
-    StabilizerConfig config;
+    StabilizerCore::StabilizerParams config;
     config.smoothing_radius = 30;
-    config.max_features = 200;
-    config.enable_stabilization = true;
+    config.feature_count = 200;
+    config.enabled = true;
+    config.quality_level = 0.01f;
 
     // Test initialization (should work even without OpenCV at runtime)
-    bool init_result = core->initialize(config);
+    bool init_result = core->initialize(1280, 720, config);
 
     // Test status query
-    StabilizerStatus status = core->get_status();
+    bool ready = core->is_ready();
 
     // Test metrics query
-    StabilizerMetrics metrics = core->get_metrics();
+    auto metrics = core->get_performance_metrics();
 
     std::cout << "✅ StabilizerCore compilation test PASSED" << std::endl;
     std::cout << "   - Configuration: smoothing_radius=" << config.smoothing_radius << std::endl;
-    std::cout << "   - Initial status: " << static_cast<int>(status) << std::endl;
-    std::cout << "   - Tracked features: " << metrics.tracked_features << std::endl;
+    std::cout << "   - Ready after init: " << (ready ? "YES" : "NO") << std::endl;
+    std::cout << "   - Frame count: " << metrics.frame_count << std::endl;
 }
 #endif
 
 // Test compilation of OBS integration
-#include "src/obs/obs_integration.hpp"
+#include "obs/obs_integration.hpp"
 
 void test_obs_integration_compilation() {
-    using namespace obs_stabilizer;
-
     // Test static methods exist (compilation only)
     std::cout << "✅ OBSIntegration compilation test PASSED" << std::endl;
     std::cout << "   - All required static methods compile successfully" << std::endl;

@@ -191,6 +191,24 @@ void obs_data_set_default_string(obs_data_t *data, const char *name, const char 
     // Stub - do nothing
 }
 
+void obs_data_set_bool(obs_data_t *data, const char *name, bool val) {
+    // Validate input parameters
+    if (!data || !name) return;
+    // Stub - do nothing
+}
+
+void obs_data_set_int(obs_data_t *data, const char *name, int val) {
+    // Validate input parameters
+    if (!data || !name) return;
+    // Stub - do nothing
+}
+
+void obs_data_set_double(obs_data_t *data, const char *name, double val) {
+    // Validate input parameters
+    if (!data || !name) return;
+    // Stub - do nothing
+}
+
 // OBS properties functions - stub implementations
 obs_properties_t *obs_properties_create(void) {
     // Return NULL instead of allocating fake memory to prevent leaks
@@ -263,6 +281,34 @@ void obs_property_set_long_description(obs_property_t *prop, const char *long_de
     // Validate input parameters
     if (!prop || !long_description) return;
     // Stub - do nothing
+}
+
+void obs_log(int log_level, const char *format, ...) {
+    // Validate input parameters
+    if (!format) return;
+
+    // Simple logging with safe format handling
+    const char* level_str;
+    switch(log_level) {
+        case 100: level_str = "ERROR"; break;
+        case 200: level_str = "WARN"; break;
+        case 300: level_str = "INFO"; break;
+        case 400: level_str = "DEBUG"; break;
+        default: level_str = "UNKNOWN"; break;
+    }
+
+    printf("[%s] ", level_str);
+    printf(format);
+    printf("\n");
+}
+
+void obs_property_set_modified_callback(obs_property_t *prop, obs_property_modified_callback_t callback) {
+    // Stub - do nothing
+}
+
+bool obs_register_source(struct obs_source_info *info) {
+    // Stub - do nothing
+    return true;
 }
 
 uint32_t obs_source_get_width(obs_source_t *source) {

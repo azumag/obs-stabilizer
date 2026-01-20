@@ -3,6 +3,7 @@
  * Handles OBS Studio API integration and plugin lifecycle
  */
 
+#ifdef HAVE_OBS_HEADERS
 #include "obs_integration.hpp"
 #include <algorithm>
 #include <sstream>
@@ -509,4 +510,6 @@ void OBSDataConverter::set_double_validated(obs_data_t* data, const char* name, 
     
     double clamped_value = std::clamp(value, min_value, max_value);
     obs_data_set_double(data, name, clamped_value);
-}
+}#endif // HAVE_OBS_HEADERS
+
+#endif // HAVE_OBS_HEADERS

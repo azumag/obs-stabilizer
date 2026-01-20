@@ -14,7 +14,7 @@ inline void obs_log(int, const char*, ...) {
 }
 
 // Always include the core module (supports both OpenCV and stub modes)
-#include "src/core/stabilizer_core.hpp"
+#include "core/stabilizer_core.hpp"
 
 // Test compilation of core module
 #ifdef ENABLE_STABILIZATION
