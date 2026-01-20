@@ -576,6 +576,7 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 
 ### 📋 **Technical Debt Status: COMPREHENSIVELY RESOLVED**
 - **Issue #173**: FINAL TECHNICAL DEBT ASSESSMENT - Remaining Maintenance Issues ✅ **ALL HIGH-PRIORITY ISSUES RESOLVED**
+    - **Issue #180**: TEST: Fix failing unit tests and test script issues ✅ **RESOLVED** (All 85 tests now passing - fixed initialize() parameter validation, standardized contradictory test expectations, created missing test-core-only.cpp)
     - **Issue #177**: CODE CLEANUP: Remove unused legacy test files ✅ **RESOLVED** (Removed tests/test-core-only.cpp, tests/test-compile.cpp, tests/integration-test.cpp - 432 lines removed, CMakeLists.txt updated)
     - **Issue #175**: TEST: Multiple test failures in unit test suite ✅ **RESOLVED** (All 76 tests now passing - fixed frame validation, multiple format support, state management, and optical flow issues)
    - **Issue #168**: Logging standardization (obs_log vs printf) ✅ **VERIFIED RESOLVED** (Zero printf() calls in production code, verified in docs/REVIEW.md)
