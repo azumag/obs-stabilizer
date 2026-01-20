@@ -168,6 +168,9 @@ make
 
 # macOS: Fix plugin loading (required for macOS)
 ./scripts/fix-plugin-loading.sh
+
+# macOS: Bundle OpenCV libraries for deployment (optional)
+./scripts/bundle_opencv.sh
 ```
 
 **Build System Changes:**
@@ -319,8 +322,12 @@ GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 
 #### macOS
 ```bash
-# After building (July 30, 2025 update: plugin loading issues resolved)
-# Copy the built binary to OBS plugins directory
+# Option 1: Install with bundled OpenCV libraries (recommended for distribution)
+./scripts/bundle_opencv.sh
+cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
+cp -r build/Frameworks ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
+
+# Option 2: Install with system OpenCV (requires OpenCV to be installed on target system)
 cp build/obs-stabilizer ~/Library/Application\ Support/obs-studio/plugins/obs-stabilizer.plugin/Contents/MacOS/
 # Or copy complete plugin bundle if available
 cp -r obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
@@ -347,6 +354,74 @@ copy build\Release\obs-stabilizer.dll %APPDATA%\obs-studio\plugins\
    - **Feature Points**: Number of tracking points (100-1000)
 
 **Current Status**: Plugin loading issues resolved (July 30, 2025). Phase 2.5 architectural refactoring complete with modular design. Security audit verified (11/11 tests passing), OpenCV version compatibility framework implemented, production-ready stabilization pipeline with comprehensive validation and clean separation of concerns.
+
+### OpenCV Dependency Management
+
+The plugin requires OpenCV libraries for computer vision algorithms. Two deployment strategies are supported:
+
+#### Option 1: Bundled Distribution (Recommended for Users)
+
+The `scripts/bundle_opencv.sh` script creates a self-contained distribution with OpenCV libraries bundled:
+
+```bash
+# Build the plugin
+cmake -B build
+cmake --build build
+
+# Bundle OpenCV libraries
+./scripts/bundle_opencv.sh
+
+# Deploy
+cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
+cp -r build/Frameworks ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
+```
+
+**Benefits:**
+- ✅ Self-contained plugin - no OpenCV installation required on target system
+- ✅ Version consistency - always uses bundled OpenCV 4.12.0
+- ✅ Easy distribution - single plugin file + Frameworks directory
+- ✅ No conflicts with other applications' OpenCV requirements
+
+**Bundle Contents:**
+- Plugin: `obs-stabilizer-opencv.so` (~500KB)
+- OpenCV libraries: 7 essential modules in `Frameworks/` (~16MB)
+  - libopencv_core.412.dylib
+  - libopencv_imgproc.412.dylib
+  - libopencv_video.412.dylib
+  - libopencv_calib3d.412.dylib
+  - libopencv_features2d.412.dylib
+  - libopencv_flann.412.dylib
+  - libopencv_dnn.412.dylib
+
+#### Option 2: System OpenCV (For Development)
+
+Use system-installed OpenCV for development:
+
+```bash
+# macOS: Install OpenCV via Homebrew
+brew install opencv
+
+# Build plugin (will link to system OpenCV)
+cmake -B build
+cmake --build build
+
+# Deploy (requires OpenCV on target system)
+cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/
+```
+
+**Requirements:**
+- Target system must have OpenCV 4.12.0 installed
+- Version compatibility issues across different OpenCV installations
+- Different package managers may have different versions
+
+#### Verification
+
+After bundling, verify the plugin uses bundled libraries:
+
+```bash
+otool -L build/obs-stabilizer-opencv.so | grep opencv
+# Should show: @loader_path/Frameworks/libopencv_*.dylib
+```
 
 ## Configuration Options
 
@@ -504,12 +579,12 @@ copy build\Release\obs-stabilizer.dll %APPDATA%\obs-studio\plugins\
    - **Issue #168**: Logging standardization (obs_log vs printf) ✅ **VERIFIED RESOLVED** (Zero printf() calls in production code, verified in docs/REVIEW.md)
    - **Issue #169**: Build system consolidation (CMakeLists.txt files) ✅ **RESOLVED** (Single CMakeLists.txt in project root, no duplicate files)
    - **Issue #170**: Magic numbers with named constants ✅ **RESOLVED** (All magic numbers replaced with SAFETY and OPENCV_PARAMS constants - commit e15bb42)
-   - **Issue #167**: Memory management audit ✅ **VERIFIED RESOLVED** (No memory leaks or race conditions identified, RAII pattern with StabilizerWrapper, verified in docs/REVIEW.md)
-   - **Issue #166**: tmp directory cleanup ✅ **RESOLVED** (tmp directory removed - 0 files, 0 bytes)
-   - **Issue #92**: Thread synchronization ✅ **RESOLVED** (std::mutex and std::lock_guard implemented in StabilizerWrapper)
-   - **Issue #93**: Test files scattered in tmp directory ✅ **RESOLVED** (All tests consolidated in tests/ directory)
-   - **Issue #171**: Deployment strategy (OpenCV dependencies) ⏳ **PENDING** (Medium priority)
-   - **Issue #172**: Test coverage expansion ⏳ **PENDING** (Medium priority)
+    - **Issue #167**: Memory management audit ✅ **VERIFIED RESOLVED** (No memory leaks or race conditions identified, RAII pattern with StabilizerWrapper, verified in docs/REVIEW.md)
+    - **Issue #166**: tmp directory cleanup ✅ **RESOLVED** (tmp directory removed - 0 files, 0 bytes)
+    - **Issue #92**: Thread synchronization ✅ **RESOLVED** (std::mutex and std::lock_guard implemented in StabilizerWrapper)
+    - **Issue #93**: Test files scattered in tmp directory ✅ **RESOLVED** (All tests consolidated in tests/ directory)
+    - **Issue #171**: Deployment strategy (OpenCV dependencies) ✅ **RESOLVED** (Bundling script implemented - scripts/bundle_opencv.sh creates self-contained distribution with Frameworks directory)
+    - **Issue #172**: Test coverage expansion ⏳ **PENDING** (Medium priority)
    - [x] **Issue #174**: BUILD: Integration tests fail to compile ✅ **RESOLVED** (Fixed test_data_generator function signature mismatch, CMakeLists.txt test configuration, variable scope issues, missing includes, and nullptr handling)
   - **Architecture Documentation**: ✅ **UPDATED** - docs/ARCHITECTURE.md updated with Issue #167 memory management design
   - **CI/CD Fixes**: ✅ **RESOLVED** - Fixed designated initializer compatibility and QA workflow test execution

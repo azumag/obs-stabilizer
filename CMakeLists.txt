@@ -5,8 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_ARCHITECTURES "arm64")
 
+# --- OpenCV Static Linking Option ---
+option(OPENCV_STATIC_LINKING "Link OpenCV statically (for deployment)" OFF)
+
 # --- OpenCV Dependencies ---
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc video calib3d)
 include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
 
 # --- OBS Dependencies ---
