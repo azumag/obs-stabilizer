@@ -2,5 +2,5 @@
 
 作業が完了したらコミットしてプッシュすること
 
-TASK: https://github.com/azumag/obs-stabilizer/issues/175 - TEST: Multiple test failures in unit test suite (30/76 tests failing)
+TASK: https://github.com/azumag/obs-stabilizer/issues/176 - CODE CLEANUP: Remove unused legacy file stabilizer_opencv_original.cpp
 
