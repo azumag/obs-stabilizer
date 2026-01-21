@@ -2,9 +2,10 @@
 
 作業が完了したらコミットしてプッシュすること
 
-TASK: No active issues - all features implemented and resolved
+TASK: Issue #204 - TEST: Fine-tune MotionClassifier thresholds with real-world video data
 
 New Issues:
+- Issue #204: TEST: Fine-tune MotionClassifier thresholds with real-world video data (IN PROGRESS)
 
 Completed Issues:
 - Issue #203: FEATURE: Advanced motion detection and automatic parameter adjustment ✅ **RESOLVED** (Implemented full 6-phase adaptive stabilization system with MotionClassifier, AdaptiveStabilizer, motion-specific smoothing, comprehensive test suite, and documented OBS UI integration)

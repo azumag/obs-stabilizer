@@ -585,7 +585,7 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 
 ## 🏁 Project Status: Ready for Development
 
-### 📋 **No active issues - Feature development complete**
+### 📋 **Current Issue: #204 - TEST: Fine-tune MotionClassifier thresholds with real-world video data**
 
 **Recent Completed Feature:**
 - [x] **Issue #203**: FEATURE: Advanced motion detection and automatic parameter adjustment ✅ **RESOLVED** (Implemented full 6-phase adaptive stabilization system with MotionClassifier, AdaptiveStabilizer, motion-specific smoothing, comprehensive test suite with 197 total tests, documented OBS UI integration approach, and parameter tuning guidance)
