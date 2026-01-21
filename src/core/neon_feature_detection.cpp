@@ -6,36 +6,36 @@
 namespace AppleOptimization {
 
 NEONFeatureDetector::NEONFeatureDetector()
-    : available_(true)
-    , quality_level_(0.01f)
-    , min_distance_(10.0f)
-    , block_size_(3)
-    , ksize_(3)
+    : available(true)
+    , quality_level(0.01f)
+    , min_distance(10.0f)
+    , block_size(3)
+    , ksize(3)
 {
-    available_ = true;
+    available = true;
 }
 
 NEONFeatureDetector::~NEONFeatureDetector() {
 }
 
 bool NEONFeatureDetector::is_available() const {
-    return available_;
+    return available;
 }
 
 void NEONFeatureDetector::set_quality_level(float quality) {
-    quality_level_ = std::max(0.001f, std::min(0.1f, quality));
+    quality_level = std::max(0.001f, std::min(0.1f, quality));
 }
 
 void NEONFeatureDetector::set_min_distance(float distance) {
-    min_distance_ = std::max(1.0f, distance);
+    min_distance = std::max(1.0f, distance);
 }
 
 void NEONFeatureDetector::set_block_size(int block_size) {
-    block_size_ = std::max(1, std::min(31, block_size));
+    block_size = std::max(1, std::min(31, block_size));
 }
 
 void NEONFeatureDetector::set_ksize(int ksize) {
-    ksize_ = std::max(1, std::min(31, ksize));
+    ksize = std::max(1, std::min(31, ksize));
 }
 
 void NEONFeatureDetector::compute_gradients(const cv::Mat& gray,
@@ -53,7 +53,7 @@ int NEONFeatureDetector::detect_features_neon(const cv::Mat& gray,
     cv::cartToPolar(dx, dy, magnitude, angle, true);
 
     std::vector<cv::Point2f> candidates;
-    int max_corners = static_cast<int>(quality_level_ * 1000);
+    int max_corners = static_cast<int>(quality_level * 1000);
 
     cv::Mat mask = cv::Mat::ones(gray.size(), CV_8U);
 
@@ -63,7 +63,7 @@ int NEONFeatureDetector::detect_features_neon(const cv::Mat& gray,
 
             float max_response = 0.0f;
 
-            int half_block = block_size_ / 2;
+            int half_block = block_size / 2;
 
             for (int by = -half_block; by <= half_block; ++by) {
                 for (int bx = -half_block; bx <= half_block; ++bx) {
@@ -80,7 +80,7 @@ int NEONFeatureDetector::detect_features_neon(const cv::Mat& gray,
                 }
             }
 
-            if (max_response > quality_level_ * 1000) {
+            if (max_response > quality_level * 1000) {
                 candidates.emplace_back(x, y);
             }
         }
@@ -88,27 +88,27 @@ int NEONFeatureDetector::detect_features_neon(const cv::Mat& gray,
 
     cv::Mat filtered_corners;
     cv::goodFeaturesToTrack(gray, filtered_corners,
-                           max_corners, quality_level_,
-                           min_distance_,
+                           max_corners, quality_level,
+                           min_distance,
                            mask,
-                           block_size_,
+                           block_size,
                            false,
-                           ksize_);
+                           ksize);
     return static_cast<int>(corners.size());
 }
 
 int NEONFeatureDetector::detect_features_opencv(const cv::Mat& gray,
                                                  std::vector<cv::Point2f>& points) {
-    int max_corners = static_cast<int>(quality_level_ * 1000);
+    int max_corners = static_cast<int>(quality_level * 1000);
     cv::Mat mask = cv::Mat::ones(gray.size(), CV_8U);
 
     cv::goodFeaturesToTrack(gray, points,
-                           max_corners, quality_level_,
-                           min_distance_,
+                           max_corners, quality_level,
+                           min_distance,
                            mask,
-                           block_size_,
+                           block_size,
                            false,
-                           ksize_);
+                           ksize);
 
     return static_cast<int>(points.size());
 }

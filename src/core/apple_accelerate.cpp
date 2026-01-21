@@ -7,12 +7,12 @@
 namespace AppleOptimization {
 
 AccelerateColorConverter::AccelerateColorConverter()
-    : available_(true)
+    : available(true)
     , cache_size_(1024 * 1024)
     , y_buffer_(nullptr)
     , uv_buffer_(nullptr)
 {
-    available_ = true;
+    available = true;
 }
 
 AccelerateColorConverter::~AccelerateColorConverter() {
