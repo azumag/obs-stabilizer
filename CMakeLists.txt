@@ -47,6 +47,7 @@ set(SOURCES
     src/core/apple_accelerate.cpp
     src/core/neon_feature_detection.cpp
     src/core/motion_classifier.cpp
+    src/core/adaptive_stabilizer.cpp
     src/obs/obs_integration.cpp
     src/plugin-support.c
 )
@@ -125,7 +126,7 @@ if(TEST_SOURCES)
         list(APPEND TEST_SOURCES)
     else()
         # Use stubs for standalone testing
-        list(APPEND TEST_SOURCES src/obs_stubs.c src/core/stabilizer_core.cpp src/stabilizer_opencv.cpp src/core/apple_accelerate.cpp src/core/neon_feature_detection.cpp src/core/motion_classifier.cpp)
+        list(APPEND TEST_SOURCES src/obs_stubs.c src/core/stabilizer_core.cpp src/stabilizer_opencv.cpp src/core/apple_accelerate.cpp src/core/neon_feature_detection.cpp src/core/motion_classifier.cpp src/core/adaptive_stabilizer.cpp)
     endif()
 
     add_executable(stabilizer_tests ${TEST_SOURCES})

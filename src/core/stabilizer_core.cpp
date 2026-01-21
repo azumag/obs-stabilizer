@@ -368,6 +368,15 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
 }
 
 cv::Mat StabilizerCore::smooth_transforms() {
+    if (params_.use_high_pass_filter) {
+        return smooth_high_pass_filter(transforms_, params_.high_pass_attenuation);
+    }
+    
+    if (params_.use_directional_smoothing) {
+        cv::Vec2d direction = cv::Vec2d(1.0, 0.3);
+        return smooth_directional(transforms_, direction);
+    }
+    
     return smooth_transforms_optimized();
 }
 
@@ -514,6 +523,59 @@ void StabilizerCore::clear_state() {
 StabilizerCore::PerformanceMetrics StabilizerCore::get_performance_metrics() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return metrics_;
+}
+
+const std::deque<cv::Mat>& StabilizerCore::get_current_transforms() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return transforms_;
+}
+
+cv::Mat StabilizerCore::smooth_high_pass_filter(const std::deque<cv::Mat>& transforms, 
+                                              double attenuation) {
+    if (transforms.empty()) {
+        return cv::Mat::eye(2, 3, CV_64F);
+    }
+    
+    cv::Mat smoothed = smooth_transforms_optimized();
+    cv::Mat high_freq = transforms.back() - smoothed;
+    
+    cv::Mat result = smoothed + high_freq * attenuation;
+    return result;
+}
+
+cv::Mat StabilizerCore::smooth_directional(const std::deque<cv::Mat>& transforms, 
+                                       const cv::Vec2d& direction) {
+    if (transforms.empty()) {
+        return cv::Mat::eye(2, 3, CV_64F);
+    }
+    
+    cv::Mat result = cv::Mat::zeros(2, 3, CV_64F);
+    double* ptr = result.ptr<double>(0);
+    
+    for (const auto& t : transforms) {
+        if (t.empty() || t.rows < 2 || t.cols < 3) {
+            continue;
+        }
+        
+        const double* t_ptr = t.ptr<double>(0);
+        
+        double parallel_mag = t_ptr[2] * direction[0] + t_ptr[5] * direction[1];
+        double perp_mag = t_ptr[2] * direction[1] - t_ptr[5] * direction[0];
+        
+        ptr[0] += t_ptr[0] * 0.9;
+        ptr[1] += t_ptr[1] * 0.9;
+        ptr[2] += t_ptr[2] * 0.8 + parallel_mag * 0.1;
+        ptr[3] += t_ptr[3] * 0.9;
+        ptr[4] += t_ptr[4] * 0.9;
+        ptr[5] += t_ptr[5] * 0.8 + perp_mag * 0.1;
+    }
+    
+    double inv_count = 1.0 / static_cast<double>(transforms.size());
+    for (int i = 0; i < 6; ++i) {
+        ptr[i] *= inv_count;
+    }
+    
+    return result;
 }
 
 bool StabilizerCore::is_ready() const {

@@ -61,6 +61,11 @@ public:
         float feature_refresh_threshold = 0.5f;   // Refresh features when tracking success < this (0.0-1.0)
         int adaptive_feature_min = 100;          // Minimum adaptive feature count
         int adaptive_feature_max = 500;          // Maximum adaptive feature count
+        
+        // Motion-specific smoothing parameters (Phase 4)
+        bool use_high_pass_filter = false;     // Enable high-pass filter for camera shake
+        double high_pass_attenuation = 0.3;    // High-frequency attenuation factor (0.0-1.0)
+        bool use_directional_smoothing = false; // Enable directional smoothing for pan/zoom
     };
 
     struct PerformanceMetrics {
@@ -100,12 +105,24 @@ public:
      * @brief Clear all internal state
      */
     void clear_state();
-
+    
     /**
      * Get current performance metrics
      * @return Performance metrics structure
      */
     PerformanceMetrics get_performance_metrics() const;
+    
+    /**
+     * Get current transform history
+     * @return Reference to transform deque
+     */
+    const std::deque<cv::Mat>& get_current_transforms() const;
+    
+    /**
+     * Motion-specific smoothing algorithms for adaptive stabilization
+     */
+    cv::Mat smooth_high_pass_filter(const std::deque<cv::Mat>& transforms, double attenuation = 0.3);
+    cv::Mat smooth_directional(const std::deque<cv::Mat>& transforms, const cv::Vec2d& direction);
 
     /**
      * Check if stabilizer is ready for processing
