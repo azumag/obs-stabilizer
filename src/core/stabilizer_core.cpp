@@ -4,6 +4,9 @@
 #include "core/stabilizer_constants.hpp"
 #include "core/apple_accelerate.hpp"
 #include "core/neon_feature_detection.hpp"
+#ifndef BUILD_STANDALONE
+#include "obs/obs-module.h"
+#endif
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -12,6 +15,16 @@
 #include <iomanip>
 
 using namespace StabilizerConstants;
+
+#ifndef BUILD_STANDALONE
+#define STAB_LOG_ERROR(...) obs_log(LOG_ERROR, __VA_ARGS__)
+#define STAB_LOG_WARNING(...) obs_log(LOG_WARNING, __VA_ARGS__)
+#define STAB_LOG_INFO(...) obs_log(LOG_INFO, __VA_ARGS__)
+#else
+#define STAB_LOG_ERROR(...) std::cerr << "[ERROR] " << __VA_ARGS__ << std::endl
+#define STAB_LOG_WARNING(...) std::cerr << "[WARNING] " << __VA_ARGS__ << std::endl
+#define STAB_LOG_INFO(...) std::cout << "[INFO] " << __VA_ARGS__ << std::endl
+#endif
 
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
@@ -39,22 +52,23 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     auto start_time = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // Early return for empty frames (likely common case)
-    if (frame.empty()) {
-        last_error_ = "Empty frame provided";
-        return frame;
-    }
+    try {
+        // Early return for empty frames (likely common case)
+        if (frame.empty()) {
+            last_error_ = "Empty frame provided";
+            return frame;
+        }
 
-    // Frame validation with branch prediction hints
-    if (!validate_frame(frame)) {
-        last_error_ = "Invalid frame dimensions";
-        return cv::Mat();
-    }
+        // Frame validation with branch prediction hints
+        if (!validate_frame(frame)) {
+            last_error_ = "Invalid frame dimensions";
+            return cv::Mat();
+        }
 
-    // Early return for disabled stabilizer (common case)
-    if (!params_.enabled) {
-        return frame;
-    }
+        // Early return for disabled stabilizer (common case)
+        if (!params_.enabled) {
+            return frame;
+        }
 
     // Optimized color conversion with branch prediction hints and platform acceleration
     cv::Mat gray;
@@ -196,39 +210,65 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
 
     return result;
+
+    } catch (const cv::Exception& e) {
+        last_error_ = std::string("OpenCV exception in process_frame: ") + e.what();
+        STAB_LOG_ERROR("OpenCV exception in process_frame: %s", e.what());
+        return frame;
+    } catch (const std::exception& e) {
+        last_error_ = std::string("Standard exception in process_frame: ") + e.what();
+        STAB_LOG_ERROR("Standard exception in process_frame: %s", e.what());
+        return frame;
+    } catch (...) {
+        last_error_ = "Unknown exception in process_frame";
+        STAB_LOG_ERROR("Unknown exception in process_frame");
+        return frame;
+    }
 }
 
 bool StabilizerCore::detect_features(const cv::Mat& gray, std::vector<cv::Point2f>& points) {
-    // Pre-allocate memory to avoid reallocations
-    points.reserve(params_.feature_count);
-    
-    #ifndef BUILD_STANDALONE
-    // Use platform-optimized feature detection when available
-    if (PlatformOptimization::is_arm64() && gray.isContinuous() &&
-        gray.channels() == 1 && gray.depth() == CV_8U) {
+    try {
+        // Pre-allocate memory to avoid reallocations
+        points.reserve(params_.feature_count);
 
-        static AppleOptimization::NEONFeatureDetector neon_detector;
-        neon_detector.set_quality_level(params_.quality_level);
-        neon_detector.set_min_distance(params_.min_distance);
-        neon_detector.set_block_size(params_.block_size);
-        neon_detector.set_ksize(params_.k);
-        neon_detector.detect_features(gray, points);
-    } else {
-    #endif
-        // Standard OpenCV feature detection
-        cv::goodFeaturesToTrack(gray, points, params_.feature_count, params_.quality_level, 
-                               params_.min_distance, cv::Mat(), params_.block_size, 
-                               params_.use_harris, params_.k);
-    #ifndef BUILD_STANDALONE
+        #ifndef BUILD_STANDALONE
+        // Use platform-optimized feature detection when available
+        if (PlatformOptimization::is_arm64() && gray.isContinuous() &&
+            gray.channels() == 1 && gray.depth() == CV_8U) {
+
+            static AppleOptimization::NEONFeatureDetector neon_detector;
+            neon_detector.set_quality_level(params_.quality_level);
+            neon_detector.set_min_distance(params_.min_distance);
+            neon_detector.set_block_size(params_.block_size);
+            neon_detector.set_ksize(params_.k);
+            neon_detector.detect_features(gray, points);
+        } else {
+        #endif
+            // Standard OpenCV feature detection
+            cv::goodFeaturesToTrack(gray, points, params_.feature_count, params_.quality_level,
+                                   params_.min_distance, cv::Mat(), params_.block_size,
+                                   params_.use_harris, params_.k);
+        #ifndef BUILD_STANDALONE
+        }
+        #endif
+
+        // Trim to actual count if fewer features found
+        if (points.size() > params_.feature_count) {
+            points.resize(params_.feature_count);
+        }
+
+        return !points.empty();
+
+    } catch (const cv::Exception& e) {
+        STAB_LOG_ERROR("OpenCV exception in detect_features: %s", e.what());
+        return false;
+    } catch (const std::exception& e) {
+        STAB_LOG_ERROR("Standard exception in detect_features: %s", e.what());
+        return false;
+    } catch (...) {
+        STAB_LOG_ERROR("Unknown exception in detect_features");
+        return false;
     }
-    #endif
-    
-    // Trim to actual count if fewer features found
-    if (points.size() > params_.feature_count) {
-        points.resize(params_.feature_count);
-    }
-    
-    return !points.empty();
 }
 
 bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& curr_gray,
@@ -247,61 +287,85 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
     status.reserve(prev_pts.size());
     err.reserve(prev_pts.size());
 
-    cv::Size winSize(params_.optical_flow_window_size, params_.optical_flow_window_size);
-    cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30, 0.01);
+    try {
+        cv::Size winSize(params_.optical_flow_window_size, params_.optical_flow_window_size);
+        cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30, 0.01);
 
-    // Use pre-allocated vectors to avoid reallocations
-    cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err,
-                              winSize, params_.optical_flow_pyramid_levels, termcrit,
-                              cv::OPTFLOW_USE_INITIAL_FLOW);
+        // Use pre-allocated vectors to avoid reallocations
+        cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err,
+                                   winSize, params_.optical_flow_pyramid_levels, termcrit,
+                                   cv::OPTFLOW_USE_INITIAL_FLOW);
 
-    // Optimized filtering with branch prediction hints
-    size_t i = 0;
-    size_t tracked = 0;
-    const size_t status_size = status.size();
-    for (size_t j = 0; j < status_size; j++) {
-        // Likely to be true, so we expect the branch to be taken
-        if (status[j]) {
-            prev_pts[i] = prev_pts[j];
-            curr_pts[i] = curr_pts[j];
-            i++;
-            tracked++;
+        // Optimized filtering with branch prediction hints
+        size_t i = 0;
+        size_t tracked = 0;
+        const size_t status_size = status.size();
+        for (size_t j = 0; j < status_size; j++) {
+            // Likely to be true, so we expect branch to be taken
+            if (status[j]) {
+                prev_pts[i] = prev_pts[j];
+                curr_pts[i] = curr_pts[j];
+                i++;
+                tracked++;
+            }
         }
-    }
-    prev_pts.resize(i);
-    curr_pts.resize(i);
+        prev_pts.resize(i);
+        curr_pts.resize(i);
 
-    // Use multiplication instead of division for better performance
-    const float inv_size = 1.0f / static_cast<float>(prev_pts.size());
-    success_rate = static_cast<float>(tracked) * inv_size;
-    return i >= MIN_FEATURES_FOR_TRACKING;
+        // Use multiplication instead of division for better performance
+        const float inv_size = 1.0f / static_cast<float>(prev_pts.size());
+        success_rate = static_cast<float>(tracked) * inv_size;
+        return i >= MIN_FEATURES_FOR_TRACKING;
+
+    } catch (const cv::Exception& e) {
+        STAB_LOG_ERROR("OpenCV exception in track_features: %s", e.what());
+        return false;
+    } catch (const std::exception& e) {
+        STAB_LOG_ERROR("Standard exception in track_features: %s", e.what());
+        return false;
+    } catch (...) {
+        STAB_LOG_ERROR("Unknown exception in track_features");
+        return false;
+    }
 }
 
 cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_pts,
-                                             std::vector<cv::Point2f>& curr_pts) {
-    // Use RANSAC for robust estimation with optimized parameters
-    cv::Mat transform = cv::estimateAffinePartial2D(prev_pts, curr_pts, 
-                                                     cv::noArray(), 
-                                                     cv::RANSAC, 
-                                                     params_.ransac_threshold_min);
-    
-    if (transform.empty()) {
-        // Fallback to identity matrix if estimation fails
+                                              std::vector<cv::Point2f>& curr_pts) {
+    try {
+        // Use RANSAC for robust estimation with optimized parameters
+        cv::Mat transform = cv::estimateAffinePartial2D(prev_pts, curr_pts,
+                                                      cv::noArray(),
+                                                      cv::RANSAC,
+                                                      params_.ransac_threshold_min);
+
+        if (transform.empty()) {
+            // Fallback to identity matrix if estimation fails
+            return cv::Mat::eye(2, 3, CV_64F);
+        }
+
+        // Apply maximum correction limit to prevent over-correction
+        const double max_correction = params_.max_correction / 100.0;
+        double* ptr = transform.ptr<double>(0);
+
+        // Limit rotation and translation components
+        ptr[0] = std::clamp(ptr[0], 1.0 - max_correction, 1.0 + max_correction);
+        ptr[1] = std::clamp(ptr[1], -max_correction, max_correction);
+        ptr[2] = std::clamp(ptr[2], -max_correction, max_correction);
+        ptr[3] = std::clamp(ptr[3], -max_correction, max_correction);
+        ptr[4] = std::clamp(ptr[4], 1.0 - max_correction, 1.0 + max_correction);
+
+        return transform;
+
+    } catch (const cv::Exception& e) {
+        STAB_LOG_ERROR("OpenCV exception in estimate_transform: %s", e.what());
+        return cv::Mat::eye(2, 3, CV_64F);
+    } catch (const std::exception& e) {
+        STAB_LOG_ERROR("Standard exception in estimate_transform: %s", e.what());
+        return cv::Mat::eye(2, 3, CV_64F);
+    } catch (...) {
+        STAB_LOG_ERROR("Unknown exception in estimate_transform");
         return cv::Mat::eye(2, 3, CV_64F);
     }
-    
-    // Apply maximum correction limit to prevent over-correction
-    const double max_correction = params_.max_correction / 100.0;
-    double* ptr = transform.ptr<double>(0);
-    
-    // Limit rotation and translation components
-    ptr[0] = std::clamp(ptr[0], 1.0 - max_correction, 1.0 + max_correction);
-    ptr[1] = std::clamp(ptr[1], -max_correction, max_correction);
-    ptr[2] = std::clamp(ptr[2], -max_correction, max_correction);
-    ptr[3] = std::clamp(ptr[3], -max_correction, max_correction);
-    ptr[4] = std::clamp(ptr[4], 1.0 - max_correction, 1.0 + max_correction);
-    
-    return transform;
 }
 
 cv::Mat StabilizerCore::smooth_transforms() {
@@ -404,9 +468,20 @@ bool StabilizerCore::should_refresh_features(float success_rate, int frames_sinc
 }
 
 cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& transform) {
-    cv::Mat warped_frame;
-    cv::warpAffine(frame, warped_frame, transform, frame.size());
-    return warped_frame;
+    try {
+        cv::Mat warped_frame;
+        cv::warpAffine(frame, warped_frame, transform, frame.size());
+        return warped_frame;
+    } catch (const cv::Exception& e) {
+        STAB_LOG_ERROR("OpenCV exception in apply_transform: %s", e.what());
+        return frame.clone();
+    } catch (const std::exception& e) {
+        STAB_LOG_ERROR("Standard exception in apply_transform: %s", e.what());
+        return frame.clone();
+    } catch (...) {
+        STAB_LOG_ERROR("Unknown exception in apply_transform");
+        return frame.clone();
+    }
 }
 
 void StabilizerCore::update_parameters(const StabilizerCore::StabilizerParams& params) {
