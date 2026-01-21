@@ -86,14 +86,7 @@ int NEONFeatureDetector::detect_features_neon(const cv::Mat& gray,
         }
     }
 
-    cv::Mat filtered_corners;
-    cv::goodFeaturesToTrack(gray, filtered_corners,
-                           max_corners, quality_level,
-                           min_distance,
-                           mask,
-                           block_size,
-                           false,
-                           ksize);
+    corners = std::move(candidates);
     return static_cast<int>(corners.size());
 }
 
