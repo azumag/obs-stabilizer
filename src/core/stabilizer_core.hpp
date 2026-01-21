@@ -6,22 +6,10 @@
 
 #pragma once
 
-#ifdef BUILD_STANDALONE
-namespace cv {
-    class Mat {};
-    template<typename T>
-    class Point_ {
-    public:
-        T x, y;
-    };
-    using Point2f = Point_<float>;
-}
-#else
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <opencv2/features2d.hpp>
-#endif
 
 using namespace cv;
 #include <mutex>

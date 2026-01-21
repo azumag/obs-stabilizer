@@ -1,5 +1,3 @@
-#ifndef BUILD_STANDALONE
-
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
 #include "core/apple_accelerate.hpp"
@@ -13,6 +11,8 @@
 #include <stdexcept>
 #include <sstream>
 #include <iomanip>
+#include <cstdarg>
+#include <cstdio>
 
 using namespace StabilizerConstants;
 
@@ -21,9 +21,36 @@ using namespace StabilizerConstants;
 #define STAB_LOG_WARNING(...) obs_log(LOG_WARNING, __VA_ARGS__)
 #define STAB_LOG_INFO(...) obs_log(LOG_INFO, __VA_ARGS__)
 #else
-#define STAB_LOG_ERROR(...) std::cerr << "[ERROR] " << __VA_ARGS__ << std::endl
-#define STAB_LOG_WARNING(...) std::cerr << "[WARNING] " << __VA_ARGS__ << std::endl
-#define STAB_LOG_INFO(...) std::cout << "[INFO] " << __VA_ARGS__ << std::endl
+static inline void log_error(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    std::cerr << "[ERROR] ";
+    vfprintf(stderr, fmt, args);
+    std::cerr << std::endl;
+    va_end(args);
+}
+
+static inline void log_warning(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    std::cerr << "[WARNING] ";
+    vfprintf(stderr, fmt, args);
+    std::cerr << std::endl;
+    va_end(args);
+}
+
+static inline void log_info(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    std::cout << "[INFO] ";
+    vfprintf(stdout, fmt, args);
+    std::cout << std::endl;
+    va_end(args);
+}
+
+#define STAB_LOG_ERROR(...) log_error(__VA_ARGS__)
+#define STAB_LOG_WARNING(...) log_warning(__VA_ARGS__)
+#define STAB_LOG_INFO(...) log_info(__VA_ARGS__)
 #endif
 
 // (existing implementation)
@@ -616,23 +643,3 @@ bool StabilizerCore::validate_frame(const cv::Mat& frame) {
     }
     return true;
 }
-
-#else
-
-#include "core/stabilizer_core.hpp"
-
-bool StabilizerCore::initialize(uint32_t, uint32_t, const StabilizerCore::StabilizerParams&) { return false; }
-cv::Mat StabilizerCore::process_frame(const cv::Mat&) { return cv::Mat(); }
-void StabilizerCore::update_parameters(const StabilizerCore::StabilizerParams&) {}
-void StabilizerCore::reset() {}
-void StabilizerCore::clear_state() {}
-StabilizerCore::PerformanceMetrics StabilizerCore::get_performance_metrics() const { return {}; }
-bool StabilizerCore::is_ready() const { return false; }
-std::string StabilizerCore::get_last_error() const { return "Not compiled with OpenCV"; }
-StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const { return {}; }
-StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() { return {}; }
-StabilizerCore::StabilizerParams StabilizerCore::get_preset_streaming() { return {}; }
-StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() { return {}; }
-bool StabilizerCore::validate_frame(const cv::Mat&) { return true; }
-
-#endif

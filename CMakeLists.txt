@@ -27,6 +27,7 @@ if(OBS_INCLUDE_DIR AND OBS_FRONTEND_INCLUDE_DIR)
 else()
     message(WARNING "OBS headers not found. Building in standalone mode.")
     add_definitions(-DSTANDALONE_TEST)
+    add_definitions(-DBUILD_STANDALONE)
     set(OBS_INCLUDE_DIR "")
     set(OBS_FRONTEND_INCLUDE_DIR "")
 endif()
@@ -45,6 +46,7 @@ set(SOURCES
     src/core/stabilizer_core.cpp
     src/core/apple_accelerate.cpp
     src/core/neon_feature_detection.cpp
+    src/core/motion_classifier.cpp
     src/obs/obs_integration.cpp
     src/plugin-support.c
 )
@@ -123,7 +125,7 @@ if(TEST_SOURCES)
         list(APPEND TEST_SOURCES)
     else()
         # Use stubs for standalone testing
-        list(APPEND TEST_SOURCES src/obs_stubs.c src/core/stabilizer_core.cpp src/stabilizer_opencv.cpp src/core/apple_accelerate.cpp src/core/neon_feature_detection.cpp)
+        list(APPEND TEST_SOURCES src/obs_stubs.c src/core/stabilizer_core.cpp src/stabilizer_opencv.cpp src/core/apple_accelerate.cpp src/core/neon_feature_detection.cpp src/core/motion_classifier.cpp)
     endif()
 
     add_executable(stabilizer_tests ${TEST_SOURCES})
