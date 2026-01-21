@@ -89,14 +89,9 @@ static const char *stabilizer_filter_id(void *unused)
 static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source)
 {
     try {
-        struct stabilizer_filter *context = new stabilizer_filter();
-        if (!context) {
-            obs_log(LOG_ERROR, "Failed to allocate filter context");
-            return nullptr;
-        }
+        auto context = std::make_unique<struct stabilizer_filter>();
 
         context->source = source;
-        // StabilizerWrapper is automatically RAII-managed, no need for manual delete
         context->initialized = false;
         context->frame_count = 0;
         context->avg_processing_time = 0.0;
@@ -107,12 +102,11 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
         // Validate parameters
         if (!StabilizerCore::validate_parameters(context->params)) {
             obs_log(LOG_ERROR, "Invalid parameters provided during filter creation");
-            delete context;
             return nullptr;
         }
 
         obs_log(LOG_INFO, "Stabilizer filter created successfully");
-        return context;
+        return context.release();
 
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception in filter create: %s", e.what());
