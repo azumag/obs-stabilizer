@@ -2,13 +2,16 @@
 
 作業が完了したらコミットしてプッシュすること
 
-TASK: Issue #204 - TEST: Fine-tune MotionClassifier thresholds with real-world video data
+New Issues:
+- No open issues
+
+Completed Issues:
 
 New Issues:
 - No open issues
 
 Completed Issues:
-- Issue #204: TEST: Fine-tune MotionClassifier thresholds with real-world video data ✅ **RESOLVED** (All 10 MotionClassifier tests passing (100% accuracy), comprehensive threshold tuning completed, documented in docs/motion-classifier-threshold-results.md)
+- Issue #204: TEST: Fine-tune MotionClassifier thresholds with real-world video data ✅ **RESOLVED** (All 10 MotionClassifier tests passing (100% accuracy), comprehensive threshold tuning completed, documented in docs/motion-classifier-threshold-tuning.md)
 - Issue #203: FEATURE: Advanced motion detection and automatic parameter adjustment ✅ **RESOLVED** (Implemented full 6-phase adaptive stabilization system with MotionClassifier, AdaptiveStabilizer, motion-specific smoothing, comprehensive test suite, and documented OBS UI integration)
 - Issue #202: PROJECT STATUS: Codebase clean - ready for feature development (COMPLETED)
 
