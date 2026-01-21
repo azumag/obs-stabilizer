@@ -20,6 +20,7 @@ namespace Correction {
     constexpr float MAX_MAX = 100.0f;
     constexpr float DEFAULT_MAX = 20.0f;
     constexpr float GAMING_MAX = 40.0f;
+    constexpr float STREAMING_MAX = 30.0f;
     constexpr float RECORDING_MAX = 20.0f;
 }
 
@@ -62,6 +63,42 @@ namespace Harris {
     constexpr float MIN_K = 0.01f;
     constexpr float MAX_K = 0.1f;
     constexpr float DEFAULT_K = 0.04f;
+}
+
+// Optical Flow Parameters
+namespace OpticalFlow {
+    constexpr int MIN_PYRAMID_LEVELS = 2;
+    constexpr int MAX_PYRAMID_LEVELS = 5;
+    constexpr int DEFAULT_PYRAMID_LEVELS = 3;
+    constexpr int RECORDING_PYRAMID_LEVELS = 4;
+
+    constexpr int MIN_WINDOW_SIZE = 5;
+    constexpr int MAX_WINDOW_SIZE = 31;
+    constexpr int DEFAULT_WINDOW_SIZE = 21;
+    constexpr int RECORDING_WINDOW_SIZE = 31;
+
+    constexpr int MAX_ITERATIONS = 30;
+    constexpr float EPSILON = 0.01f;
+}
+
+// Adaptive Feature Ranges for Presets
+namespace AdaptiveFeatures {
+    // Gaming preset
+    constexpr int GAMING_MIN = 100;
+    constexpr int GAMING_MAX = 400;
+
+    // Streaming preset
+    constexpr int STREAMING_MIN = 150;
+    constexpr int STREAMING_MAX = 500;
+
+    // Recording preset
+    constexpr int RECORDING_MIN = 200;
+    constexpr int RECORDING_MAX = 800;
+
+    // Feature refresh thresholds for presets
+    constexpr float GAMING_REFRESH = 0.6f;
+    constexpr float STREAMING_REFRESH = 0.5f;
+    constexpr float RECORDING_REFRESH = 0.4f;
 }
 
 } // namespace StabilizerConstants

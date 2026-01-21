@@ -276,7 +276,7 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
 
     try {
         cv::Size winSize(params_.optical_flow_window_size, params_.optical_flow_window_size);
-        cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, 30, 0.01);
+        cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, OpticalFlow::MAX_ITERATIONS, OpticalFlow::EPSILON);
 
         // Use pre-allocated vectors to avoid reallocations
         cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err,
@@ -535,20 +535,20 @@ StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
         return false;
     }
 
-    if (params.optical_flow_pyramid_levels < 0 || params.optical_flow_pyramid_levels > 5) {
+    if (params.optical_flow_pyramid_levels < OpticalFlow::MIN_PYRAMID_LEVELS || params.optical_flow_pyramid_levels > OpticalFlow::MAX_PYRAMID_LEVELS) {
         return false;
     }
-    if (params.optical_flow_window_size < 5 || params.optical_flow_window_size > 31 ||
+    if (params.optical_flow_window_size < OpticalFlow::MIN_WINDOW_SIZE || params.optical_flow_window_size > OpticalFlow::MAX_WINDOW_SIZE ||
         params.optical_flow_window_size % 2 == 0) {
         return false;
     }
     if (params.feature_refresh_threshold < 0.0f || params.feature_refresh_threshold > 1.0f) {
         return false;
     }
-    if (params.adaptive_feature_min < 50 || params.adaptive_feature_min > params.adaptive_feature_max) {
+    if (params.adaptive_feature_min < Features::MIN_COUNT || params.adaptive_feature_min > params.adaptive_feature_max) {
         return false;
     }
-    if (params.adaptive_feature_max < params.adaptive_feature_min || params.adaptive_feature_max > 2000) {
+    if (params.adaptive_feature_max < params.adaptive_feature_min || params.adaptive_feature_max > Features::MAX_COUNT) {
         return false;
     }
 
@@ -557,58 +557,58 @@ StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
 
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() {
     StabilizerParams params;
-    params.smoothing_radius = 25;
-    params.max_correction = 40.0f;
-    params.feature_count = 150;
-    params.quality_level = 0.015f;
-    params.min_distance = 25.0f;
-    params.block_size = 3;
+    params.smoothing_radius = Smoothing::GAMING_RADIUS;
+    params.max_correction = Correction::GAMING_MAX;
+    params.feature_count = Features::GAMING_COUNT;
+    params.quality_level = Quality::GAMING_LEVEL;
+    params.min_distance = Distance::GAMING;
+    params.block_size = Block::DEFAULT_SIZE;
     params.use_harris = false;
-    params.k = 0.04f;
+    params.k = Harris::DEFAULT_K;
     params.enabled = true;
-    params.optical_flow_pyramid_levels = 3;
-    params.optical_flow_window_size = 21;
-    params.feature_refresh_threshold = 0.6f;
-    params.adaptive_feature_min = 100;
-    params.adaptive_feature_max = 400;
+    params.optical_flow_pyramid_levels = OpticalFlow::DEFAULT_PYRAMID_LEVELS;
+    params.optical_flow_window_size = OpticalFlow::DEFAULT_WINDOW_SIZE;
+    params.feature_refresh_threshold = AdaptiveFeatures::GAMING_REFRESH;
+    params.adaptive_feature_min = AdaptiveFeatures::GAMING_MIN;
+    params.adaptive_feature_max = AdaptiveFeatures::GAMING_MAX;
     return params;
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_streaming() {
     StabilizerParams params;
-    params.smoothing_radius = 30;
-    params.max_correction = 30.0f;
-    params.feature_count = 200;
-    params.quality_level = 0.01f;
-    params.min_distance = 30.0f;
-    params.block_size = 3;
+    params.smoothing_radius = Smoothing::STREAMING_RADIUS;
+    params.max_correction = Correction::STREAMING_MAX;
+    params.feature_count = Features::DEFAULT_COUNT;
+    params.quality_level = Quality::DEFAULT_LEVEL;
+    params.min_distance = Distance::DEFAULT;
+    params.block_size = Block::DEFAULT_SIZE;
     params.use_harris = false;
-    params.k = 0.04f;
+    params.k = Harris::DEFAULT_K;
     params.enabled = true;
-    params.optical_flow_pyramid_levels = 3;
-    params.optical_flow_window_size = 21;
-    params.feature_refresh_threshold = 0.5f;
-    params.adaptive_feature_min = 150;
-    params.adaptive_feature_max = 500;
+    params.optical_flow_pyramid_levels = OpticalFlow::DEFAULT_PYRAMID_LEVELS;
+    params.optical_flow_window_size = OpticalFlow::DEFAULT_WINDOW_SIZE;
+    params.feature_refresh_threshold = AdaptiveFeatures::STREAMING_REFRESH;
+    params.adaptive_feature_min = AdaptiveFeatures::STREAMING_MIN;
+    params.adaptive_feature_max = AdaptiveFeatures::STREAMING_MAX;
     return params;
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() {
     StabilizerParams params;
-    params.smoothing_radius = 50;
-    params.max_correction = 20.0f;
-    params.feature_count = 400;
-    params.quality_level = 0.005f;
-    params.min_distance = 20.0f;
-    params.block_size = 3;
+    params.smoothing_radius = Smoothing::RECORDING_RADIUS;
+    params.max_correction = Correction::RECORDING_MAX;
+    params.feature_count = Features::RECORDING_COUNT;
+    params.quality_level = Quality::RECORDING_LEVEL;
+    params.min_distance = Distance::RECORDING;
+    params.block_size = Block::DEFAULT_SIZE;
     params.use_harris = false;
-    params.k = 0.04f;
+    params.k = Harris::DEFAULT_K;
     params.enabled = true;
-    params.optical_flow_pyramid_levels = 4;
-    params.optical_flow_window_size = 31;
-    params.feature_refresh_threshold = 0.4f;
-    params.adaptive_feature_min = 300;
-    params.adaptive_feature_max = 800;
+    params.optical_flow_pyramid_levels = OpticalFlow::RECORDING_PYRAMID_LEVELS;
+    params.optical_flow_window_size = OpticalFlow::RECORDING_WINDOW_SIZE;
+    params.feature_refresh_threshold = AdaptiveFeatures::RECORDING_REFRESH;
+    params.adaptive_feature_min = AdaptiveFeatures::RECORDING_MIN;
+    params.adaptive_feature_max = AdaptiveFeatures::RECORDING_MAX;
     return params;
 }
 
