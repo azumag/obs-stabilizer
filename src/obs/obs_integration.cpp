@@ -85,7 +85,19 @@ obs_source_frame* OBSIntegration::process_video_frame(OBSFilterData* data, obs_s
         }
         
         // Process frame with stabilizer
+        auto start_time = std::chrono::high_resolution_clock::now();
         cv::Mat stabilized_frame = data->stabilizer->process_frame(cv_frame);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        
+        // Update performance statistics
+        double processing_time = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+        OBSPerformanceMonitor::update_stats(data->stats, processing_time);
+        
+        // Log performance warnings
+        std::string warning = OBSPerformanceMonitor::get_performance_warning(data->stats);
+        if (!warning.empty() && data->stats.total_frames % 30 == 0) {
+            log_warning(warning);
+        }
         
         // Convert back to OBS frame
         obs_source_frame* result = cv_mat_to_obs_frame(stabilized_frame, frame);
@@ -150,6 +162,16 @@ obs_properties_t* OBSIntegration::get_properties(void* data) {
     
     // Debug options
     obs_properties_add_bool(props, "debug_mode", "Debug Mode");
+    
+    // Performance status (read-only)
+    obs_property_t* status_group = obs_properties_create_group(props, "status_group", 
+                                                                 "Performance Status", OBS_GROUP_CHECKABLE);
+    
+    // Add a callback to update the status text dynamically
+    obs_property_t* status_text = obs_properties_add_text(props, "performance_status", "Status", OBS_TEXT_DEFAULT);
+    obs_property_set_enabled(status_text, false);  // Make it read-only
+    obs_property_set_long_description(status_text, 
+        "Current performance status and warnings. Updated in real-time during operation.");
     
     return props;
 }

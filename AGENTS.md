@@ -2,8 +2,10 @@
 
 作業が完了したらコミットしてプッシュすること
 
+TASK: Issue #206 - BUG: Performance warning system implemented but never displayed to users
+
 New Issues:
-- No open issues
+- Issue #206: BUG: Performance warning system implemented but never displayed to users (OPEN)
 
 Completed Issues:
 - Issue #204: TEST: Fine-tune MotionClassifier thresholds with real-world video data ✅ **RESOLVED** (All 10 MotionClassifier tests passing (100% accuracy), comprehensive threshold tuning completed, documented in docs/motion-classifier-threshold-tuning.md)

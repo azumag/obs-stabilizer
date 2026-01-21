@@ -30,6 +30,7 @@ public:
         obs_source_t* source = nullptr;
         std::unique_ptr<StabilizerCore> stabilizer;
         bool initialized = false;
+        PerformanceStats stats = {};
     };
 
     /**

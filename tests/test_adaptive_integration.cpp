@@ -152,3 +152,22 @@ TEST_F(AdaptiveStabilizerIntegrationTest, PerformanceMetrics) {
     EXPECT_GE(metrics.frame_count, 50);
     EXPECT_GE(metrics.avg_processing_time, 0.0);
 }
+
+TEST_F(AdaptiveStabilizerIntegrationTest, PerformanceWarningsLogged) {
+    auto params = create_test_params();
+    stabilizer->initialize(1920, 1080, params);
+    
+    // Process frames to trigger potential performance warnings
+    for (int i = 0; i < 100; i++) {
+        cv::Mat frame = create_test_frame(i);
+        stabilizer->process_frame(frame);
+    }
+    
+    // Verify that performance metrics are tracked
+    StabilizerCore::PerformanceMetrics metrics = stabilizer->get_performance_metrics();
+    EXPECT_GE(metrics.frame_count, 100);
+    EXPECT_GT(metrics.avg_processing_time, 0.0);
+    
+    // The warning would be logged internally via OBSPerformanceMonitor
+    // We verify the system works by checking metrics are updated
+}

@@ -120,7 +120,10 @@ file(GLOB_RECURSE ALL_TEST_SOURCES "tests/*.cpp" "tests/*.c")
 if(TEST_SOURCES)
     # Add test source files only
     set(TEST_SOURCES ${TEST_SOURCES} tests/test_core_functionality.cpp tests/test_data_generator.cpp)
-
+    
+    # Exclude standalone threshold tuner (has its own main() and should not be part of test suite)
+    list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/threshold_tuner_standalone.cpp")
+    
     if(HAVE_OBS_HEADERS)
         # Use real OBS headers
         list(APPEND TEST_SOURCES)
