@@ -4,7 +4,7 @@
 # YAGNI principle: Only essential build directories allowed
 build/
 build-*/
-!build/  # Allow only the main build directory
+!build/  # Allow only to main build directory
 
 # Temporary file consolidation: "一時ファイルは一箇所のディレクトリにまとめよ"
 tmp/builds/
@@ -26,6 +26,11 @@ install_manifest.txt
 **/CMakeFiles/
 **/CMakeCache.txt
 **/_deps/
+
+# Obsolete development artifacts
+fake-plugin.plugin/
+plugin-versions/
+step*-plugin/
 
 # Compiled binaries
 *.exe

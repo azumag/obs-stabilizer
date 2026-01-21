@@ -3,7 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-- No open issues
+- Issue #208: CODE CLEANUP: Remove obsolete development artifacts (fake-plugin.plugin and plugin-versions) (Created - LOW priority)
 
 Completed Issues:
 - Issue #207: FEATURE: Integrate Adaptive Stabilizer UI into OBS Properties Panel ✅ **RESOLVED** (Added UI controls to enable adaptive stabilization features in OBS properties panel, backend complete and tested, UI integration complete, all 201 tests passing, documentation updated)
@@ -28,3 +28,7 @@ Completed Issues:
 - Issue #189: TEST: Expand test coverage for critical stabilization paths
 
 Next: Return to step 0 - find issues
+
+**Current Issue:** Issue #208 - CODE CLEANUP: Remove obsolete development artifacts (fake-plugin.plugin and plugin-versions)
+
+During plugin development, several intermediate directories and test artifacts were created that are no longer needed. These directories (fake-plugin.plugin/ and plugin-versions/) clutter the repository and should be removed to improve code organization and developer experience.
