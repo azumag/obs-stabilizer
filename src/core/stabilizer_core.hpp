@@ -22,6 +22,8 @@ namespace cv {
 #include <opencv2/video/tracking.hpp>
 #include <opencv2/features2d.hpp>
 #endif
+
+using namespace cv;
 #include <mutex>
 #include <memory>
 #include <deque>
@@ -150,6 +152,11 @@ private:
                               std::vector<cv::Point2f>& curr_pts);
     cv::Mat smooth_transforms();
     cv::Mat apply_transform(const cv::Mat& frame, const cv::Mat& transform);
+
+    // Optimized inline functions for performance-critical paths
+    inline cv::Mat smooth_transforms_optimized();
+    inline void filter_transforms(std::vector<cv::Mat>& transforms);
+    inline bool should_refresh_features(float success_rate, int frames_since_refresh);
 
     // Internal state
     mutable std::mutex mutex_;

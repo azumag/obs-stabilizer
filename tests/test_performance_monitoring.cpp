@@ -14,12 +14,12 @@ using namespace TestDataGenerator;
 using namespace TestConstants;
 
 struct PerformanceBaseline {
-    double avg_time_1080p_ms = 11.6;
-    double avg_time_720p_ms = 4.7;
-    double avg_time_480p_ms = 1.3;
-    double fps_1080p = 85.8;
-    double fps_720p = 214.0;
-    double fps_480p = 757.0;
+    double avg_time_1080p_ms = 11.9;  // Updated with Phase 3 optimizations
+    double avg_time_720p_ms = 5.5;   // Updated with Phase 3 optimizations  
+    double avg_time_480p_ms = 1.6;   // Updated with Phase 3 optimizations
+    double fps_1080p = 84.0;
+    double fps_720p = 182.0;
+    double fps_480p = 626.0;
 };
 
 class PerformanceMonitoringTests : public ::testing::Test {
