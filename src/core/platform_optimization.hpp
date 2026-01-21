@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <string>
 
 // Platform detection
 namespace PlatformOptimization {
@@ -344,110 +345,6 @@ namespace PlatformOptimization {
         }
 
     } // namespace SIMD
-
-    // Memory optimization utilities
-    namespace Memory {
-
-        // Cache-aligned memory allocator
-        inline void* allocate_aligned(size_t size, size_t alignment = 64) {
-            void* ptr = nullptr;
-            
-            #ifdef __APPLE__
-            if (is_apple_silicon()) {
-                // Use macOS aligned allocation
-                posix_memalign(&ptr, alignment, size);
-            } else {
-            #endif
-                // Fallback to regular allocation
-                ptr = malloc(size);
-            #ifdef __APPLE__
-            }
-            #endif
-            
-            return ptr;
-        }
-
-        // Free aligned memory
-        inline void free_aligned(void* ptr) {
-            if (ptr) {
-                free(ptr);
-            }
-        }
-
-        // Simple aligned vector template (no complex dependencies for standalone build)
-        template<typename T>
-        class AlignedVector {
-        private:
-            T* data_;
-            size_t size_;
-            size_t capacity_;
-
-        public:
-            AlignedVector() : data_(nullptr), size_(0), capacity_(0) {}
-            
-            explicit AlignedVector(size_t size) : size_(size), capacity_(size) {
-                data_ = static_cast<T*>(allocate_aligned(size * sizeof(T)));
-                if (data_) {
-                    for (size_t i = 0; i < size; ++i) {
-                        new (&data_[i]) T(); // Default construct
-                    }
-                }
-            }
-            
-            ~AlignedVector() {
-                if (data_) {
-                    for (size_t i = 0; i < size_; ++i) {
-                        data_[i].~T(); // Destruct
-                    }
-                    free_aligned(data_);
-                }
-            }
-            
-            // Disable copying
-            AlignedVector(const AlignedVector&) = delete;
-            AlignedVector& operator=(const AlignedVector&) = delete;
-            
-            // Enable moving
-            AlignedVector(AlignedVector&& other) noexcept 
-                : data_(other.data_), size_(other.size_), capacity_(other.capacity_) {
-                other.data_ = nullptr;
-                other.size_ = 0;
-                other.capacity_ = 0;
-            }
-            
-            AlignedVector& operator=(AlignedVector&& other) noexcept {
-                if (this != &other) {
-                    // Cleanup current
-                    if (data_) {
-                        for (size_t i = 0; i < size_; ++i) {
-                            data_[i].~T();
-                        }
-                        free_aligned(data_);
-                    }
-                    
-                    // Take ownership of other's data
-                    data_ = other.data_;
-                    size_ = other.size_;
-                    capacity_ = other.capacity_;
-                    
-                    other.data_ = nullptr;
-                    other.size_ = 0;
-                    other.capacity_ = 0;
-                }
-                return *this;
-            }
-            
-            T* data() { return data_; }
-            const T* data() const { return data_; }
-            size_t size() const { return size_; }
-            size_t capacity() const { return capacity_; }
-            
-            T& operator[](size_t index) { return data_[index]; }
-            const T& operator[](size_t index) const { return data_[index]; }
-            
-        };
-
-    } // namespace Memory
 
     // Platform-specific performance monitoring
     namespace Performance {
