@@ -2,7 +2,7 @@
 
 作業が完了したらコミットしてプッシュすること
 
-TASK:
+TASK: Returning to step 0 - Find Issues
 
 New Issues:
 
