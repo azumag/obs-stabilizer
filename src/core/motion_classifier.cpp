@@ -203,37 +203,33 @@ MotionMetrics MotionClassifier::calculate_metrics(const std::deque<cv::Mat>& tra
 MotionType MotionClassifier::classify_from_metrics(const MotionMetrics& metrics) const {
     double sensitivity_factor = sensitivity_;
     
-    double static_threshold = 5.0 * sensitivity_factor;
-    double slow_threshold = 20.0 * sensitivity_factor;
-    double fast_threshold = 50.0 * sensitivity_factor;
-    double variance_threshold = 15.0 * sensitivity_factor;
-    double high_freq_threshold = 0.5 * sensitivity_factor;
-    double consistency_threshold = 0.7 / sensitivity_factor;
+    double static_threshold = 6.0 * sensitivity_factor;
+    double slow_threshold = 15.0 * sensitivity_factor;
+    double fast_threshold = 40.0 * sensitivity_factor;
+    double variance_threshold = 3.0 * sensitivity_factor;
+    double high_freq_threshold = 0.70 * sensitivity_factor;
+    double consistency_threshold = 0.96 / sensitivity_factor;
     
     if (metrics.mean_magnitude < static_threshold &&
-        metrics.variance_magnitude < static_threshold * 0.5) {
+        metrics.variance_magnitude < variance_threshold) {
         return MotionType::Static;
     }
     
-    if (metrics.consistency_score > consistency_threshold &&
-        metrics.directional_variance < 5.0) {
-        return MotionType::PanZoom;
-    }
-    
-    if (metrics.variance_magnitude > variance_threshold ||
-        metrics.high_frequency_ratio > high_freq_threshold) {
+    if (metrics.high_frequency_ratio > high_freq_threshold) {
         return MotionType::CameraShake;
     }
     
     if (metrics.mean_magnitude >= slow_threshold &&
-        metrics.mean_magnitude < fast_threshold &&
-        metrics.variance_magnitude < fast_threshold) {
+        metrics.mean_magnitude < fast_threshold) {
         return MotionType::FastMotion;
     }
     
     if (metrics.mean_magnitude >= static_threshold &&
-        metrics.mean_magnitude < slow_threshold &&
-        metrics.variance_magnitude < slow_threshold * 0.6) {
+        metrics.mean_magnitude < slow_threshold) {
+        if (metrics.consistency_score > consistency_threshold &&
+            metrics.directional_variance < 2.0) {
+            return MotionType::PanZoom;
+        }
         return MotionType::SlowMotion;
     }
     

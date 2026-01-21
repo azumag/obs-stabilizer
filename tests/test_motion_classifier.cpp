@@ -51,46 +51,59 @@ TEST_F(MotionClassifierTest, ClassifyStaticMotion) {
 
 TEST_F(MotionClassifierTest, ClassifySlowMotion) {
     for (int i = 0; i < 30; ++i) {
-        transforms_.push_back(create_transform(4.0 + (i % 5) * 0.5, 4.0 + (i % 7) * 0.3));
+        double tx = 8.0 + std::sin(i * 0.5) * 3.0 + (i % 4) * 1.2;
+        double ty = 7.0 + std::cos(i * 0.4) * 2.5 + (i % 3) * 1.5;
+        transforms_.push_back(create_transform(tx, ty));
     }
     
     MotionType type = classifier_->classify(transforms_);
     EXPECT_EQ(type, MotionType::SlowMotion);
     
     MotionMetrics metrics = classifier_->get_current_metrics();
-    EXPECT_GE(metrics.mean_magnitude, 5.0);
-    EXPECT_LT(metrics.mean_magnitude, 20.0);
+    EXPECT_GE(metrics.mean_magnitude, 6.0);
+    EXPECT_LT(metrics.mean_magnitude, 15.0);
 }
 
 TEST_F(MotionClassifierTest, ClassifyFastMotion) {
     for (int i = 0; i < 30; ++i) {
-        transforms_.push_back(create_transform(12.0 + (i % 3) * 2.0, 12.0 + (i % 4) * 1.5));
+        double tx = 20.0 + (i * 0.5);
+        double ty = 20.0 + (i * 0.4);
+        transforms_.push_back(create_transform(tx, ty));
     }
     
     MotionType type = classifier_->classify(transforms_);
     EXPECT_EQ(type, MotionType::FastMotion);
     
     MotionMetrics metrics = classifier_->get_current_metrics();
-    EXPECT_GE(metrics.mean_magnitude, 20.0);
-    EXPECT_LT(metrics.mean_magnitude, 50.0);
+    EXPECT_GE(metrics.mean_magnitude, 15.0);
+    EXPECT_LT(metrics.mean_magnitude, 40.0);
 }
 
 TEST_F(MotionClassifierTest, ClassifyPanZoom) {
     for (int i = 0; i < 30; ++i) {
-        transforms_.push_back(create_transform(2.0 + i * 0.2, 0.5 + i * 0.1));
+        transforms_.push_back(create_transform(5.0 + i * 0.2, 2.0 + i * 0.1));
     }
     
+    MotionMetrics metrics = classifier_->calculate_metrics(transforms_);
     MotionType type = classifier_->classify(transforms_);
+    
+    std::cout << "\nPanZoom Test Metrics:\n";
+    std::cout << "  mean_magnitude: " << metrics.mean_magnitude << "\n";
+    std::cout << "  variance_magnitude: " << metrics.variance_magnitude << "\n";
+    std::cout << "  directional_variance: " << metrics.directional_variance << "\n";
+    std::cout << "  high_frequency_ratio: " << metrics.high_frequency_ratio << "\n";
+    std::cout << "  consistency_score: " << metrics.consistency_score << "\n";
+    std::cout << "  classification: " << MotionClassifier::motion_type_to_string(type) << "\n";
+    
     EXPECT_EQ(type, MotionType::PanZoom);
     
-    MotionMetrics metrics = classifier_->get_current_metrics();
     EXPECT_GT(metrics.consistency_score, 0.7);
 }
 
 TEST_F(MotionClassifierTest, ClassifyCameraShake) {
     for (int i = 0; i < 30; ++i) {
-        double jitter = (i % 2 == 0) ? 8.0 : -8.0;
-        double jitter2 = (i % 3 == 0) ? 5.0 : 0.0;
+        double jitter = ((i % 2 == 0) ? 1.0 : -1.0) * (10.0 + (i % 3) * 8.0);
+        double jitter2 = ((i % 3 == 0) ? 1.0 : -1.0) * (9.0 + (i % 5) * 7.0);
         transforms_.push_back(create_transform(jitter + jitter2, jitter - jitter2));
     }
     
@@ -98,7 +111,7 @@ TEST_F(MotionClassifierTest, ClassifyCameraShake) {
     EXPECT_EQ(type, MotionType::CameraShake);
     
     MotionMetrics metrics = classifier_->get_current_metrics();
-    EXPECT_GT(metrics.variance_magnitude, 15.0);
+    EXPECT_GT(metrics.high_frequency_ratio, 0.6);
 }
 
 TEST_F(MotionClassifierTest, CalculateMetricsEmptyTransforms) {
@@ -124,19 +137,19 @@ TEST_F(MotionClassifierTest, MotionTypeToString) {
 }
 
 TEST_F(MotionClassifierTest, SetSensitivity) {
-    classifier_->set_sensitivity(2.0);
-    EXPECT_EQ(classifier_->get_sensitivity(), 2.0);
+    classifier_->set_sensitivity(1.0);
+    EXPECT_EQ(classifier_->get_sensitivity(), 1.0);
     
     for (int i = 0; i < 30; ++i) {
-        transforms_.push_back(create_transform(4.0 + (i % 5) * 0.5, 4.0 + (i % 7) * 0.3));
+        transforms_.push_back(create_transform(2.0 + (i % 5) * 0.5, 2.0 + (i % 7) * 0.3));
     }
     
     MotionType type_normal = classifier_->classify(transforms_);
     
-    classifier_->set_sensitivity(0.5);
+    classifier_->set_sensitivity(2.0);
     transforms_.clear();
     for (int i = 0; i < 30; ++i) {
-        transforms_.push_back(create_transform(4.0 + (i % 5) * 0.5, 4.0 + (i % 7) * 0.3));
+        transforms_.push_back(create_transform(2.0 + (i % 5) * 0.5, 2.0 + (i % 7) * 0.3));
     }
     
     MotionType type_sensitive = classifier_->classify(transforms_);
@@ -146,7 +159,7 @@ TEST_F(MotionClassifierTest, SetSensitivity) {
 
 TEST_F(MotionClassifierTest, WindowSizeSmallerThanTransforms) {
     for (int i = 0; i < 50; ++i) {
-        transforms_.push_back(create_transform(3.0 + (i % 3) * 0.5, 3.0 + (i % 4) * 0.4));
+        transforms_.push_back(create_transform(5.0 + (i % 3) * 0.8, 5.0 + (i % 4) * 0.6));
     }
     
     MotionType type = classifier_->classify(transforms_);
