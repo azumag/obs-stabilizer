@@ -2,6 +2,8 @@
 
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
+#include "core/apple_accelerate.hpp"
+#include "core/neon_feature_detection.hpp"
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -57,12 +59,29 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     // Optimized color conversion with branch prediction hints and platform acceleration
     cv::Mat gray;
     const int num_channels = frame.channels();
-    
+
     #ifndef BUILD_STANDALONE
     // Try platform-specific optimized color conversion
     if (num_channels == 4 && PlatformOptimization::is_apple_silicon()) {
-        // TODO: Implement Apple-specific optimized color conversion
-        // For now, use standard OpenCV conversion
+        static AppleOptimization::AccelerateColorConverter accelerate_converter;
+        if (accelerate_converter.is_available()) {
+            if (num_channels == 4) {
+                cv::Mat rgba;
+                if (num_channels == 4) {
+                    rgba = frame;
+                } else {
+                    rgba = cv::Mat(frame.size(), CV_8UC4);
+                    if (num_channels == 3) {
+                        cv::cvtColor(frame, rgba, cv::COLOR_BGR2BGRA);
+                    } else if (num_channels == 1) {
+                        cv::cvtColor(frame, rgba, cv::COLOR_GRAY2BGRA);
+                    }
+                }
+                if (accelerate_converter.convert_rgba_to_nv12(rgba, gray)) {
+                    goto color_conversion_done;
+                }
+            }
+        }
     }
     #endif
     
@@ -185,14 +204,15 @@ bool StabilizerCore::detect_features(const cv::Mat& gray, std::vector<cv::Point2
     
     #ifndef BUILD_STANDALONE
     // Use platform-optimized feature detection when available
-    if (PlatformOptimization::is_arm64() && gray.isContinuous() && 
+    if (PlatformOptimization::is_arm64() && gray.isContinuous() &&
         gray.channels() == 1 && gray.depth() == CV_8U) {
-        
-        // TODO: Implement NEON-optimized goodFeaturesToTrack
-        // For now, use OpenCV with platform-specific optimizations
-        cv::goodFeaturesToTrack(gray, points, params_.feature_count, params_.quality_level, 
-                               params_.min_distance, cv::Mat(), params_.block_size, 
-                               params_.use_harris, params_.k);
+
+        static AppleOptimization::NEONFeatureDetector neon_detector;
+        neon_detector.set_quality_level(params_.quality_level);
+        neon_detector.set_min_distance(params_.min_distance);
+        neon_detector.set_block_size(params_.block_size);
+        neon_detector.set_ksize(params_.k);
+        neon_detector.detect_features(gray, points);
     } else {
     #endif
         // Standard OpenCV feature detection

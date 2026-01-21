@@ -43,6 +43,8 @@ include_directories(
 set(SOURCES
     src/stabilizer_opencv.cpp
     src/core/stabilizer_core.cpp
+    src/core/apple_accelerate.cpp
+    src/core/neon_feature_detection.cpp
     src/obs/obs_integration.cpp
     src/plugin-support.c
 )
@@ -58,6 +60,23 @@ add_library(obs-stabilizer-opencv MODULE ${SOURCES})
 target_link_libraries(obs-stabilizer-opencv ${OpenCV_LIBS})
 if(OBS_LIBRARY)
     target_link_libraries(obs-stabilizer-opencv ${OBS_LIBRARY})
+endif()
+
+if(APPLE)
+    target_include_directories(obs-stabilizer-opencv PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include>
+    )
+endif()
+
+if(APPLE)
+    # Apple-specific optimizations
+    # Note: Accelerate framework excluded due to CarbonCore naming conflicts with OpenCV
+    # Focusing on NEON feature detection which is platform-specific and doesn't require Accelerate
+    target_include_directories(obs-stabilizer-opencv PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include>
+    )
 endif()
 
 if(APPLE)
@@ -104,7 +123,7 @@ if(TEST_SOURCES)
         list(APPEND TEST_SOURCES)
     else()
         # Use stubs for standalone testing
-        list(APPEND TEST_SOURCES src/obs_stubs.c src/core/stabilizer_core.cpp src/stabilizer_opencv.cpp)
+        list(APPEND TEST_SOURCES src/obs_stubs.c src/core/stabilizer_core.cpp src/stabilizer_opencv.cpp src/core/apple_accelerate.cpp src/core/neon_feature_detection.cpp)
     endif()
 
     add_executable(stabilizer_tests ${TEST_SOURCES})
