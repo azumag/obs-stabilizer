@@ -171,3 +171,82 @@ TEST_F(AdaptiveStabilizerIntegrationTest, PerformanceWarningsLogged) {
     // The warning would be logged internally via OBSPerformanceMonitor
     // We verify the system works by checking metrics are updated
 }
+
+TEST_F(AdaptiveStabilizerIntegrationTest, AdaptiveConfigDefaults) {
+    AdaptiveConfig config;
+    
+    // Verify default values match expected defaults
+    EXPECT_EQ(config.static_smoothing, 8);
+    EXPECT_DOUBLE_EQ(config.static_correction, 15.0);
+    EXPECT_EQ(config.static_features, 120);
+    EXPECT_DOUBLE_EQ(config.static_quality, 0.015);
+    
+    EXPECT_EQ(config.slow_smoothing, 25);
+    EXPECT_DOUBLE_EQ(config.slow_correction, 25.0);
+    EXPECT_EQ(config.slow_features, 175);
+    EXPECT_DOUBLE_EQ(config.slow_quality, 0.010);
+    
+    EXPECT_EQ(config.fast_smoothing, 50);
+    EXPECT_DOUBLE_EQ(config.fast_correction, 35.0);
+    EXPECT_EQ(config.fast_features, 250);
+    EXPECT_DOUBLE_EQ(config.fast_quality, 0.010);
+    
+    EXPECT_EQ(config.shake_smoothing, 65);
+    EXPECT_DOUBLE_EQ(config.shake_correction, 45.0);
+    EXPECT_EQ(config.shake_features, 350);
+    EXPECT_DOUBLE_EQ(config.shake_quality, 0.005);
+    
+    EXPECT_EQ(config.pan_smoothing, 15);
+    EXPECT_DOUBLE_EQ(config.pan_correction, 20.0);
+    EXPECT_EQ(config.pan_features, 225);
+    EXPECT_DOUBLE_EQ(config.pan_quality, 0.010);
+    
+    EXPECT_DOUBLE_EQ(config.transition_rate, 0.1);
+}
+
+TEST_F(AdaptiveStabilizerIntegrationTest, EnableDisable) {
+    auto params = create_test_params();
+    EXPECT_TRUE(stabilizer->initialize(1920, 1080, params));
+    
+    // Verify initially disabled
+    EXPECT_FALSE(stabilizer->is_adaptive_enabled());
+    
+    // Enable adaptive
+    stabilizer->enable_adaptive(true);
+    EXPECT_TRUE(stabilizer->is_adaptive_enabled());
+    
+    // Process frames with adaptive enabled
+    for (int i = 0; i < 20; i++) {
+        cv::Mat frame = create_test_frame(i);
+        cv::Mat result = stabilizer->process_frame(frame);
+        EXPECT_FALSE(result.empty());
+    }
+    
+    // Disable adaptive
+    stabilizer->enable_adaptive(false);
+    EXPECT_FALSE(stabilizer->is_adaptive_enabled());
+    
+    // Verify frames still process without adaptive
+    for (int i = 0; i < 10; i++) {
+        cv::Mat frame = create_test_frame(i + 20);
+        cv::Mat result = stabilizer->process_frame(frame);
+        EXPECT_FALSE(result.empty());
+    }
+}
+
+TEST_F(AdaptiveStabilizerIntegrationTest, BackwardCompatibility) {
+    auto params = create_test_params();
+    EXPECT_TRUE(stabilizer->initialize(1920, 1080, params));
+    
+    // Verify stabilizer works with adaptive disabled (default state)
+    EXPECT_FALSE(stabilizer->is_adaptive_enabled());
+    
+    for (int i = 0; i < 30; i++) {
+        cv::Mat frame = create_test_frame(i);
+        cv::Mat result = stabilizer->process_frame(frame);
+        EXPECT_FALSE(result.empty());
+    }
+    
+    // Verify standard stabilizer still processes frames
+    EXPECT_GT(stabilizer->get_performance_metrics().frame_count, 0);
+}

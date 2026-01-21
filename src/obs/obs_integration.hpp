@@ -17,6 +17,7 @@ typedef void* obs_property_t;
 typedef void obs_source_frame_t;
 #endif
 #include "core/stabilizer_core.hpp"
+#include "core/adaptive_stabilizer.hpp"
 #include <memory>
 #include <string>
 
@@ -31,6 +32,13 @@ public:
         std::unique_ptr<StabilizerCore> stabilizer;
         bool initialized = false;
         PerformanceStats stats = {};
+        
+        // Adaptive stabilization support
+        bool adaptive_enabled = false;
+        double motion_sensitivity = 1.0;
+        double transition_rate = 0.5;
+        AdaptiveStabilization::AdaptiveConfig adaptive_config;
+        std::unique_ptr<AdaptiveStabilization::AdaptiveStabilizer> adaptive_stabilizer;
     };
 
     /**

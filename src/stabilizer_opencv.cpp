@@ -11,6 +11,7 @@
 
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_wrapper.hpp"
+#include "core/adaptive_stabilizer.hpp"
 #include <memory>
 #include <cstring>
 #include <opencv2/opencv.hpp>
@@ -30,6 +31,13 @@ struct stabilizer_filter {
     // Performance monitoring
     uint64_t frame_count;
     double avg_processing_time;
+    
+    // Adaptive stabilization support
+    bool adaptive_enabled;
+    double motion_sensitivity;
+    double transition_rate;
+    AdaptiveStabilization::AdaptiveConfig adaptive_config;
+    std::unique_ptr<AdaptiveStabilization::AdaptiveStabilizer> adaptive_stabilizer;
 };
 
 // Forward declarations
@@ -99,6 +107,44 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
         // Get initial parameters
         context->params = settings_to_params(settings);
         
+        // Get adaptive settings
+        context->adaptive_enabled = obs_data_get_bool(settings, "adaptive_enabled");
+        context->motion_sensitivity = obs_data_get_double(settings, "motion_sensitivity");
+        context->transition_rate = obs_data_get_double(settings, "transition_rate");
+        
+        // Set adaptive config from settings
+        context->adaptive_config.static_smoothing = obs_data_get_int(settings, "static_smoothing");
+        context->adaptive_config.static_correction = obs_data_get_double(settings, "static_correction");
+        context->adaptive_config.static_features = obs_data_get_int(settings, "static_features");
+        context->adaptive_config.static_quality = obs_data_get_double(settings, "static_quality");
+        
+        context->adaptive_config.slow_smoothing = obs_data_get_int(settings, "slow_smoothing");
+        context->adaptive_config.slow_correction = obs_data_get_double(settings, "slow_correction");
+        context->adaptive_config.slow_features = obs_data_get_int(settings, "slow_features");
+        context->adaptive_config.slow_quality = obs_data_get_double(settings, "slow_quality");
+        
+        context->adaptive_config.fast_smoothing = obs_data_get_int(settings, "fast_smoothing");
+        context->adaptive_config.fast_correction = obs_data_get_double(settings, "fast_correction");
+        context->adaptive_config.fast_features = obs_data_get_int(settings, "fast_features");
+        context->adaptive_config.fast_quality = obs_data_get_double(settings, "fast_quality");
+        
+        context->adaptive_config.shake_smoothing = obs_data_get_int(settings, "shake_smoothing");
+        context->adaptive_config.shake_correction = obs_data_get_double(settings, "shake_correction");
+        context->adaptive_config.shake_features = obs_data_get_int(settings, "shake_features");
+        context->adaptive_config.shake_quality = obs_data_get_double(settings, "shake_quality");
+        
+        context->adaptive_config.pan_smoothing = obs_data_get_int(settings, "pan_smoothing");
+        context->adaptive_config.pan_correction = obs_data_get_double(settings, "pan_correction");
+        context->adaptive_config.pan_features = obs_data_get_int(settings, "pan_features");
+        context->adaptive_config.pan_quality = obs_data_get_double(settings, "pan_quality");
+        
+        context->adaptive_config.transition_rate = context->transition_rate;
+        
+        // Create adaptive stabilizer if enabled
+        if (context->adaptive_enabled) {
+            context->adaptive_stabilizer = std::make_unique<AdaptiveStabilization::AdaptiveStabilizer>(context->adaptive_config);
+        }
+        
         // Validate parameters
         if (!StabilizerCore::validate_parameters(context->params)) {
             obs_log(LOG_ERROR, "Invalid parameters provided during filter creation");
@@ -152,6 +198,59 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
         } else {
             obs_log(LOG_ERROR, "Invalid parameters in filter update");
         }
+        
+        // Update adaptive settings
+        bool new_adaptive_enabled = obs_data_get_bool(settings, "adaptive_enabled");
+        double new_motion_sensitivity = obs_data_get_double(settings, "motion_sensitivity");
+        double new_transition_rate = obs_data_get_double(settings, "transition_rate");
+        
+        // Recreate adaptive stabilizer if enabled/disabled state changes
+        if (new_adaptive_enabled && !context->adaptive_enabled) {
+            context->adaptive_stabilizer = std::make_unique<AdaptiveStabilization::AdaptiveStabilizer>(context->adaptive_config);
+            context->adaptive_enabled = true;
+            obs_log(LOG_INFO, "Adaptive stabilizer enabled");
+        } else if (!new_adaptive_enabled && context->adaptive_enabled) {
+            context->adaptive_stabilizer.reset();
+            context->adaptive_enabled = false;
+            obs_log(LOG_INFO, "Adaptive stabilizer disabled");
+        }
+        
+        // Update adaptive parameters
+        context->motion_sensitivity = new_motion_sensitivity;
+        context->transition_rate = new_transition_rate;
+        
+        context->adaptive_config.static_smoothing = obs_data_get_int(settings, "static_smoothing");
+        context->adaptive_config.static_correction = obs_data_get_double(settings, "static_correction");
+        context->adaptive_config.static_features = obs_data_get_int(settings, "static_features");
+        context->adaptive_config.static_quality = obs_data_get_double(settings, "static_quality");
+        
+        context->adaptive_config.slow_smoothing = obs_data_get_int(settings, "slow_smoothing");
+        context->adaptive_config.slow_correction = obs_data_get_double(settings, "slow_correction");
+        context->adaptive_config.slow_features = obs_data_get_int(settings, "slow_features");
+        context->adaptive_config.slow_quality = obs_data_get_double(settings, "slow_quality");
+        
+        context->adaptive_config.fast_smoothing = obs_data_get_int(settings, "fast_smoothing");
+        context->adaptive_config.fast_correction = obs_data_get_double(settings, "fast_correction");
+        context->adaptive_config.fast_features = obs_data_get_int(settings, "fast_features");
+        context->adaptive_config.fast_quality = obs_data_get_double(settings, "fast_quality");
+        
+        context->adaptive_config.shake_smoothing = obs_data_get_int(settings, "shake_smoothing");
+        context->adaptive_config.shake_correction = obs_data_get_double(settings, "shake_correction");
+        context->adaptive_config.shake_features = obs_data_get_int(settings, "shake_features");
+        context->adaptive_config.shake_quality = obs_data_get_double(settings, "shake_quality");
+        
+        context->adaptive_config.pan_smoothing = obs_data_get_int(settings, "pan_smoothing");
+        context->adaptive_config.pan_correction = obs_data_get_double(settings, "pan_correction");
+        context->adaptive_config.pan_features = obs_data_get_int(settings, "pan_features");
+        context->adaptive_config.pan_quality = obs_data_get_double(settings, "pan_quality");
+        
+        context->adaptive_config.transition_rate = new_transition_rate;
+        
+        // Update adaptive stabilizer if exists
+        if (context->adaptive_stabilizer) {
+            context->adaptive_stabilizer->set_config(context->adaptive_config);
+            context->adaptive_stabilizer->set_motion_sensitivity(new_motion_sensitivity);
+        }
 
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception in filter update: %s", e.what());
@@ -174,6 +273,16 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
                 return frame;
             }
             
+            // Initialize adaptive stabilizer if enabled
+            if (context->adaptive_enabled && context->adaptive_stabilizer) {
+                if (!context->adaptive_stabilizer->initialize(frame->width, frame->height, context->params)) {
+                    obs_log(LOG_ERROR, "Failed to initialize adaptive stabilizer: %s", 
+                             context->adaptive_stabilizer->get_last_error().c_str());
+                } else {
+                    obs_log(LOG_INFO, "Adaptive stabilizer initialized for %dx%d", frame->width, frame->height);
+                }
+            }
+            
             context->initialized = true;
             obs_log(LOG_INFO, "Stabilizer initialized for %dx%d", frame->width, frame->height);
         }
@@ -187,7 +296,17 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
 
         // Process frame with stabilizer
         auto start_time = std::chrono::high_resolution_clock::now();
-         cv::Mat stabilized_frame = context->stabilizer.process_frame(cv_frame);
+        
+        cv::Mat stabilized_frame;
+        if (context->adaptive_enabled && context->adaptive_stabilizer && 
+            context->adaptive_stabilizer->is_ready()) {
+            // Use adaptive stabilizer
+            stabilized_frame = context->adaptive_stabilizer->process_frame(cv_frame);
+        } else {
+            // Use standard stabilizer
+            stabilized_frame = context->stabilizer.process_frame(cv_frame);
+        }
+        
         auto end_time = std::chrono::high_resolution_clock::now();
         
         // Update performance metrics
@@ -215,9 +334,57 @@ static obs_properties_t *stabilizer_filter_properties(void *data)
         // Basic properties
         obs_properties_add_bool(props, "enabled", "Enable Stabilization");
         
+        // Adaptive stabilization toggle
+        obs_properties_add_bool(props, "adaptive_enabled", "Enable Adaptive Stabilization");
+        
+        // Adaptive settings (only visible when adaptive enabled)
+        obs_properties_t* adaptive_group = obs_properties_create();
+        
+        obs_properties_add_float_slider(adaptive_group, "motion_sensitivity", "Motion Sensitivity", 0.5, 2.0, 0.1);
+        obs_properties_add_float_slider(adaptive_group, "transition_rate", "Parameter Transition Rate", 0.1, 1.0, 0.1);
+        
+        // Motion-specific parameters
+        obs_properties_t* static_group = obs_properties_create();
+        obs_properties_add_int_slider(static_group, "static_smoothing", "Static Smoothing Radius", 5, 100, 1);
+        obs_properties_add_float_slider(static_group, "static_correction", "Static Max Correction (%)", 1.0, 50.0, 0.5);
+        obs_properties_add_int_slider(static_group, "static_features", "Static Feature Count", 50, 500, 10);
+        obs_properties_add_float_slider(static_group, "static_quality", "Static Quality Level", 0.001, 0.1, 0.001);
+        
+        obs_properties_t* slow_group = obs_properties_create();
+        obs_properties_add_int_slider(slow_group, "slow_smoothing", "Slow Smoothing Radius", 5, 100, 1);
+        obs_properties_add_float_slider(slow_group, "slow_correction", "Slow Max Correction (%)", 1.0, 50.0, 0.5);
+        obs_properties_add_int_slider(slow_group, "slow_features", "Slow Feature Count", 50, 500, 10);
+        obs_properties_add_float_slider(slow_group, "slow_quality", "Slow Quality Level", 0.001, 0.1, 0.001);
+        
+        obs_properties_t* fast_group = obs_properties_create();
+        obs_properties_add_int_slider(fast_group, "fast_smoothing", "Fast Smoothing Radius", 5, 100, 1);
+        obs_properties_add_float_slider(fast_group, "fast_correction", "Fast Max Correction (%)", 1.0, 50.0, 0.5);
+        obs_properties_add_int_slider(fast_group, "fast_features", "Fast Feature Count", 50, 500, 10);
+        obs_properties_add_float_slider(fast_group, "fast_quality", "Fast Quality Level", 0.001, 0.1, 0.001);
+        
+        obs_properties_t* shake_group = obs_properties_create();
+        obs_properties_add_int_slider(shake_group, "shake_smoothing", "Shake Smoothing Radius", 5, 100, 1);
+        obs_properties_add_float_slider(shake_group, "shake_correction", "Shake Max Correction (%)", 1.0, 50.0, 0.5);
+        obs_properties_add_int_slider(shake_group, "shake_features", "Shake Feature Count", 50, 500, 10);
+        obs_properties_add_float_slider(shake_group, "shake_quality", "Shake Quality Level", 0.001, 0.1, 0.001);
+        
+        obs_properties_t* pan_group = obs_properties_create();
+        obs_properties_add_int_slider(pan_group, "pan_smoothing", "Pan/Zoom Smoothing Radius", 5, 100, 1);
+        obs_properties_add_float_slider(pan_group, "pan_correction", "Pan/Zoom Max Correction (%)", 1.0, 50.0, 0.5);
+        obs_properties_add_int_slider(pan_group, "pan_features", "Pan/Zoom Feature Count", 50, 500, 10);
+        obs_properties_add_float_slider(pan_group, "pan_quality", "Pan/Zoom Quality Level", 0.001, 0.1, 0.001);
+        
+        // Add groups to main properties
+        obs_properties_add_group(props, adaptive_group, "Adaptive Settings", OBS_GROUP_NORMAL, true);
+        obs_properties_add_group(props, static_group, "Static Parameters", OBS_GROUP_NORMAL, true);
+        obs_properties_add_group(props, slow_group, "Slow Motion Parameters", OBS_GROUP_NORMAL, true);
+        obs_properties_add_group(props, fast_group, "Fast Motion Parameters", OBS_GROUP_NORMAL, true);
+        obs_properties_add_group(props, shake_group, "Camera Shake Parameters", OBS_GROUP_NORMAL, true);
+        obs_properties_add_group(props, pan_group, "Pan/Zoom Parameters", OBS_GROUP_NORMAL, true);
+        
         // Preset selector
         obs_property_t* preset_list = obs_properties_add_list(props, "preset", "Preset", 
-                                                          OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+                                                           OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
         obs_property_list_add_string(preset_list, "Gaming", "gaming");
         obs_property_list_add_string(preset_list, "Streaming", "streaming");
         obs_property_list_add_string(preset_list, "Recording", "recording");
@@ -257,6 +424,37 @@ static void stabilizer_filter_get_defaults(obs_data_t *settings)
         params_to_settings(default_params, settings);
         
         obs_data_set_default_string(settings, "preset", "streaming");
+        
+        // Adaptive defaults (disabled by default for backward compatibility)
+        obs_data_set_default_bool(settings, "adaptive_enabled", false);
+        obs_data_set_default_double(settings, "motion_sensitivity", 1.0);
+        obs_data_set_default_double(settings, "transition_rate", 0.5);
+        
+        // Default adaptive config
+        obs_data_set_default_int(settings, "static_smoothing", 8);
+        obs_data_set_default_double(settings, "static_correction", 15.0);
+        obs_data_set_default_int(settings, "static_features", 120);
+        obs_data_set_default_double(settings, "static_quality", 0.015);
+        
+        obs_data_set_default_int(settings, "slow_smoothing", 25);
+        obs_data_set_default_double(settings, "slow_correction", 25.0);
+        obs_data_set_default_int(settings, "slow_features", 175);
+        obs_data_set_default_double(settings, "slow_quality", 0.010);
+        
+        obs_data_set_default_int(settings, "fast_smoothing", 50);
+        obs_data_set_default_double(settings, "fast_correction", 35.0);
+        obs_data_set_default_int(settings, "fast_features", 250);
+        obs_data_set_default_double(settings, "fast_quality", 0.010);
+        
+        obs_data_set_default_int(settings, "shake_smoothing", 65);
+        obs_data_set_default_double(settings, "shake_correction", 45.0);
+        obs_data_set_default_int(settings, "shake_features", 350);
+        obs_data_set_default_double(settings, "shake_quality", 0.005);
+        
+        obs_data_set_default_int(settings, "pan_smoothing", 15);
+        obs_data_set_default_double(settings, "pan_correction", 20.0);
+        obs_data_set_default_int(settings, "pan_features", 225);
+        obs_data_set_default_double(settings, "pan_quality", 0.010);
 
     } catch (const std::exception& e) {
         obs_log(LOG_ERROR, "Exception in get defaults: %s", e.what());
