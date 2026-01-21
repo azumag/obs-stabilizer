@@ -9,21 +9,11 @@ namespace AppleOptimization {
 AccelerateColorConverter::AccelerateColorConverter()
     : available(true)
     , cache_size_(1024 * 1024)
-    , y_buffer_(nullptr)
-    , uv_buffer_(nullptr)
 {
     available = true;
 }
 
 AccelerateColorConverter::~AccelerateColorConverter() {
-    if (y_buffer_) {
-        delete[] y_buffer_;
-        y_buffer_ = nullptr;
-    }
-    if (uv_buffer_) {
-        delete[] uv_buffer_;
-        uv_buffer_ = nullptr;
-    }
 }
 
 bool AccelerateColorConverter::is_available() const {

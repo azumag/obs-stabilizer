@@ -73,47 +73,34 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     // Optimized color conversion with branch prediction hints and platform acceleration
     cv::Mat gray;
     const int num_channels = frame.channels();
+    bool converted = false;
 
     #ifndef BUILD_STANDALONE
     // Try platform-specific optimized color conversion
     if (num_channels == 4 && PlatformOptimization::is_apple_silicon()) {
         static AppleOptimization::AccelerateColorConverter accelerate_converter;
         if (accelerate_converter.is_available()) {
-            if (num_channels == 4) {
-                cv::Mat rgba;
-                if (num_channels == 4) {
-                    rgba = frame;
-                } else {
-                    rgba = cv::Mat(frame.size(), CV_8UC4);
-                    if (num_channels == 3) {
-                        cv::cvtColor(frame, rgba, cv::COLOR_BGR2BGRA);
-                    } else if (num_channels == 1) {
-                        cv::cvtColor(frame, rgba, cv::COLOR_GRAY2BGRA);
-                    }
-                }
-                if (accelerate_converter.convert_rgba_to_nv12(rgba, gray)) {
-                    goto color_conversion_done;
-                }
+            cv::Mat rgba = frame;
+            if (accelerate_converter.convert_rgba_to_nv12(rgba, gray)) {
+                converted = true;
             }
         }
     }
     #endif
-    
+
     // Fallback to standard OpenCV color conversion
-    if (num_channels == 4) {
-        cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
-    } else if (num_channels == 3) {
-        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-    } else if (num_channels == 1) {
-        gray = frame;
-    } else {
-        last_error_ = "Unsupported frame format";
-        return cv::Mat();
+    if (!converted) {
+        if (num_channels == 4) {
+            cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+        } else if (num_channels == 3) {
+            cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+        } else if (num_channels == 1) {
+            gray = frame;
+        } else {
+            last_error_ = "Unsupported frame format";
+            return cv::Mat();
+        }
     }
-    
-    #ifndef BUILD_STANDALONE
-    color_conversion_done:
-    #endif
 
     if (first_frame_) {
         detect_features(gray, prev_pts_);

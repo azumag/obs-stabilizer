@@ -22,12 +22,7 @@ public:
 
 private:
     bool available;
-    uint8_t* y_buffer_;
-    uint8_t* uv_buffer_;
     size_t cache_size_;
-
-    bool initialize_buffers();
-    void cleanup_buffers();
 };
 
 }
