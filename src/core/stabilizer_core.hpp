@@ -31,6 +31,11 @@ using namespace cv;
 #include <chrono>
 #include "../stabilizer_constants.h"
 
+// Platform-specific optimizations (disabled in standalone build)
+#ifndef BUILD_STANDALONE
+#include "platform_optimization.hpp"
+#endif
+
 /**
  * Core stabilization engine that processes video frames
  * Implements Lucas-Kanade optical flow for real-time stabilization
