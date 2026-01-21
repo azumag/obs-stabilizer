@@ -571,9 +571,11 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 - [x] **Exception Handling Enhancement**: Added comprehensive exception handling to prevent OBS crashes (Issue #195)
 - [x] **Critical Bug Resolution**: Fixed NEON feature detection output vector bug (Issue #194)
 - [x] **Code Quality Review**: Removed commented test cases and verified technical debt status (Issue #193)
-- [x] **Compiler Warning Resolution**: Fixed [[maybe_unused]] parameter annotations in conditional compilation guards
-- [x] **Build System Stability**: Resolved duplicate implementation errors in stabilizer_core_debug.cpp
-- [x] **Test Framework Modernization**: Converted test-ui-implementation.cpp from assert() to Google Test (195+ assertions)
+ - [x] **Compiler Warning Resolution**: Fixed [[maybe_unused]] parameter annotations in conditional compilation guards
+ - [x] **Build System Stability**: Resolved duplicate implementation errors in stabilizer_core_debug.cpp
+ - [x] **Test Framework Modernization**: Converted test-ui-implementation.cpp from assert() to Google Test (195+ assertions)
+ - [x] **Issue #196**: CODE QUALITY: Dead code in apple_accelerate.cpp and goto statement usage ✅ **RESOLVED** (Removed unused buffer members y_buffer_/uv_buffer_ from AccelerateColorConverter, removed dead code from destructor, removed unused method declarations, replaced goto statement with boolean flag, removed redundant conditional checks in color conversion logic - 28 lines removed, code quality improved)
+ - [x] **Issue #197**: CODE QUALITY: Magic numbers used instead of defined constants ✅ **RESOLVED** (Added OpticalFlow namespace constants (pyramid levels, window size, iterations, epsilon), added AdaptiveFeatures namespace constants (preset ranges and refresh thresholds), added Correction::STREAMING_MAX, replaced all 41 magic numbers in validate_parameters() and preset functions with constants - 37 lines added to constants, 41 magic numbers replaced, improves maintainability and follows DRY principle)
 
 ## 🏁 Project Status: Exception Handling Enhancement
 

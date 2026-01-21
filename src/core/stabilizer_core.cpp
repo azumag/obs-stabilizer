@@ -105,19 +105,13 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     if (first_frame_) {
         detect_features(gray, prev_pts_);
         if (prev_pts_.empty()) {
-            auto end_time = std::chrono::high_resolution_clock::now();
-            double processing_time = std::chrono::duration<double>(end_time - start_time).count();
-            metrics_.frame_count++;
-            metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
+            update_metrics(start_time);
             return frame;
         }
         prev_gray_ = gray.clone();
         first_frame_ = false;
         transforms_.push_back(cv::Mat::eye(2, 3, CV_64F));
-        auto end_time = std::chrono::high_resolution_clock::now();
-        double processing_time = std::chrono::duration<double>(end_time - start_time).count();
-        metrics_.frame_count++;
-        metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
+        update_metrics(start_time);
         return frame;
     }
 
@@ -131,10 +125,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
             consecutive_tracking_failures_ = 0;
             frames_since_last_refresh_ = 0;
         }
-        auto end_time = std::chrono::high_resolution_clock::now();
-        double processing_time = std::chrono::duration<double>(end_time - start_time).count();
-        metrics_.frame_count++;
-        metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
+        update_metrics(start_time);
         return frame;
     }
 
@@ -172,10 +163,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
 
     cv::Mat transform = estimate_transform(prev_pts_, curr_pts);
     if (transform.empty()) {
-        auto end_time = std::chrono::high_resolution_clock::now();
-        double processing_time = std::chrono::duration<double>(end_time - start_time).count();
-        metrics_.frame_count++;
-        metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
+        update_metrics(start_time);
         return frame;
     }
 
@@ -191,10 +179,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
 
     cv::Mat result = apply_transform(frame, smoothed_transform);
 
-    auto end_time = std::chrono::high_resolution_clock::now();
-    double processing_time = std::chrono::duration<double>(end_time - start_time).count();
-    metrics_.frame_count++;
-    metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
+    update_metrics(start_time);
 
     return result;
 
@@ -446,12 +431,19 @@ bool StabilizerCore::should_refresh_features(float success_rate, int frames_sinc
     // Use lookup table for threshold comparisons to avoid branching
     static const float refresh_thresholds[] = {0.3f, 0.5f, 0.7f};
     static const int refresh_intervals[] = {10, 30, 50};
-    
+
     if (frames_since_refresh >= refresh_intervals[1]) {
         return success_rate < refresh_thresholds[1];
     }
-    
+
     return false;
+}
+
+inline void StabilizerCore::update_metrics(const std::chrono::high_resolution_clock::time_point& start_time) {
+    auto end_time = std::chrono::high_resolution_clock::now();
+    double processing_time = std::chrono::duration<double>(end_time - start_time).count();
+    metrics_.frame_count++;
+    metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
 }
 
 cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& transform) {
@@ -638,7 +630,6 @@ StabilizerCore::PerformanceMetrics StabilizerCore::get_performance_metrics() con
 bool StabilizerCore::is_ready() const { return false; }
 std::string StabilizerCore::get_last_error() const { return "Not compiled with OpenCV"; }
 StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const { return {}; }
-bool StabilizerCore::validate_parameters(const StabilizerCore::StabilizerParams&) { return true; }
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() { return {}; }
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_streaming() { return {}; }
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() { return {}; }

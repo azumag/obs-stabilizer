@@ -162,6 +162,7 @@ private:
     inline cv::Mat smooth_transforms_optimized();
     inline void filter_transforms(std::vector<cv::Mat>& transforms);
     inline bool should_refresh_features(float success_rate, int frames_since_refresh);
+    inline void update_metrics(const std::chrono::high_resolution_clock::time_point& start_time);
 
     // Internal state
     mutable std::mutex mutex_;
@@ -222,30 +223,6 @@ public:
 private:
     cv::Mat matrix_;
     mutable std::mutex mutex_;
-};
-
-/**
- * Parameter validation utility
- */
-class ParameterValidator {
-public:
-    static bool validate_smoothing_radius(int value);
-    static bool validate_max_correction(float value);
-    static bool validate_feature_count(int value);
-    static bool validate_quality_level(float value);
-    static bool validate_min_distance(float value);
-    static bool validate_block_size(int value);
-    static bool validate_harris_k(float value);
-    static bool validate_frame_motion_threshold(float value);
-    static bool validate_max_displacement(float value);
-    static bool validate_tracking_error_threshold(double value);
-    static bool validate_ransac_threshold_min(float value);
-    static bool validate_ransac_threshold_max(float value);
-    static bool validate_min_point_spread(float value);
-    static bool validate_max_coordinate(float value);
-    
-    static bool validate_all(const StabilizerCore::StabilizerParams& params);
-    static std::vector<std::string> get_validation_errors(const StabilizerCore::StabilizerParams& params);
 };
 
 /**
