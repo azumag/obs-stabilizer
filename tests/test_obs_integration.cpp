@@ -72,58 +72,6 @@ TEST_F(OBSIntegrationTests, PluginLifecycle) {
     EXPECT_TRUE(wrapper.is_initialized());
 }
 
-// TEST_F(OBSIntegrationTests, ParameterValidation) {
-//     StabilizerWrapper wrapper;
-// 
-//     // Test valid parameters
-//     StabilizerCore::StabilizerParams valid_params;
-//     valid_params.enabled = true;
-//     valid_params.smoothing_radius = 10;
-//     valid_params.max_correction = 20.0f;
-//     valid_params.feature_count = 200;
-//     valid_params.quality_level = 0.01f;
-//     valid_params.min_distance = 10.0f;
-//     valid_params.block_size = 3;
-//     valid_params.use_harris = false;
-//     valid_params.k = 0.04f;
-//     valid_params.debug_mode = false;
-// 
-//     EXPECT_TRUE(wrapper.validate_parameters(valid_params));
-// 
-//     // Test invalid parameters
-//     StabilizerCore::StabilizerParams invalid_params = valid_params;
-//     invalid_params.smoothing_radius = 0; // Invalid
-//     EXPECT_FALSE(wrapper.validate_parameters(invalid_params));
-// 
-//     invalid_params = valid_params;
-//     invalid_params.feature_count = 10; // Too low
-//     EXPECT_FALSE(wrapper.validate_parameters(invalid_params));
-// 
-//     invalid_params = valid_params;
-//     invalid_params.feature_count = 5000; // Too high
-//     EXPECT_FALSE(wrapper.validate_parameters(invalid_params));
-// }
-
-// TEST_F(OBSIntegrationTests, PresetConfiguration) {
-//     StabilizerWrapper wrapper;
-//     wrapper.initialize(640, 480, 30.0f);
-// 
-//     // Test gaming preset
-//     auto gaming_params = wrapper.get_preset_gaming();
-//     EXPECT_TRUE(wrapper.validate_parameters(gaming_params));
-//     EXPECT_GT(gaming_params.smoothing_radius, 20) << "Gaming preset should have higher smoothing";
-// 
-//     // Test streaming preset
-//     auto streaming_params = wrapper.get_preset_streaming();
-//     EXPECT_TRUE(wrapper.validate_parameters(streaming_params));
-//     EXPECT_LT(streaming_params.smoothing_radius, gaming_params.smoothing_radius) << "Streaming preset should have lower smoothing than gaming";
-// 
-//     // Test recording preset
-//     auto recording_params = wrapper.get_preset_recording();
-//     EXPECT_TRUE(wrapper.validate_parameters(recording_params));
-//     EXPECT_GT(recording_params.feature_count, streaming_params.feature_count) << "Recording preset should have more features";
-// }
-
 TEST_F(OBSIntegrationTests, MultipleInstances) {
     StabilizerWrapper wrapper1;
     StabilizerWrapper wrapper2;
