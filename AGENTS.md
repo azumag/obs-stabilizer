@@ -53,6 +53,9 @@ Completed Issues:
  - Issue #230: BUG: Performance tracking failed_conversions counter never incremented ✅ **RESOLVED** (Added Performance::track_conversion_failure() function; called at all 8 failure points in Conversion::obs_to_cv() and FrameBuffer::create(); implementation follows existing code patterns with mutex protection; all 71 unit tests passing)
 
 
-  **Current Issue:** #231: CODE QUALITY: Code duplication in apply_edge_handling function
+- Issue #231: CODE QUALITY: Code duplication in apply_edge_handling function ✅ **RESOLVED** (Refactored apply_edge_handling with detect_content_bounds() helper; eliminated ~60 lines of duplicate code; code reduced from 125 to 98 lines (22% reduction); improved maintainability; all 71 unit tests passing)
+
+
+  **Current Issue:** #232: CODE QUALITY: Redundant target_include_directories in CMakeLists.txt
 
 Next: Return to step 0 - find issues
