@@ -11,7 +11,6 @@
 #include <opencv2/video/tracking.hpp>
 #include <opencv2/features2d.hpp>
 
-using namespace cv;
 #include <mutex>
 #include <memory>
 #include <deque>

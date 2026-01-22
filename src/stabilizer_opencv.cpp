@@ -555,25 +555,15 @@ static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
     }
 }
 
-// Frame buffer for safe frame modification (static to persist between calls)
-// This buffer ensures we never modify the reference frame in-place.
-// Instead, we create a complete copy of the frame data and return a pointer to our internal buffer.
-static std::mutex frame_buffer_mutex;
-static struct {
-    std::vector<uint8_t> buffer;
-    obs_source_frame frame;
-    bool initialized;
-} frame_buffer = { {}, {}, false };
-
 /**
  * Converts an OpenCV Mat to an OBS source frame using centralized utilities.
- * 
- * This function creates a complete copy of the frame data and does NOT modify the reference frame.
- * The returned frame uses our internal frame_buffer and is safe for the caller to use.
- * 
+ *
+ * This function creates a complete copy of frame data and does NOT modify the reference frame.
+ * Uses FRAME_UTILS::FrameBuffer for thread-safe buffer management.
+ *
  * @param mat The OpenCV matrix to convert
  * @param reference_frame The reference frame to copy metadata from
- * @return Pointer to our internal frame buffer with the converted data, or nullptr on error
+ * @return Pointer to internal buffer with the converted data, or nullptr on error
  */
 static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame)
 {
@@ -609,6 +599,10 @@ bool obs_module_load(void)
 void obs_module_unload(void)
 {
     obs_log(LOG_INFO, "OBS Stabilizer Plugin unloaded");
+    
+    #ifdef HAVE_OBS_HEADERS
+    FRAME_UTILS::FrameBuffer::cleanup();
+    #endif
 }
 
 // Module exports

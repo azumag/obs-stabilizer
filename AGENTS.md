@@ -4,8 +4,9 @@
 
 New Issues:
 
-
 Completed Issues:
+- Issue #222: CODE QUALITY: Dead code and missing cleanup in plugin lifecycle management ✅ **RESOLVED** (Removed unused static frame_buffer_mutex and frame_buffer struct from stabilizer_opencv.cpp:561-566; added FRAME_UTILS::FrameBuffer::cleanup() call to obs_module_unload(); removed `using namespace cv;` from src/core/stabilizer_core.hpp:14; all 71 tests passing)
+
 - Issue #221: CODE QUALITY: CMakeLists.txt has ineffective filtering and hardcoded platform-specific paths ✅ **RESOLVED** (Removed ineffective CompilerId filtering code; improved OBS library detection with multiple search paths; added CMake cache variables OBS_INCLUDE_PATH and OBS_LIBRARY_PATH; documented in README.md; all 71 tests passing)
 - Issue #220: DOC: Outdated codebase size information in README.md (7,164 actual vs 31,416 claimed) ✅ **RESOLVED** (Updated all references to 31,416 lines with accurate count of ~7,164 lines; removed outdated "architectural over-engineering" claims; added accurate codebase statistics to README.md; project status description updated to reflect clean codebase state; all build and tests passing)
 - Issue #216: CODE QUALITY: Duplicate/unused OBS integration code in src/obs/obs_integration.cpp ✅ **RESOLVED** (Removed 717 lines of unused code, updated CMakeLists.txt and README.md, eliminated code confusion and maintenance burden, aligns with DRY/YAGNI/KISS principles)
