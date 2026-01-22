@@ -447,6 +447,38 @@ cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& tra
     }
 }
 
+cv::Rect StabilizerCore::detect_content_bounds(const cv::Mat& frame) {
+    // Convert to grayscale for better border detection
+    cv::Mat gray;
+    if (frame.channels() == 4) {
+        cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+    } else if (frame.channels() == 3) {
+        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+    } else {
+        gray = frame;
+    }
+
+    // Threshold to identify black areas
+    cv::Mat thresholded;
+    cv::threshold(gray, thresholded, 10, 255, cv::THRESH_BINARY);
+
+    // Find bounding box of non-black content
+    cv::Mat col_sum, row_sum;
+    cv::reduce(thresholded, col_sum, 0, cv::REDUCE_SUM, CV_32S);
+    cv::reduce(thresholded, row_sum, 1, cv::REDUCE_SUM, CV_32S);
+
+    int left = 0, right = thresholded.cols - 1;
+    int top = 0, bottom = thresholded.rows - 1;
+
+    // Find edges
+    while (left < right && col_sum.at<int>(0, left) == 0) left++;
+    while (right > left && col_sum.at<int>(0, right) == 0) right--;
+    while (top < bottom && row_sum.at<int>(top, 0) == 0) top++;
+    while (bottom > top && row_sum.at<int>(bottom, 0) == 0) bottom--;
+
+    return cv::Rect(left, top, right - left, bottom - top);
+}
+
 cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode) {
     try {
         switch (mode) {
@@ -456,92 +488,34 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
 
             case EdgeMode::Crop: {
                 // Crop mode: Remove black borders from edges
-                // Convert to grayscale for better border detection
-                cv::Mat gray;
-                if (frame.channels() == 4) {
-                    cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
-                } else if (frame.channels() == 3) {
-                    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-                } else {
-                    gray = frame;
-                }
-
-                // Threshold to identify black areas
-                cv::Mat thresholded;
-                cv::threshold(gray, thresholded, 10, 255, cv::THRESH_BINARY);
-
-                // Find bounding box of non-black content
-                cv::Mat col_sum, row_sum;
-                cv::reduce(thresholded, col_sum, 0, cv::REDUCE_SUM, CV_32S);
-                cv::reduce(thresholded, row_sum, 1, cv::REDUCE_SUM, CV_32S);
-
-                int left = 0, right = thresholded.cols - 1;
-                int top = 0, bottom = thresholded.rows - 1;
-
-                // Find left edge
-                while (left < right && col_sum.at<int>(0, left) == 0) left++;
-                // Find right edge
-                while (right > left && col_sum.at<int>(0, right) == 0) right--;
-                // Find top edge
-                while (top < bottom && row_sum.at<int>(top, 0) == 0) top++;
-                // Find bottom edge
-                while (bottom > top && row_sum.at<int>(bottom, 0) == 0) bottom--;
+                cv::Rect bounds = detect_content_bounds(frame);
 
                 // Ensure crop region is valid
-                if (left >= right || top >= bottom) {
-                    return frame; // No valid crop region, return original
+                if (bounds.width <= 0 || bounds.height <= 0) {
+                    return frame;
                 }
 
                 // Crop the frame
-                cv::Rect crop_rect(left, top, right - left, bottom - top);
-                if (crop_rect.x >= 0 && crop_rect.y >= 0 &&
-                    crop_rect.x + crop_rect.width <= frame.cols &&
-                    crop_rect.y + crop_rect.height <= frame.rows) {
-                    return frame(crop_rect).clone();
+                if (bounds.x >= 0 && bounds.y >= 0 &&
+                    bounds.x + bounds.width <= frame.cols &&
+                    bounds.y + bounds.height <= frame.rows) {
+                    return frame(bounds).clone();
                 }
                 return frame;
             }
 
             case EdgeMode::Scale: {
                 // Scale mode: Scale frame to fill original dimensions
-                // Convert to grayscale for border detection
-                cv::Mat gray;
-                if (frame.channels() == 4) {
-                    cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
-                } else if (frame.channels() == 3) {
-                    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-                } else {
-                    gray = frame;
-                }
-
-                // Threshold to identify black areas
-                cv::Mat thresholded;
-                cv::threshold(gray, thresholded, 10, 255, cv::THRESH_BINARY);
-
-                // Find bounding box of non-black content
-                cv::Mat col_sum, row_sum;
-                cv::reduce(thresholded, col_sum, 0, cv::REDUCE_SUM, CV_32S);
-                cv::reduce(thresholded, row_sum, 1, cv::REDUCE_SUM, CV_32S);
-
-                int left = 0, right = thresholded.cols - 1;
-                int top = 0, bottom = thresholded.rows - 1;
-
-                // Find edges
-                while (left < right && col_sum.at<int>(0, left) == 0) left++;
-                while (right > left && col_sum.at<int>(0, right) == 0) right--;
-                while (top < bottom && row_sum.at<int>(top, 0) == 0) top++;
-                while (bottom > top && row_sum.at<int>(bottom, 0) == 0) bottom--;
+                cv::Rect bounds = detect_content_bounds(frame);
 
                 // Ensure crop region is valid
-                if (left >= right || top >= bottom) {
-                    return frame; // No valid crop region, return original
+                if (bounds.width <= 0 || bounds.height <= 0) {
+                    return frame;
                 }
 
                 // Calculate scale factor to fill original frame
-                int content_width = right - left;
-                int content_height = bottom - top;
-                double scale_x = static_cast<double>(frame.cols) / content_width;
-                double scale_y = static_cast<double>(frame.rows) / content_height;
+                double scale_x = static_cast<double>(frame.cols) / bounds.width;
+                double scale_y = static_cast<double>(frame.rows) / bounds.height;
                 double scale = std::min(scale_x, scale_y);
 
                 // Scale the frame

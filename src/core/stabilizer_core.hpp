@@ -180,6 +180,9 @@ private:
     // Edge handling (Issue #226)
     cv::Mat apply_edge_handling(const cv::Mat& frame, EdgeMode mode);
 
+    // Helper for edge handling: detect content bounds
+    cv::Rect detect_content_bounds(const cv::Mat& frame);
+
     // Internal state
     mutable std::mutex mutex_;
     uint32_t width_ = 0;
