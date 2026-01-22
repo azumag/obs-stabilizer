@@ -122,10 +122,31 @@ namespace FRAME_UTILS {
             
             size_t required_size = converted.total() * converted.elemSize();
             
+            if (converted.empty()) {
+                obs_log(LOG_ERROR, "Converted matrix is empty in FrameBuffer::create");
+                return nullptr;
+            }
+
+            if (required_size == 0) {
+                obs_log(LOG_ERROR, "Required buffer size is zero in FrameBuffer::create");
+                return nullptr;
+            }
+            
+            if (converted.data == nullptr) {
+                obs_log(LOG_ERROR, "Converted matrix data pointer is null in FrameBuffer::create");
+                return nullptr;
+            }
+            
             if (buffer_.buffer.size() < required_size) {
                 buffer_.buffer.resize(required_size);
             } else if (buffer_.buffer.size() > required_size * MEMORY_GROWTH_FACTOR) {
                 buffer_.buffer.shrink_to_fit();
+            }
+
+            if (buffer_.buffer.size() < required_size) {
+                obs_log(LOG_ERROR, "Buffer allocation failed: requested %zu, got %zu", 
+                         required_size, buffer_.buffer.size());
+                return nullptr;
             }
 
             buffer_.frame.data[0] = buffer_.buffer.data();

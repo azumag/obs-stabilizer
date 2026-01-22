@@ -44,6 +44,13 @@ namespace FRAME_UTILS {
     }
 
     // Thread-safe frame buffer management
+    //
+    // Mutex Usage Analysis:
+    // - Single static mutex protects shared buffer across all FrameBuffer::create() calls
+    // - Typical OBS plugin usage: single video source → minimal contention
+    // - Multi-source scenario: each call waits for mutex → potential bottleneck
+    // - Current design prioritizes simplicity and memory efficiency over maximum throughput
+    // - Alternative: Per-source buffers would eliminate mutex but increase memory usage
     class FrameBuffer {
     public:
         // Create frame buffer from OpenCV Mat
