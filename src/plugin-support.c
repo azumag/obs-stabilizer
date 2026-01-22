@@ -27,6 +27,7 @@ void obs_log(int log_level, const char *format, ...)
 
 #else
 // Stub implementations for standalone builds
+struct obs_source_info;
 bool obs_register_source(struct obs_source_info *info)
 {
     (void)info;

@@ -141,10 +141,10 @@ if(TEST_SOURCES)
     
     if(HAVE_OBS_HEADERS)
         # Use real OBS headers
-        target_link_libraries(stabilizer_tests GTest::gtest GTest::gtest_main ${OpenCV_LIBS} obs-stabilizer-opencv)
+        target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS} obs-stabilizer-opencv)
     else()
         # Use stubs for standalone testing
-        target_link_libraries(stabilizer_tests GTest::gtest GTest::gtest_main ${OpenCV_LIBS})
+        target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
     endif()
     add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
     message(STATUS "Test suite enabled.")

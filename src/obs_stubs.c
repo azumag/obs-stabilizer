@@ -287,6 +287,10 @@ void obs_log(int log_level, const char *format, ...) {
     // Validate input parameters
     if (!format) return;
 
+    // Start variadic argument processing
+    va_list args;
+    va_start(args, format);
+
     // Simple logging with safe format handling
     const char* level_str;
     switch(log_level) {
@@ -298,8 +302,17 @@ void obs_log(int log_level, const char *format, ...) {
     }
 
     printf("[%s] ", level_str);
-    printf(format);
+
+    // Use format string sanitization to prevent injection attacks
+    if (strlen(format) < 2048 && is_safe_format_string(format)) {
+        vprintf(format, args);
+    } else {
+        printf("Log message rejected for security reasons (unsafe format or too long)");
+    }
     printf("\n");
+
+    // Clean up variadic arguments
+    va_end(args);
 }
 
 void obs_property_set_modified_callback(obs_property_t *prop, obs_property_modified_callback_t callback) {
