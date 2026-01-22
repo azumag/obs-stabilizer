@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    - uses: actions/checkout@v4
     
     - name: Setup build environment
       uses: ./.github/actions/setup-build-env
@@ -57,7 +57,7 @@ jobs:
         lcov --remove tmp/coverage.info '/usr/*' --output-file tmp/coverage.info --ignore-errors empty || echo "lcov filtering failed, continuing"
     
     - name: Upload coverage reports
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+      uses: actions/upload-artifact@v4
       with:
         name: coverage-reports-${{ github.run_number }}
         retention-days: 14
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    - uses: actions/checkout@v4
     
     - name: Setup build environment
       uses: ./.github/actions/setup-build-env
@@ -90,7 +90,7 @@ jobs:
         cppcheck --enable=all --template=gcc src/ > tmp/static-analysis/cppcheck.txt 2>&1 || true
     
     - name: Upload static analysis reports
-      uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+      uses: actions/upload-artifact@v4
       with:
         name: static-analysis-reports-${{ github.run_number }}
         retention-days: 14

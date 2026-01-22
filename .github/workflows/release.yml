@@ -17,7 +17,7 @@ jobs:
       release_id: ${{ steps.create_release.outputs.id }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    - uses: actions/checkout@v4
 
     - name: Create Release
       id: create_release
@@ -45,7 +45,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+    - uses: actions/checkout@v4
 
     - name: Setup build environment
       uses: ./.github/actions/setup-build-env
