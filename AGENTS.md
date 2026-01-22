@@ -5,6 +5,8 @@
 New Issues:
 
 Completed Issues:
+- Issue #225: CODE QUALITY: Replace excessive std::cout/cerr with OBS logging in core code ✅ **RESOLVED** (Created src/core/logging.hpp with unified logging interface; core production code now uses OBS logging functions (blog/obs_log) when OBS headers available; replaced duplicate logging infrastructure in stabilizer_core.cpp; production code has zero instances of std::cout/std::cerr for logging purposes; all 71 unit tests passing; updated README.md with logging infrastructure documentation)
+
 - Issue #223: CODE QUALITY: Fix const_cast usage, memory allocation, and code duplication ✅ **RESOLVED** (6/8 items completed - 75%; removed unused #include <algorithm> from stabilizer_opencv.cpp; documented const_cast usage with explanatory comments; created set_adaptive_config() helper function to reduce code duplication; added comprehensive bounds checking to FRAME_UTILS::FrameBuffer::create(); analyzed and documented mutex usage in FrameBuffer class header; all 71 tests passing; deferred high-effort items to future issues)
  
  - Issue #222: CODE QUALITY: Dead code and missing cleanup in plugin lifecycle management ✅ **RESOLVED** (Removed unused static frame_buffer_mutex and frame_buffer struct from stabilizer_opencv.cpp:561-566; added FRAME_UTILS::FrameBuffer::cleanup() call to obs_module_unload(); removed `using namespace cv;` from src/core/stabilizer_core.hpp:14; all 71 tests passing)
@@ -45,4 +47,4 @@ Completed Issues:
 
 Next: Return to step 0 - find issues
 
-**Current Issue:** Issue #224: FEATURE: Implement comprehensive performance testing infrastructure
+**Current Issue:** None - ready for next task
