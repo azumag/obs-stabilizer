@@ -3,9 +3,10 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-- No new issues
+- Issue #214: BUG: Memory leak in stabilizer_filter_create exception handling (Created - HIGH priority)
 
 Completed Issues:
+- Issue #214: BUG: Memory leak in stabilizer_filter_create exception handling ✅ **RESOLVED** (Replaced raw delete with RAII pattern, eliminated memory leak risk, consistent with modern C++ practices)
 - Issue #213: BUG: CMakeLists.txt references deleted test files causing build failure ✅ **RESOLVED** (Updated CMakeLists.txt to disable test suite after test files were removed in Issue #212, build system now works correctly)
 - Issue #212: CODE CLEANUP: Remove obsolete test files from tests directory ✅ **RESOLVED** (Removed 22 obsolete test files and integration test infrastructure, 6789 lines removed, repository cleaned up)
 - Issue #211: CODE CLEANUP: Remove obsolete plugin-version-builder.sh script ✅ **RESOLVED** (Removed obsolete 396-line script that referenced non-existent plugin-versions directory, verified not used in CI/CD or documentation, all tests passing)
@@ -34,6 +35,6 @@ Completed Issues:
 
 Next: Return to step 0 - find issues
 
-**Current Issue:** No current issue - ready for new task
+**Current Issue:** Issue #214 - BUG: Memory leak in stabilizer_filter_create exception handling
 
-All cleanup and build issues have been resolved. Repository is in good state with no outstanding issues.
+The stabilizer_filter_destroy function uses inconsistent memory management - it manually deletes a pointer that was created with std::make_unique, bypassing RAII and potentially causing memory leaks during exceptions.

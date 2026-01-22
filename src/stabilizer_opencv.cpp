@@ -163,10 +163,11 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
 static void stabilizer_filter_destroy(void *data)
 {
     try {
-        struct stabilizer_filter *context = (struct stabilizer_filter *)data;
-        if (context) {
-            delete context;
-        }
+        // Use RAII pattern for safe memory management
+        auto context = std::unique_ptr<struct stabilizer_filter>(
+            static_cast<struct stabilizer_filter *>(data)
+        );
+        // RAII automatically handles cleanup when context goes out of scope
         obs_log(LOG_INFO, "Stabilizer filter destroyed");
 
     } catch (const std::exception& e) {

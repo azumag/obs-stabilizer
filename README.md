@@ -586,13 +586,14 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 
 **Recent Completed Feature:**
 - [x] **Issue #213**: BUG: CMakeLists.txt references deleted test files causing build failure ✅ **RESOLVED** (Updated CMakeLists.txt to disable test suite after test files were removed in Issue #212, build system now works correctly)
+- [x] **Issue #214**: BUG: Memory leak in stabilizer_filter_create exception handling ✅ **RESOLVED** (Replaced raw delete with RAII pattern, eliminated memory leak risk, consistent with modern C++ practices)
 - [x] **Issue #212**: CODE CLEANUP: Remove obsolete test files from tests directory ✅ **RESOLVED** (Removed 22 obsolete test files and integration test infrastructure, 6789 lines removed, repository cleaned up)
 - [x] **Issue #208**: CODE CLEANUP: Remove obsolete development artifacts (fake-plugin.plugin and plugin-versions) ✅ **RESOLVED** (Removed committed build artifact obs-stabilizer.plugin from git, added to .gitignore, build system verified, all tests passing)
 - [x] **Issue #207**: FEATURE: Integrate Adaptive Stabilizer UI into OBS Properties Panel ✅ **RESOLVED** (Added UI controls to enable adaptive stabilization features in OBS properties panel - backend complete and tested, UI integration complete, all 201 tests passing)
 - [x] **Issue #203**: FEATURE: Advanced motion detection and automatic parameter adjustment ✅ **RESOLVED** (Implemented full 6-phase adaptive stabilization system with MotionClassifier, AdaptiveStabilizer, motion-specific smoothing, comprehensive test suite with 197 total tests, documented OBS UI integration approach, and parameter tuning guidance)
 
 **Current Task:**
-- [ ] **Issue #213**: BUG: CMakeLists.txt references deleted test files causing build failure 📝 **IN PROGRESS** (Update CMakeLists.txt to disable test suite after test files were removed in Issue #212)
+- [ ] **Issue #214**: BUG: Memory leak in stabilizer_filter_create exception handling 📝 **NEW** (Fix inconsistent RAII pattern and potential memory leak in stabilizer_filter_destroy)
 
 ### ✅ **PHASE 4 COMPLETE**
 - **Issue #18**: CI/CD Pipeline ✅ **CLOSED** - Multi-platform automation operational (100%)
