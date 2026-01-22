@@ -92,14 +92,7 @@ if(OBS_LIBRARY)
 endif()
 
 if(APPLE)
-    target_include_directories(obs-stabilizer-opencv PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-        $<INSTALL_INTERFACE:include>
-    )
-endif()
-
-if(APPLE)
-    # Apple-specific optimizations
+    # Apple-specific configurations
     # Note: Accelerate framework excluded due to CarbonCore naming conflicts with OpenCV
     # Focusing on NEON feature detection which is platform-specific and doesn't require Accelerate
     target_include_directories(obs-stabilizer-opencv PRIVATE
