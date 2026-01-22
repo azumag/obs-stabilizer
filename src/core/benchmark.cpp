@@ -4,6 +4,9 @@
  */
 
 #include "benchmark.hpp"
+#include "stabilizer_core.hpp"
+#include "../tests/test_data_generator.hpp"
+#include <opencv2/opencv.hpp>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -87,29 +90,81 @@ void BenchmarkRunner::run_scenario(TestScenario scenario) {
     std::cout << "Resolution: " << metrics.resolution_width << "x" << metrics.resolution_height;
     std::cout << " @ " << metrics.frame_rate << " fps" << std::endl;
     std::cout << "Target: <" << metrics.target_processing_time_ms << "ms/frame" << std::endl;
-    
-    // Run benchmark (placeholder - actual implementation would call stabilizer)
+
+    // Initialize stabilizer
+    StabilizerCore stabilizer;
+    StabilizerCore::StabilizerParams params;
+    params.enabled = true;
+    params.smoothing_radius = 30;
+    params.max_correction = 30.0f;
+    params.feature_count = 500;
+    params.quality_level = 0.01f;
+    params.min_distance = 30.0f;
+    params.block_size = 3;
+    params.use_harris = false;
+
+    if (!stabilizer.initialize(metrics.resolution_width, metrics.resolution_height, params)) {
+        metrics.passed = false;
+        metrics.failure_reason = "Failed to initialize stabilizer";
+        results_.push_back(metrics);
+        std::cerr << "Error: Failed to initialize stabilizer" << std::endl;
+        return;
+    }
+
+    // Generate test frames
+    std::vector<cv::Mat> test_frames;
+    try {
+        test_frames = TestDataGenerator::generate_test_sequence(
+            config_.num_frames + config_.warmup_frames,
+            metrics.resolution_width,
+            metrics.resolution_height,
+            "static"
+        );
+
+        if (test_frames.empty() || test_frames.size() < config_.num_frames + config_.warmup_frames) {
+            metrics.passed = false;
+            metrics.failure_reason = "Failed to generate test frames";
+            results_.push_back(metrics);
+            std::cerr << "Error: Failed to generate sufficient test frames" << std::endl;
+            return;
+        }
+    } catch (const std::exception& e) {
+        metrics.passed = false;
+        metrics.failure_reason = "Exception during frame generation: " + std::string(e.what());
+        results_.push_back(metrics);
+        std::cerr << "Error: " << e.what() << std::endl;
+        return;
+    }
+
+    // Run benchmark with actual stabilizer processing
     Utils::Timer timer;
     for (int i = 0; i < config_.num_frames; i++) {
+        const cv::Mat& input_frame = test_frames[i + config_.warmup_frames];
+
         timer.start();
-        
-        // TODO: Call actual stabilizer processing here
-        // For now, simulate processing time based on resolution
-        double simulated_time = (metrics.resolution_width * metrics.resolution_height) / 10000000.0;
-        std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(simulated_time));
-        
+
+        cv::Mat output_frame = stabilizer.process_frame(input_frame);
+
         timer.stop();
-        
+
+        if (output_frame.empty()) {
+            metrics.passed = false;
+            metrics.failure_reason = "Stabilizer returned empty frame";
+            results_.push_back(metrics);
+            std::cerr << "Error: Stabilizer returned empty frame at index " << i << std::endl;
+            return;
+        }
+
         // Skip warmup frames
         if (i >= config_.warmup_frames) {
             processing_times.push_back(timer.elapsed_ms());
         }
-        
+
         if (config_.enable_memory_tracking) {
             size_t current_memory = Utils::get_current_memory_usage();
             peak_memory = std::max(peak_memory, current_memory);
         }
-        
+
         // Progress indicator
         if ((i + 1) % 100 == 0) {
             std::cout << "." << std::flush;

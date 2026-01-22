@@ -182,14 +182,17 @@ install(TARGETS obs-stabilizer-opencv
  if(ENABLE_PERFORMANCE_TESTS)
      message(STATUS "Building performance testing infrastructure")
      
-     # Performance benchmark executable
-     set(PERF_SOURCES
-         src/core/benchmark.cpp
-         src/core/performance_regression.cpp
-         tools/performance_benchmark.cpp
-     )
-     
-     add_executable(performance_benchmark ${PERF_SOURCES})
+      # Performance benchmark executable
+      set(PERF_SOURCES
+          src/core/benchmark.cpp
+          src/core/performance_regression.cpp
+          src/core/stabilizer_core.cpp
+          src/core/neon_feature_detection.cpp
+          tests/test_data_generator.cpp
+          tools/performance_benchmark.cpp
+      )
+
+      add_executable(performance_benchmark ${PERF_SOURCES})
      
      target_include_directories(performance_benchmark PRIVATE
          ${CMAKE_CURRENT_SOURCE_DIR}
