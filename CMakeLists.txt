@@ -103,56 +103,55 @@ install(TARGETS obs-stabilizer-opencv
     RUNTIME DESTINATION obs-plugins
 )
 
-# --- Tests ---
+ # --- Tests ---
 enable_testing()
 
 # Google Test
 find_package(GTest REQUIRED)
 
-# Test Sources
-file(GLOB_RECURSE ALL_TEST_SOURCES "tests/*.cpp" "tests/*.c")
+# Remove compiler ID files from test sources to avoid duplicate symbols
+set(TEST_SOURCES ${TEST_SOURCES})
+list(FILTER TEST_SOURCES EXCLUDE REGEX "CompilerId")
 
-# Exclude test files with API mismatches or that are not ready
-    set(TEST_SOURCES ${ALL_TEST_SOURCES})
-    list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_obs_integration.cpp")
-    list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/test-core-only.cpp")
+ # Test Sources
+set(TEST_SOURCES
+    tests/test_basic.cpp
+    tests/test_stabilizer_core.cpp
+    tests/test_adaptive_stabilizer.cpp
+    tests/test_motion_classifier.cpp
+    tests/test_data_generator.cpp
+)
 
  if(TEST_SOURCES)
-    # Test files were removed in Issue #212 - test suite temporarily disabled
-    # To enable tests, restore or create test files in tests/ directory
-    # message(STATUS "Test suite disabled - no test files found")
-    
-    # # Add test source files only
-    # set(TEST_SOURCES ${TEST_SOURCES} tests/test_core_functionality.cpp tests/test_data_generator.cpp)
-    #
-    # # Exclude standalone threshold tuner (has its own main() and should not be part of test suite)
-    # list(REMOVE_ITEM TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/threshold_tuner_standalone.cpp")
-    #
-    # if(HAVE_OBS_HEADERS)
-    #     # Use real OBS headers
-    #     list(APPEND TEST_SOURCES)
-    # else()
-    #     # Use stubs for standalone testing
-    #     list(APPEND TEST_SOURCES src/obs_stubs.c src/core/stabilizer_core.cpp src/stabilizer_opencv.cpp src/core/apple_accelerate.cpp src/core/neon_feature_detection.cpp src/core/motion_classifier.cpp src/core/adaptive_stabilizer.cpp tests/test_adaptive_integration.cpp)
-    # endif()
-    #
-    # add_executable(stabilizer_tests ${TEST_SOURCES})
-    # target_include_directories(stabilizer_tests PRIVATE
-    #     ${CMAKE_CURRENT_SOURCE_DIR}
-    #     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    #     ${OBS_INCLUDE_DIR}
-    # )
-    #
-    # if(HAVE_OBS_HEADERS)
-    #     # Use real OBS headers
-    #     target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS} obs-stabilizer-opencv)
-    # else()
-    #     # Use stubs for standalone testing
-    #     target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
-    # endif()
-    # add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
-    # message(STATUS "Test suite enabled.")
-    message(STATUS "Test suite disabled - no test files found (Issue #212)")
+     message(STATUS "Found test sources, enabling test suite")
+     
+     # Add test source files and core source files for testing
+     set(TEST_CORE_SOURCES
+         src/core/stabilizer_core.cpp
+         src/core/apple_accelerate.cpp
+         src/core/neon_feature_detection.cpp
+         src/core/motion_classifier.cpp
+         src/core/adaptive_stabilizer.cpp
+     )
+     
+     add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
+     
+     target_include_directories(stabilizer_tests PRIVATE
+         ${CMAKE_CURRENT_SOURCE_DIR}
+         ${CMAKE_CURRENT_SOURCE_DIR}/src
+         ${OBS_INCLUDE_DIR}
+     )
+     
+     if(HAVE_OBS_HEADERS)
+         # Use real OBS headers
+         target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
+     else()
+         # Use stubs for standalone testing
+         target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
+     endif()
+     
+     add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
+     message(STATUS "Test suite enabled.")
  else()
-    message(STATUS "No test sources found, skipping test suite.")
+     message(STATUS "No test sources found, skipping test suite.")
  endif()
