@@ -3,6 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
+- Issue #229: CODE QUALITY: StabilizerWrapper has unnecessary mutex and header-only implementation
 
 Completed Issues:
 - Issue #228: CODE QUALITY: Incomplete benchmark implementation in benchmark.cpp ✅ **RESOLVED** (Replaced TODO placeholder with actual StabilizerCore integration; added TestDataGenerator for realistic test frame generation; updated CMakeLists.txt to link required source files; added comprehensive error handling; all 5 benchmark scenarios passing from 480p to 4K; all 71 unit tests passing)
@@ -51,4 +52,4 @@ Completed Issues:
 
  Next: Return to step 0 - find issues
 
- **Current Issue:** None - ready for next task
+ **Current Issue:** Issue #229: CODE QUALITY: StabilizerWrapper has unnecessary mutex and header-only implementation
