@@ -593,7 +593,7 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 - [x] **Issue #203**: FEATURE: Advanced motion detection and automatic parameter adjustment ✅ **RESOLVED** (Implemented full 6-phase adaptive stabilization system with MotionClassifier, AdaptiveStabilizer, motion-specific smoothing, comprehensive test suite with 197 total tests, documented OBS UI integration approach, and parameter tuning guidance)
 
 **Current Task:**
-- [ ] **Issue #214**: BUG: Memory leak in stabilizer_filter_create exception handling 📝 **NEW** (Fix inconsistent RAII pattern and potential memory leak in stabilizer_filter_destroy)
+- [ ] **Issue #215**: TEST: Restore test suite after Issue #212 cleanup 📝 **NEW** (All test files removed in Issue #212 and test suite disabled in Issue #213 - need to restore unit test coverage for code quality assurance)
 
 ### ✅ **PHASE 4 COMPLETE**
 - **Issue #18**: CI/CD Pipeline ✅ **CLOSED** - Multi-platform automation operational (100%)
