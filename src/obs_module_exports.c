@@ -17,6 +17,15 @@ This layer prevents C++ name mangling issues that prevent OBS from loading the p
 #error "This file requires OBS headers to be available"
 #endif
 
+// Plugin name and version constants
+#ifndef PLUGIN_NAME
+#define PLUGIN_NAME "Video Stabilizer"
+#endif
+
+#ifndef PLUGIN_VERSION
+#define PLUGIN_VERSION "1.0.0"
+#endif
+
 // Forward declarations for C++ wrapper functions
 extern bool obs_stabilizer_plugin_load(void);
 extern void obs_stabilizer_plugin_unload(void);
