@@ -16,7 +16,6 @@
 #include <cstring>
 #include <opencv2/opencv.hpp>
 #include <chrono>
-#include <algorithm>
 
 // OBS module declarations - using existing macros from stub headers
 
@@ -58,6 +57,9 @@ static void apply_preset(obs_data_t *settings, const char *preset_name);
 // Parameter conversion functions
 static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *settings);
 static void params_to_settings(const StabilizerCore::StabilizerParams& params, obs_data_t *settings);
+
+// Helper function to reduce code duplication in adaptive config setting
+static void set_adaptive_config(obs_data_t *settings, AdaptiveStabilization::AdaptiveConfig& config);
 
 // Frame conversion functions
 static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame);
@@ -112,32 +114,8 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
         context->motion_sensitivity = obs_data_get_double(settings, "motion_sensitivity");
         context->transition_rate = obs_data_get_double(settings, "transition_rate");
         
-        // Set adaptive config from settings
-        context->adaptive_config.static_smoothing = obs_data_get_int(settings, "static_smoothing");
-        context->adaptive_config.static_correction = obs_data_get_double(settings, "static_correction");
-        context->adaptive_config.static_features = obs_data_get_int(settings, "static_features");
-        context->adaptive_config.static_quality = obs_data_get_double(settings, "static_quality");
-        
-        context->adaptive_config.slow_smoothing = obs_data_get_int(settings, "slow_smoothing");
-        context->adaptive_config.slow_correction = obs_data_get_double(settings, "slow_correction");
-        context->adaptive_config.slow_features = obs_data_get_int(settings, "slow_features");
-        context->adaptive_config.slow_quality = obs_data_get_double(settings, "slow_quality");
-        
-        context->adaptive_config.fast_smoothing = obs_data_get_int(settings, "fast_smoothing");
-        context->adaptive_config.fast_correction = obs_data_get_double(settings, "fast_correction");
-        context->adaptive_config.fast_features = obs_data_get_int(settings, "fast_features");
-        context->adaptive_config.fast_quality = obs_data_get_double(settings, "fast_quality");
-        
-        context->adaptive_config.shake_smoothing = obs_data_get_int(settings, "shake_smoothing");
-        context->adaptive_config.shake_correction = obs_data_get_double(settings, "shake_correction");
-        context->adaptive_config.shake_features = obs_data_get_int(settings, "shake_features");
-        context->adaptive_config.shake_quality = obs_data_get_double(settings, "shake_quality");
-        
-        context->adaptive_config.pan_smoothing = obs_data_get_int(settings, "pan_smoothing");
-        context->adaptive_config.pan_correction = obs_data_get_double(settings, "pan_correction");
-        context->adaptive_config.pan_features = obs_data_get_int(settings, "pan_features");
-        context->adaptive_config.pan_quality = obs_data_get_double(settings, "pan_quality");
-        
+        // Set adaptive config from settings using helper function
+        set_adaptive_config(settings, context->adaptive_config);
         context->adaptive_config.transition_rate = context->transition_rate;
         
         // Create adaptive stabilizer if enabled
@@ -220,31 +198,8 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
         context->motion_sensitivity = new_motion_sensitivity;
         context->transition_rate = new_transition_rate;
         
-        context->adaptive_config.static_smoothing = obs_data_get_int(settings, "static_smoothing");
-        context->adaptive_config.static_correction = obs_data_get_double(settings, "static_correction");
-        context->adaptive_config.static_features = obs_data_get_int(settings, "static_features");
-        context->adaptive_config.static_quality = obs_data_get_double(settings, "static_quality");
-        
-        context->adaptive_config.slow_smoothing = obs_data_get_int(settings, "slow_smoothing");
-        context->adaptive_config.slow_correction = obs_data_get_double(settings, "slow_correction");
-        context->adaptive_config.slow_features = obs_data_get_int(settings, "slow_features");
-        context->adaptive_config.slow_quality = obs_data_get_double(settings, "slow_quality");
-        
-        context->adaptive_config.fast_smoothing = obs_data_get_int(settings, "fast_smoothing");
-        context->adaptive_config.fast_correction = obs_data_get_double(settings, "fast_correction");
-        context->adaptive_config.fast_features = obs_data_get_int(settings, "fast_features");
-        context->adaptive_config.fast_quality = obs_data_get_double(settings, "fast_quality");
-        
-        context->adaptive_config.shake_smoothing = obs_data_get_int(settings, "shake_smoothing");
-        context->adaptive_config.shake_correction = obs_data_get_double(settings, "shake_correction");
-        context->adaptive_config.shake_features = obs_data_get_int(settings, "shake_features");
-        context->adaptive_config.shake_quality = obs_data_get_double(settings, "shake_quality");
-        
-        context->adaptive_config.pan_smoothing = obs_data_get_int(settings, "pan_smoothing");
-        context->adaptive_config.pan_correction = obs_data_get_double(settings, "pan_correction");
-        context->adaptive_config.pan_features = obs_data_get_int(settings, "pan_features");
-        context->adaptive_config.pan_quality = obs_data_get_double(settings, "pan_quality");
-        
+        // Update adaptive config from settings using helper function
+        set_adaptive_config(settings, context->adaptive_config);
         context->adaptive_config.transition_rate = new_transition_rate;
         
         // Update adaptive stabilizer if exists
@@ -505,6 +460,11 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
 {
     StabilizerCore::StabilizerParams params;
     
+    // NOTE: const_cast is required because OBS API functions expect non-const obs_data_t* parameters.
+    // This is safe because we are only reading values from the settings object, not modifying it.
+    // The OBS API is designed to work with const pointers that can be cast to non-const for reading.
+    // This is a known pattern in OBS plugin development.
+    
     // Direct parameter access with defaults - OBS API functions don't throw exceptions
     // Use safe defaults if keys don't exist
     params.enabled = obs_data_get_bool(const_cast<obs_data_t*>(settings), "enabled");
@@ -603,22 +563,38 @@ void obs_module_unload(void)
     #ifdef HAVE_OBS_HEADERS
     FRAME_UTILS::FrameBuffer::cleanup();
     #endif
+    }
 }
 
-// Module exports
-MODULE_EXPORT const char *obs_module_name(void)
+// Helper function to reduce code duplication in adaptive config setting
+static void set_adaptive_config(obs_data_t *settings, AdaptiveStabilization::AdaptiveConfig& config)
 {
-    return "obs-stabilizer";
-}
-
-MODULE_EXPORT const char *obs_module_author(void)
-{
-    return "OBS Stabilizer Team";
-}
-
-MODULE_EXPORT const char *obs_module_version(void)
-{
-    return "0.2.0";
+    // Helper function to set multiple adaptive configuration parameters
+    // This reduces code duplication between stabilizer_filter_create and stabilizer_filter_update
+    config.static_smoothing = obs_data_get_int(settings, "static_smoothing");
+    config.static_correction = obs_data_get_double(settings, "static_correction");
+    config.static_features = obs_data_get_int(settings, "static_features");
+    config.static_quality = obs_data_get_double(settings, "static_quality");
+    
+    config.slow_smoothing = obs_data_get_int(settings, "slow_smoothing");
+    config.slow_correction = obs_data_get_double(settings, "slow_correction");
+    config.slow_features = obs_data_get_int(settings, "slow_features");
+    config.slow_quality = obs_data_get_double(settings, "slow_quality");
+    
+    config.fast_smoothing = obs_data_get_int(settings, "fast_smoothing");
+    config.fast_correction = obs_data_get_double(settings, "fast_correction");
+    config.fast_features = obs_data_get_int(settings, "fast_features");
+    config.fast_quality = obs_data_get_double(settings, "fast_quality");
+    
+    config.shake_smoothing = obs_data_get_int(settings, "shake_smoothing");
+    config.shake_correction = obs_data_get_double(settings, "shake_correction");
+    config.shake_features = obs_data_get_int(settings, "shake_features");
+    config.shake_quality = obs_data_get_double(settings, "shake_quality");
+    
+    config.pan_smoothing = obs_data_get_int(settings, "pan_smoothing");
+    config.pan_correction = obs_data_get_double(settings, "pan_correction");
+    config.pan_features = obs_data_get_int(settings, "pan_features");
+    config.pan_quality = obs_data_get_double(settings, "pan_quality");
 }
 
 MODULE_EXPORT void obs_module_set_pointer(obs_module_t *module)
@@ -626,3 +602,4 @@ MODULE_EXPORT void obs_module_set_pointer(obs_module_t *module)
     (void)module;
 }
 #endif // HAVE_OBS_HEADERS
+
