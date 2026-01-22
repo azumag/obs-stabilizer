@@ -20,6 +20,7 @@ namespace FRAME_UTILS {
 
     cv::Mat Conversion::obs_to_cv(const obs_source_frame* frame) {
         if (!frame || !frame->data[0]) {
+            Performance::track_conversion_failure();
             return cv::Mat();
         }
 
@@ -81,6 +82,7 @@ namespace FRAME_UTILS {
 
                 default:
                     obs_log(LOG_ERROR, "Unsupported frame format: %d", frame->format);
+                    Performance::track_conversion_failure();
                     return cv::Mat();
             }
 
@@ -88,6 +90,7 @@ namespace FRAME_UTILS {
 
         } catch (const cv::Exception& e) {
             obs_log(LOG_ERROR, "OpenCV exception in obs_to_cv: %s", e.what());
+            Performance::track_conversion_failure();
             return cv::Mat();
         }
     }
@@ -123,6 +126,7 @@ namespace FRAME_UTILS {
     obs_source_frame* FrameBuffer::create(const cv::Mat& mat, 
                                         const obs_source_frame* reference_frame) {
         if (mat.empty() || !reference_frame) {
+            Performance::track_conversion_failure();
             return nullptr;
         }
 
@@ -145,19 +149,22 @@ namespace FRAME_UTILS {
             
             if (converted.empty()) {
                 obs_log(LOG_ERROR, "Converted matrix is empty in FrameBuffer::create");
+                Performance::track_conversion_failure();
                 return nullptr;
             }
 
             if (required_size == 0) {
                 obs_log(LOG_ERROR, "Required buffer size is zero in FrameBuffer::create");
+                Performance::track_conversion_failure();
                 return nullptr;
             }
-            
+
             if (converted.data == nullptr) {
                 obs_log(LOG_ERROR, "Converted matrix data pointer is null in FrameBuffer::create");
+                Performance::track_conversion_failure();
                 return nullptr;
             }
-            
+
             if (buffer_.buffer.size() < required_size) {
                 buffer_.buffer.resize(required_size);
             } else if (buffer_.buffer.size() > required_size * MEMORY_GROWTH_FACTOR) {
@@ -165,8 +172,9 @@ namespace FRAME_UTILS {
             }
 
             if (buffer_.buffer.size() < required_size) {
-                obs_log(LOG_ERROR, "Buffer allocation failed: requested %zu, got %zu", 
+                obs_log(LOG_ERROR, "Buffer allocation failed: requested %zu, got %zu",
                          required_size, buffer_.buffer.size());
+                Performance::track_conversion_failure();
                 return nullptr;
             }
 
@@ -184,6 +192,7 @@ namespace FRAME_UTILS {
 
         } catch (const std::exception& e) {
             obs_log(LOG_ERROR, "Exception in FrameBuffer::create: %s", e.what());
+            Performance::track_conversion_failure();
             return nullptr;
         }
     }
@@ -317,6 +326,11 @@ namespace FRAME_UTILS {
         std::lock_guard<std::mutex> lock(perf_mutex);
         perf_data.total_conversions++;
         perf_data.total_time += duration_ms;
+    }
+
+    void Performance::track_conversion_failure() {
+        std::lock_guard<std::mutex> lock(perf_mutex);
+        perf_data.failed_conversions++;
     }
 
     Performance::ConversionStats Performance::get_stats() {

@@ -94,6 +94,9 @@ namespace FRAME_UTILS {
         // Track conversion performance
         void track_conversion_time(const std::string& operation, double duration_ms);
         
+        // Track conversion failures
+        void track_conversion_failure();
+        
         // Get performance statistics
         struct ConversionStats {
             size_t total_conversions;
