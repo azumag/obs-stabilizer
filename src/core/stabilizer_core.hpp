@@ -29,6 +29,12 @@
  */
 class StabilizerCore {
 public:
+    enum class EdgeMode {
+        Padding,    // Keep black borders (current behavior)
+        Crop,       // Crop borders to remove black areas
+        Scale       // Scale to fit original frame
+    };
+
     struct StabilizerParams {
         bool enabled = true;
         int smoothing_radius = 30;         // Number of frames to average for smoothing
@@ -65,6 +71,9 @@ public:
         bool use_high_pass_filter = false;     // Enable high-pass filter for camera shake
         double high_pass_attenuation = 0.3;    // High-frequency attenuation factor (0.0-1.0)
         bool use_directional_smoothing = false; // Enable directional smoothing for pan/zoom
+
+        // Edge handling (Issue #226)
+        EdgeMode edge_mode = EdgeMode::Padding;  // Edge handling mode: Padding, Crop, Scale
     };
 
     struct PerformanceMetrics {
@@ -167,6 +176,9 @@ private:
     inline void filter_transforms(std::vector<cv::Mat>& transforms);
     inline bool should_refresh_features(float success_rate, int frames_since_refresh);
     inline void update_metrics(const std::chrono::high_resolution_clock::time_point& start_time);
+
+    // Edge handling (Issue #226)
+    cv::Mat apply_edge_handling(const cv::Mat& frame, EdgeMode mode);
 
     // Internal state
     mutable std::mutex mutex_;

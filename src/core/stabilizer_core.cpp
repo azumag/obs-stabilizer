@@ -151,6 +151,9 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
 
     cv::Mat result = apply_transform(frame, smoothed_transform);
 
+    // Apply edge handling (Issue #226)
+    result = apply_edge_handling(result, params_.edge_mode);
+
     update_metrics(start_time);
 
     return result;
@@ -444,6 +447,132 @@ cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& tra
     }
 }
 
+cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode) {
+    try {
+        switch (mode) {
+            case EdgeMode::Padding:
+                // Padding mode: Return frame as-is with black borders
+                return frame;
+
+            case EdgeMode::Crop: {
+                // Crop mode: Remove black borders from edges
+                // Convert to grayscale for better border detection
+                cv::Mat gray;
+                if (frame.channels() == 4) {
+                    cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+                } else if (frame.channels() == 3) {
+                    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+                } else {
+                    gray = frame;
+                }
+
+                // Threshold to identify black areas
+                cv::Mat thresholded;
+                cv::threshold(gray, thresholded, 10, 255, cv::THRESH_BINARY);
+
+                // Find bounding box of non-black content
+                cv::Mat col_sum, row_sum;
+                cv::reduce(thresholded, col_sum, 0, cv::REDUCE_SUM, CV_32S);
+                cv::reduce(thresholded, row_sum, 1, cv::REDUCE_SUM, CV_32S);
+
+                int left = 0, right = thresholded.cols - 1;
+                int top = 0, bottom = thresholded.rows - 1;
+
+                // Find left edge
+                while (left < right && col_sum.at<int>(0, left) == 0) left++;
+                // Find right edge
+                while (right > left && col_sum.at<int>(0, right) == 0) right--;
+                // Find top edge
+                while (top < bottom && row_sum.at<int>(top, 0) == 0) top++;
+                // Find bottom edge
+                while (bottom > top && row_sum.at<int>(bottom, 0) == 0) bottom--;
+
+                // Ensure crop region is valid
+                if (left >= right || top >= bottom) {
+                    return frame; // No valid crop region, return original
+                }
+
+                // Crop the frame
+                cv::Rect crop_rect(left, top, right - left, bottom - top);
+                if (crop_rect.x >= 0 && crop_rect.y >= 0 &&
+                    crop_rect.x + crop_rect.width <= frame.cols &&
+                    crop_rect.y + crop_rect.height <= frame.rows) {
+                    return frame(crop_rect).clone();
+                }
+                return frame;
+            }
+
+            case EdgeMode::Scale: {
+                // Scale mode: Scale frame to fill original dimensions
+                // Convert to grayscale for border detection
+                cv::Mat gray;
+                if (frame.channels() == 4) {
+                    cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+                } else if (frame.channels() == 3) {
+                    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+                } else {
+                    gray = frame;
+                }
+
+                // Threshold to identify black areas
+                cv::Mat thresholded;
+                cv::threshold(gray, thresholded, 10, 255, cv::THRESH_BINARY);
+
+                // Find bounding box of non-black content
+                cv::Mat col_sum, row_sum;
+                cv::reduce(thresholded, col_sum, 0, cv::REDUCE_SUM, CV_32S);
+                cv::reduce(thresholded, row_sum, 1, cv::REDUCE_SUM, CV_32S);
+
+                int left = 0, right = thresholded.cols - 1;
+                int top = 0, bottom = thresholded.rows - 1;
+
+                // Find edges
+                while (left < right && col_sum.at<int>(0, left) == 0) left++;
+                while (right > left && col_sum.at<int>(0, right) == 0) right--;
+                while (top < bottom && row_sum.at<int>(top, 0) == 0) top++;
+                while (bottom > top && row_sum.at<int>(bottom, 0) == 0) bottom--;
+
+                // Ensure crop region is valid
+                if (left >= right || top >= bottom) {
+                    return frame; // No valid crop region, return original
+                }
+
+                // Calculate scale factor to fill original frame
+                int content_width = right - left;
+                int content_height = bottom - top;
+                double scale_x = static_cast<double>(frame.cols) / content_width;
+                double scale_y = static_cast<double>(frame.rows) / content_height;
+                double scale = std::min(scale_x, scale_y);
+
+                // Scale the frame
+                cv::Mat scaled;
+                cv::resize(frame, scaled, cv::Size(), scale, scale, cv::INTER_LINEAR);
+
+                // Center the scaled frame
+                cv::Mat result(frame.size(), frame.type(), cv::Scalar(0, 0, 0, 255));
+                int offset_x = (frame.cols - scaled.cols) / 2;
+                int offset_y = (frame.rows - scaled.rows) / 2;
+                cv::Rect roi(offset_x, offset_y, scaled.cols, scaled.rows);
+                scaled.copyTo(result(roi));
+
+                return result;
+            }
+
+            default:
+                return frame;
+        }
+    } catch (const cv::Exception& e) {
+        STAB_LOG_ERROR("OpenCV exception in apply_edge_handling: %s", e.what());
+        return frame.clone();
+    } catch (const std::exception& e) {
+        STAB_LOG_ERROR("Standard exception in apply_edge_handling: %s", e.what());
+        return frame.clone();
+    } catch (...) {
+        STAB_LOG_ERROR("Unknown exception in apply_edge_handling");
+        return frame.clone();
+    }
+}
+
 void StabilizerCore::update_parameters(const StabilizerCore::StabilizerParams& params) {
     std::lock_guard<std::mutex> lock(mutex_);
     params_ = params;
@@ -597,6 +726,7 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() {
     params.feature_refresh_threshold = AdaptiveFeatures::GAMING_REFRESH;
     params.adaptive_feature_min = AdaptiveFeatures::GAMING_MIN;
     params.adaptive_feature_max = AdaptiveFeatures::GAMING_MAX;
+    params.edge_mode = EdgeMode::Padding; // Performance
     return params;
 }
 
@@ -616,6 +746,7 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_streaming() {
     params.feature_refresh_threshold = AdaptiveFeatures::STREAMING_REFRESH;
     params.adaptive_feature_min = AdaptiveFeatures::STREAMING_MIN;
     params.adaptive_feature_max = AdaptiveFeatures::STREAMING_MAX;
+    params.edge_mode = EdgeMode::Crop; // Quality
     return params;
 }
 
@@ -635,6 +766,7 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() {
     params.feature_refresh_threshold = AdaptiveFeatures::RECORDING_REFRESH;
     params.adaptive_feature_min = AdaptiveFeatures::RECORDING_MIN;
     params.adaptive_feature_max = AdaptiveFeatures::RECORDING_MAX;
+    params.edge_mode = EdgeMode::Scale; // Full frame coverage
     return params;
 }
 

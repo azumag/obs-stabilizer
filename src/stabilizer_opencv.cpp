@@ -353,11 +353,20 @@ static obs_properties_t *stabilizer_filter_properties(void *data)
         obs_properties_add_float_slider(props, "max_correction", "Max Correction (%)", 1.0, 100.0, 0.5);
         obs_properties_add_int_slider(props, "feature_count", "Feature Count", 50, 2000, 10);
         
-        // Advanced parameters
+         // Advanced parameters
         obs_properties_add_float_slider(props, "quality_level", "Quality Level", 0.001, 0.1, 0.001);
         obs_properties_add_float_slider(props, "min_distance", "Min Distance", 1.0, 200.0, 1.0);
         obs_properties_add_int_slider(props, "block_size", "Block Size", 3, 31, 2);
-        
+
+        // Edge handling (Issue #226)
+        obs_property_t* edge_mode = obs_properties_add_list(props, "edge_handling",
+                        "Edge Handling",
+                        OBS_COMBO_TYPE_LIST,
+                        OBS_COMBO_FORMAT_STRING);
+        obs_property_list_add_string(edge_mode, "Black Padding", "padding");
+        obs_property_list_add_string(edge_mode, "Crop Borders", "crop");
+        obs_property_list_add_string(edge_mode, "Scale to Fit", "scale");
+
         obs_properties_add_bool(props, "use_harris", "Use Harris Detector");
         obs_properties_add_float_slider(props, "k", "Harris K Parameter", 0.01, 0.1, 0.001);
         
@@ -385,6 +394,9 @@ static void stabilizer_filter_get_defaults(obs_data_t *settings)
         obs_data_set_default_bool(settings, "adaptive_enabled", false);
         obs_data_set_default_double(settings, "motion_sensitivity", 1.0);
         obs_data_set_default_double(settings, "transition_rate", 0.5);
+
+        // Edge handling default (Issue #226)
+        obs_data_set_default_string(settings, "edge_handling", "padding");
         
         // Default adaptive config
         obs_data_set_default_int(settings, "static_smoothing", 8);
@@ -477,7 +489,17 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
     params.use_harris = obs_data_get_bool(const_cast<obs_data_t*>(settings), "use_harris");
     params.k = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "k");
     params.debug_mode = obs_data_get_bool(const_cast<obs_data_t*>(settings), "debug_mode");
-    
+
+    // Edge handling (Issue #226)
+    const char* edge_str = obs_data_get_string(const_cast<obs_data_t*>(settings), "edge_handling");
+    if (strcmp(edge_str, "crop") == 0) {
+        params.edge_mode = StabilizerCore::EdgeMode::Crop;
+    } else if (strcmp(edge_str, "scale") == 0) {
+        params.edge_mode = StabilizerCore::EdgeMode::Scale;
+    } else {
+        params.edge_mode = StabilizerCore::EdgeMode::Padding; // Default
+    }
+
     // Use centralized parameter validation for consistency
     params = VALIDATION::validate_parameters(params);
     
@@ -496,6 +518,22 @@ static void params_to_settings(const StabilizerCore::StabilizerParams& params, o
     obs_data_set_bool(settings, "use_harris", params.use_harris);
     obs_data_set_double(settings, "k", params.k);
     obs_data_set_bool(settings, "debug_mode", params.debug_mode);
+
+    // Edge handling (Issue #226)
+    const char* edge_str = "padding"; // Default
+    switch (params.edge_mode) {
+        case StabilizerCore::EdgeMode::Crop:
+            edge_str = "crop";
+            break;
+        case StabilizerCore::EdgeMode::Scale:
+            edge_str = "scale";
+            break;
+        case StabilizerCore::EdgeMode::Padding:
+        default:
+            edge_str = "padding";
+            break;
+    }
+    obs_data_set_string(settings, "edge_handling", edge_str);
 }
 
 // Frame conversion functions using centralized utilities

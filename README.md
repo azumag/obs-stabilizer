@@ -887,6 +887,54 @@ The plugin automatically adjusts settings based on detected motion:
 - **Consistent camera angle**: Use standard preset instead
 - **Complex scenes**: Can help with adaptive parameter selection
 
+#### Edge Handling
+
+**Options:** Black Padding (default) / Crop Borders / Scale to Fit
+
+**When to Use:**
+
+**Black Padding** (Issue #226):
+- **Best for**: Gaming and performance-critical applications
+- **Why**: Minimal processing overhead, no additional computations
+- **Trade-off**: May show black borders on frame edges
+- **Preset**: Gaming preset uses Padding mode
+
+**Crop Borders**:
+- **Best for**: Streaming and general-purpose use
+- **Why**: Removes black borders for clean professional output
+- **Trade-off**: Minimal overhead from crop operation, slight frame size reduction
+- **Preset**: Streaming preset uses Crop mode
+
+**Scale to Fit**:
+- **Best for**: Recording and professional content where full frame coverage needed
+- **Why**: Fills original frame dimensions by scaling content
+- **Trade-off**: Moderate overhead from scaling, slight distortion with large transforms
+- **Preset**: Recording preset uses Scale mode
+
+**Visual Examples:**
+```
+Original Stabilized Frame:
+┌─────────────────────────────────┐
+│     Stabilized content         │
+│   ╔═════════════════╗      │  Black padding borders
+│   ║    Video image    ║      │  visible on edges
+│   ║                  ║      │
+│   ╚══════════════════╝      │
+└─────────────────────────────────┘
+
+With Crop Mode:
+╔═══════════════════╗
+║   Video image        ║  Black borders removed
+║                      ║  Frame slightly smaller
+╚════════════════════╝
+
+With Scale Mode:
+╔═════════════════════╗
+║      Video image       ║  Scaled to fill frame
+║                        ║  Slight distortion possible
+╚═══════════════════════╝
+```
+
 ### 6. Troubleshooting Guide
 
 #### 1. Installation Issues
@@ -1579,15 +1627,33 @@ cd build && ctest --verbose
 - **Smoothing Strength**: ✅ Transform smoothing window (10-100 frames)
 - **Feature Points**: ✅ Number of tracking points (100-1000)
 - **Stability Threshold**: ✅ Error threshold for tracking quality (10.0-100.0)
-- **Edge Handling**: ✅ Crop borders/Black padding/Scale to fit options
+- **Edge Handling**: ✅ Crop borders/Black padding/Scale to fit options (Issue #226)
 - **Advanced Settings**: ✅ Collapsible expert-level configuration panel
   - Feature quality threshold, refresh threshold, adaptive refresh
   - GPU acceleration (experimental), processing threads (1-8)
 
 **Preset Configurations:**
-- **Gaming**: 150 features, 40 threshold, 15 smoothing (optimized for fast response)
-- **Streaming**: 200 features, 30 threshold, 30 smoothing (balanced quality/performance)
-- **Recording**: 400 features, 20 threshold, 50 smoothing (maximum quality)
+- **Gaming**: 150 features, 40 threshold, 15 smoothing, Black padding edge mode (optimized for fast response)
+- **Streaming**: 200 features, 30 threshold, 30 smoothing, Crop borders edge mode (balanced quality/performance)
+- **Recording**: 400 features, 20 threshold, 50 smoothing, Scale to fit edge mode (maximum quality)
+
+**Edge Handling Modes** (Issue #226 - ✅ **IMPLEMENTED**):
+Video stabilization can introduce black borders at frame edges due to transform movements. Edge handling provides three strategies:
+
+1. **Black Padding**: Keep black borders visible (minimal processing)
+   - Best for: Gaming and performance-critical applications
+   - Performance: No additional processing overhead
+   - Visual: May show black borders on edges
+
+2. **Crop Borders**: Cut off black borders to maintain clean output
+   - Best for: Streaming and general-purpose use
+   - Performance: Minimal overhead from crop operation
+   - Visual: Clean output with no black borders
+
+3. **Scale to Fit**: Scale video to fill original frame dimensions
+   - Best for: Recording and professional content where full frame coverage needed
+   - Performance: Moderate overhead from scaling
+   - Visual: Slight distortion may occur with large transforms
 
 ## Performance Verification (Phase 4 Complete)
 
