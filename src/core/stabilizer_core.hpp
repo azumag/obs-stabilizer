@@ -16,7 +16,7 @@
 #include <deque>
 #include <vector>
 #include <chrono>
-#include "../stabilizer_constants.h"
+#include "stabilizer_constants.hpp"
 
 // Platform-specific optimizations (disabled in standalone build)
 #ifndef BUILD_STANDALONE
