@@ -3,6 +3,11 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
+- Issue #246: CODE QUALITY: Unused memory-test.cpp file in tools directory ✅ **RESOLVED** (Removed 294 lines of unused code; not referenced in CMakeLists.txt or documentation; functionality superseded by src/core/benchmark.cpp and src/core/performance_regression.cpp; all 71 tests passing)
+- Issue #247: DOC: Incorrect source file type breakdown in README.md ✅ **RESOLVED** (Fixed file type breakdown from 13 .cpp, 7 .hpp to 9 .cpp, 11 .hpp; total count 23 files and 5,140 lines unchanged)
+
+  - Issue #244: BUG: Compilation errors in stabilizer_opencv.cpp and benchmark.cpp ✅ **RESOLVED** (Removed extra closing brace in obs_module_unload() function; fixed mach_task_self_ to mach_task_self() function call; all 71 tests passing)
+- Issue #245: CODE QUALITY: Dead code files - video_dataset and threshold_tuner not used anywhere ✅ **RESOLVED** (Removed 728 lines of dead code; video_dataset.cpp/hpp (218 lines) and threshold_tuner.cpp/hpp (510 lines); files not referenced in CMakeLists.txt or any other source files; all 71 tests passing)
 
 Completed Issues:
 - Issue #238: CODE QUALITY: Redundant APPLE blocks in CMakeLists.txt ✅ **RESOLVED** (Merged two separate if(APPLE) blocks into single conditional; preserved informative comment about Apple-specific configurations; reduced CMakeLists.txt by 4 lines (213 → 209); no functional changes to build system; all 71 unit tests passing)
