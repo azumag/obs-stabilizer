@@ -3,7 +3,8 @@
 作業が完了したらコミットしてプッシュすること
 
 
-- Issue #249: CODE QUALITY: Empty src/obs directory and broken test-compile.sh script ✅ **RESOLVED** (Removed broken scripts/test-compile.sh (102 lines) that referenced non-existent files; empty src/obs directory cleanup (not tracked since Issue #216); all 71 tests passing)
+- Issue #251: CODE QUALITY: Clean up build artifacts and empty directories ✅ **RESOLVED** (Removed 7 empty directories: .opencode/plugin, logs, tests/integration/results, tests/integration/fix_patterns, build/CMakeFiles/pkgRedirects, build/CMakeFiles/4.0.3/CompilerIdC/tmp, build/CMakeFiles/4.0.3/CompilerIdCXX/tmp; cleaned up 22 object files; reconfigured and rebuilt successfully; all 71 tests passing)
+  - Issue #249: CODE QUALITY: Empty src/obs directory and broken test-compile.sh script ✅ **RESOLVED** (Removed broken scripts/test-compile.sh (102 lines) that referenced non-existent files; empty src/obs directory cleanup (not tracked since Issue #216); all 71 tests passing)
   - Issue #248: CODE QUALITY: Legacy performance-test.cpp is obsolete duplicate code ✅ **RESOLVED** (Removed 314 lines of duplicate StabilizationProfiler class; deleted obsolete scripts/run-perftest.sh; updated CMakeLists.txt to remove legacy executable; modern benchmark framework provides superior testing with actual StabilizerCore integration; all 71 tests passing)
   - Issue #244: BUG: Compilation errors in stabilizer_opencv.cpp and benchmark.cpp ✅ **RESOLVED** (Removed extra closing brace in obs_module_unload() function; fixed mach_task_self_ to mach_task_self() function call; all 71 tests passing)
 - Issue #245: CODE QUALITY: Dead code files - video_dataset and threshold_tuner not used anywhere ✅ **RESOLVED** (Removed 728 lines of dead code; video_dataset.cpp/hpp (218 lines) and threshold_tuner.cpp/hpp (510 lines); files not referenced in CMakeLists.txt or any other source files; all 71 tests passing)
