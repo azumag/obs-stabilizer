@@ -47,4 +47,4 @@ Completed Issues:
 
 Next: Return to step 0 - find issues
 
-**Current Issue:** None - ready for next task
+**Current Issue:** Issue #226: FEATURE: Implement Edge Handling controls for stabilized video output
