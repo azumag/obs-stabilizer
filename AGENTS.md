@@ -3,9 +3,9 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-- Issue #229: CODE QUALITY: StabilizerWrapper has unnecessary mutex and header-only implementation
 
 Completed Issues:
+- Issue #229: CODE QUALITY: StabilizerWrapper has unnecessary mutex and header-only implementation ✅ **RESOLVED** (Removed mutex overhead; moved implementations to .cpp file; updated CMakeLists.txt; OBS filters are single-threaded by design; eliminated 10 lock_guard calls; all 71 unit tests passing; all 5 benchmark scenarios passing)
 - Issue #228: CODE QUALITY: Incomplete benchmark implementation in benchmark.cpp ✅ **RESOLVED** (Replaced TODO placeholder with actual StabilizerCore integration; added TestDataGenerator for realistic test frame generation; updated CMakeLists.txt to link required source files; added comprehensive error handling; all 5 benchmark scenarios passing from 480p to 4K; all 71 unit tests passing)
 - Issue #227: BUG: Incorrect I420 YUV format handling in frame_utils.cpp ✅ **RESOLVED** (Implemented proper planar format handling with separate Y, U, V planes; added bounds checking for U/V plane data; created contiguous buffer with correct plane ordering for OpenCV conversion; eliminates garbled video output for I420 sources; all 71 unit tests passing)
 - Issue #226: FEATURE: Implement Edge Handling controls for stabilized video output ✅ **RESOLVED** (Added EdgeMode enum (Padding, Crop, Scale); implemented apply_edge_handling() function; added UI control to OBS properties panel; updated presets with appropriate edge_mode values; all 71 unit tests passing; updated README.md with comprehensive documentation)
@@ -52,4 +52,4 @@ Completed Issues:
 
  Next: Return to step 0 - find issues
 
- **Current Issue:** Issue #229: CODE QUALITY: StabilizerWrapper has unnecessary mutex and header-only implementation
+ **Current Issue:** None - ready for next task
