@@ -1,6 +1,5 @@
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
-#include "core/apple_accelerate.hpp"
 #include "core/neon_feature_detection.hpp"
 #ifndef BUILD_STANDALONE
 #include "obs/obs-module.h"
@@ -97,36 +96,20 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
             return frame;
         }
 
-    // Optimized color conversion with branch prediction hints and platform acceleration
+    // Optimized color conversion with branch prediction hints
     cv::Mat gray;
     const int num_channels = frame.channels();
-    bool converted = false;
 
-    #ifndef BUILD_STANDALONE
-    // Try platform-specific optimized color conversion
-    if (num_channels == 4 && PlatformOptimization::is_apple_silicon()) {
-        static AppleOptimization::AccelerateColorConverter accelerate_converter;
-        if (accelerate_converter.is_available()) {
-            cv::Mat rgba = frame;
-            if (accelerate_converter.convert_rgba_to_nv12(rgba, gray)) {
-                converted = true;
-            }
-        }
-    }
-    #endif
-
-    // Fallback to standard OpenCV color conversion
-    if (!converted) {
-        if (num_channels == 4) {
-            cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
-        } else if (num_channels == 3) {
-            cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-        } else if (num_channels == 1) {
-            gray = frame;
-        } else {
-            last_error_ = "Unsupported frame format";
-            return cv::Mat();
-        }
+    // Standard OpenCV color conversion
+    if (num_channels == 4) {
+        cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+    } else if (num_channels == 3) {
+        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+    } else if (num_channels == 1) {
+        gray = frame;
+    } else {
+        last_error_ = "Unsupported frame format";
+        return cv::Mat();
     }
 
     if (first_frame_) {

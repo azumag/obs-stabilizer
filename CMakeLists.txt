@@ -44,7 +44,6 @@ include_directories(
 set(SOURCES
     src/stabilizer_opencv.cpp
     src/core/stabilizer_core.cpp
-    src/core/apple_accelerate.cpp
     src/core/neon_feature_detection.cpp
     src/core/motion_classifier.cpp
     src/core/adaptive_stabilizer.cpp
@@ -124,14 +123,13 @@ set(TEST_SOURCES
  if(TEST_SOURCES)
      message(STATUS "Found test sources, enabling test suite")
      
-     # Add test source files and core source files for testing
-     set(TEST_CORE_SOURCES
-         src/core/stabilizer_core.cpp
-         src/core/apple_accelerate.cpp
-         src/core/neon_feature_detection.cpp
-         src/core/motion_classifier.cpp
-         src/core/adaptive_stabilizer.cpp
-     )
+      # Add test source files and core source files for testing
+      set(TEST_CORE_SOURCES
+          src/core/stabilizer_core.cpp
+          src/core/neon_feature_detection.cpp
+          src/core/motion_classifier.cpp
+          src/core/adaptive_stabilizer.cpp
+      )
      
      add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
      
