@@ -246,6 +246,30 @@ sudo apt install obs-studio-dev
 
 **For Core Development**: The build system automatically creates a standalone executable when OBS headers are not found, allowing development of stabilization algorithms without OBS installation.
 
+#### Custom OBS Library Path
+
+If OBS Studio is installed in a non-standard location, you can specify custom paths:
+
+```bash
+# Specify custom OBS include path
+cmake -DOBS_INCLUDE_PATH=/path/to/custom/obs/include -B build
+
+# Specify custom OBS library path
+cmake -DOBS_LIBRARY_PATH=/path/to/custom/obs/lib -B build
+
+# Or set both at once
+cmake -DOBS_INCLUDE_PATH=/path/to/obs/include \
+      -DOBS_LIBRARY_PATH=/path/to/obs/lib \
+      -B build
+```
+
+**Automatic Search Paths**: The build system searches OBS in the following order:
+1. **User-specified paths** (OBS_INCLUDE_PATH, OBS_LIBRARY_PATH) - highest priority
+2. **macOS Homebrew (Apple Silicon)**: `/opt/homebrew/include`, `/opt/homebrew/lib/obs`
+3. **macOS Homebrew (Intel)**: `/usr/local/include`, `/usr/local/lib/obs`
+4. **macOS App Bundle**: `/Applications/OBS.app/Contents/Frameworks/Headers`
+5. **Linux System**: `/usr/include`, `/usr/lib/obs`, `/usr/local/lib/obs`
+
 #### "Ninja not found" Error (Legacy builds only)
 
 The simplified build system no longer requires Ninja. If using legacy presets:

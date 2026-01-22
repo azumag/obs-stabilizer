@@ -13,12 +13,39 @@ find_package(OpenCV REQUIRED COMPONENTS core imgproc video calib3d)
 include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
 
 # --- OBS Dependencies ---
+# Allow user to specify custom OBS paths
+set(OBS_INCLUDE_PATH "" CACHE PATH "Path to OBS include directory")
+set(OBS_LIBRARY_PATH "" CACHE PATH "Path to OBS library directory")
+
+# Find OBS headers with multiple search paths
 find_path(OBS_INCLUDE_DIR obs.h
-    PATHS /usr/local/include /usr/include ${CMAKE_SOURCE_DIR}/include
+    PATHS
+        ${OBS_INCLUDE_PATH}
+        /opt/homebrew/include  # macOS Homebrew (Apple Silicon)
+        /usr/local/include      # macOS Homebrew (Intel)
+        /Applications/OBS.app/Contents/Frameworks/Headers
+        /usr/include           # Linux system
+        ${CMAKE_SOURCE_DIR}/include
     PATH_SUFFIXES obs)
+
 find_path(OBS_FRONTEND_INCLUDE_DIR obs-frontend-api.h
-    PATHS /usr/local/include /usr/include ${CMAKE_SOURCE_DIR}/include)
-find_library(OBS_LIBRARY obs PATHS /Applications/OBS.app/Contents/Frameworks)
+    PATHS
+        ${OBS_INCLUDE_PATH}
+        /opt/homebrew/include  # macOS Homebrew (Apple Silicon)
+        /usr/local/include      # macOS Homebrew (Intel)
+        /Applications/OBS.app/Contents/Frameworks/Headers
+        /usr/include           # Linux system
+        ${CMAKE_SOURCE_DIR}/include)
+
+# Find OBS library with multiple search paths
+find_library(OBS_LIBRARY obs
+    PATHS
+        ${OBS_LIBRARY_PATH}
+        /opt/homebrew/lib/obs  # macOS Homebrew (Apple Silicon)
+        /usr/local/lib/obs      # macOS Homebrew (Intel)
+        /Applications/OBS.app/Contents/Frameworks
+        /usr/lib/obs           # Linux OBS packages
+        /usr/local/lib/obs)
 
 if(OBS_INCLUDE_DIR AND OBS_FRONTEND_INCLUDE_DIR)
     add_definitions(-DHAVE_OBS_HEADERS=1)
@@ -107,12 +134,8 @@ enable_testing()
 # Google Test
 find_package(GTest REQUIRED)
 
-# Remove compiler ID files from test sources to avoid duplicate symbols
-set(TEST_SOURCES ${TEST_SOURCES})
-list(FILTER TEST_SOURCES EXCLUDE REGEX "CompilerId")
-
  # Test Sources
-set(TEST_SOURCES
+ set(TEST_SOURCES
     tests/test_basic.cpp
     tests/test_stabilizer_core.cpp
     tests/test_adaptive_stabilizer.cpp
