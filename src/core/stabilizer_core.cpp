@@ -1,56 +1,18 @@
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
 #include "core/neon_feature_detection.hpp"
-#ifndef BUILD_STANDALONE
-#include "obs/obs-module.h"
-#endif
+#include "core/logging.hpp"
 #include <vector>
 #include <algorithm>
-#include <iostream>
 #include <stdexcept>
 #include <sstream>
 #include <iomanip>
-#include <cstdarg>
-#include <cstdio>
 
 using namespace StabilizerConstants;
 
-#ifndef BUILD_STANDALONE
-#define STAB_LOG_ERROR(...) obs_log(LOG_ERROR, __VA_ARGS__)
-#define STAB_LOG_WARNING(...) obs_log(LOG_WARNING, __VA_ARGS__)
-#define STAB_LOG_INFO(...) obs_log(LOG_INFO, __VA_ARGS__)
-#else
-static inline void log_error(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    std::cerr << "[ERROR] ";
-    vfprintf(stderr, fmt, args);
-    std::cerr << std::endl;
-    va_end(args);
-}
-
-static inline void log_warning(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    std::cerr << "[WARNING] ";
-    vfprintf(stderr, fmt, args);
-    std::cerr << std::endl;
-    va_end(args);
-}
-
-static inline void log_info(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    std::cout << "[INFO] ";
-    vfprintf(stdout, fmt, args);
-    std::cout << std::endl;
-    va_end(args);
-}
-
-#define STAB_LOG_ERROR(...) log_error(__VA_ARGS__)
-#define STAB_LOG_WARNING(...) log_warning(__VA_ARGS__)
-#define STAB_LOG_INFO(...) log_info(__VA_ARGS__)
-#endif
+#define STAB_LOG_ERROR(...) CORE_LOG_ERROR(__VA_ARGS__)
+#define STAB_LOG_WARNING(...) CORE_LOG_WARNING(__VA_ARGS__)
+#define STAB_LOG_INFO(...) CORE_LOG_INFO(__VA_ARGS__)
 
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {

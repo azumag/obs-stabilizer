@@ -99,6 +99,7 @@ OBS Stabilizer provides real-time video stabilization for livestreams and record
 - **Build System**: CMake 3.28+ with full conditional compilation
 - **Testing**: Google Test framework with performance & security validation
 - **License**: GPL-2.0 (OBS Studio compatible)
+- **Logging**: Unified logging interface with OBS integration (Issue #225 ✅ **RESOLVED**)
 
 ## Quick Start
 
@@ -1309,6 +1310,34 @@ Resolution | Minimum CPU     | Recommended CPU | Typical Usage
 - Added comprehensive bounds checking to `FRAME_UTILS::FrameBuffer::create()` to prevent buffer overflows
 - Analyzed and documented frame buffer mutex usage with thread-safety implications
 - All 71 tests passing with no regressions
+
+**Unified Logging Infrastructure** (Issue #225 ✅ **RESOLVED**):
+- Created `src/core/logging.hpp` with unified logging interface
+- Core production code now uses OBS logging functions (`blog`/`obs_log`) when OBS headers available
+- Replaced duplicate logging infrastructure in `stabilizer_core.cpp` with unified interface
+- Testing utilities (benchmark.cpp, threshold_tuner.cpp, performance_regression.cpp) retain console output
+- Production code has zero instances of `std::cout`/`std::cerr` for logging purposes
+- All error/warning/info messages appear in OBS log files when plugin is loaded
+- Standalone builds fall back to console output for development
+
+**Logging Interface**:
+```cpp
+// In core code (stabilizer_core.cpp, adaptive_stabilizer.cpp, etc.)
+#include "core/logging.hpp"
+
+// Use standardized logging macros
+CORE_LOG_ERROR("Failed to process frame: %s", error_message);
+CORE_LOG_WARNING("Performance degraded: processing time %dms", time);
+CORE_LOG_INFO("Stabilization initialized with %d features", feature_count);
+CORE_LOG_DEBUG("Processing frame %d", frame_num);
+```
+
+**Log Output Locations**:
+- **OBS Plugin** (`BUILD_STANDALONE` undefined): Messages appear in OBS log files
+  - macOS: `~/Library/Logs/obs-studio/obs-studio.log`
+  - Linux: `~/.config/obs-studio/logs/obs-studio.log`
+  - Windows: `%APPDATA%\obs-studio\logs\obs-studio.log`
+- **Standalone Build** (`BUILD_STANDALONE` defined): Messages output to console (stdout/stderr)
 
 **Modular Architecture Validation**: Ensures Phase 2.5 refactoring integrity
 
