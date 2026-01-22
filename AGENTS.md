@@ -61,6 +61,8 @@ Completed Issues:
 
  - Issue #234: CODE QUALITY: Obsolete stabilizer_constants.h file and incorrect include path ✅ **RESOLVED** (Removed src/stabilizer_constants.h (198 lines of dead code); fixed include path in stabilizer_core.hpp:19 from ../stabilizer_constants.h to stabilizer_constants.hpp; consolidated to single constants file (src/core/stabilizer_constants.hpp); all 71 unit tests passing; performance benchmarks passing)
 
-- Issue #235: CI/CD: Windows build workflow disables OpenCV ✅ **RESOLVED** (Removed -DCMAKE_DISABLE_FIND_PACKAGE_OpenCV=ON from Windows CMake configuration; added OpenCV installation via vcpkg for Windows CI/CD; updated configure-cmake action to properly use OpenCV from vcpkg; added vcpkg caching to maintain build speed; this ensures CI/CD actually tests production plugin functionality; all 71 unit tests passing)
+ - Issue #235: CI/CD: Windows build workflow disables OpenCV ✅ **RESOLVED** (Removed -DCMAKE_DISABLE_FIND_PACKAGE_OpenCV=ON from Windows CMake configuration; added OpenCV installation via vcpkg for Windows CI/CD; updated configure-cmake action to properly use OpenCV from vcpkg; added vcpkg caching to maintain build speed; this ensures CI/CD actually tests production plugin functionality; all 71 unit tests passing)
+
+- Issue #236: DOC: Outdated code statistics in README.md ✅ **RESOLVED** (Updated line count from 8,675 to 5,375 for source code; updated total from 7,630 to 7,597 lines (src + tests); updated total from 7,164 to 7,597 lines in comprehensive review section; added accurate file counts: 24 source files, 9 test files, 33 documentation files; added documentation line count: 8,724 lines; reflects recent code cleanup efforts (Issues #232, #233, #234 removed 217+ lines); all 71 unit tests passing)
  
 Next: Return to step 0 - find issues
