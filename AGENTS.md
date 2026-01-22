@@ -3,9 +3,9 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-- Issue #227: BUG: Incorrect I420 YUV format handling in frame_utils.cpp
 
 Completed Issues:
+- Issue #227: BUG: Incorrect I420 YUV format handling in frame_utils.cpp ✅ **RESOLVED** (Implemented proper planar format handling with separate Y, U, V planes; added bounds checking for U/V plane data; created contiguous buffer with correct plane ordering for OpenCV conversion; eliminates garbled video output for I420 sources; all 71 unit tests passing)
 - Issue #226: FEATURE: Implement Edge Handling controls for stabilized video output ✅ **RESOLVED** (Added EdgeMode enum (Padding, Crop, Scale); implemented apply_edge_handling() function; added UI control to OBS properties panel; updated presets with appropriate edge_mode values; all 71 unit tests passing; updated README.md with comprehensive documentation)
 
 - Issue #225: CODE QUALITY: Replace excessive std::cout/cerr with OBS logging in core code ✅ **RESOLVED** (Created src/core/logging.hpp with unified logging interface; core production code now uses OBS logging functions (blog/obs_log) when OBS headers available; replaced duplicate logging infrastructure in stabilizer_core.cpp; production code has zero instances of std::cout/std::cerr for logging purposes; all 71 unit tests passing; updated README.md with logging infrastructure documentation)
@@ -50,4 +50,4 @@ Completed Issues:
 
  Next: Return to step 0 - find issues
 
- **Current Issue:** Issue #227: BUG: Incorrect I420 YUV format handling in frame_utils.cpp
+ **Current Issue:** None - ready for next task
