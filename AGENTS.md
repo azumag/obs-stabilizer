@@ -3,8 +3,12 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-- Issue #246: CODE QUALITY: Unused memory-test.cpp file in tools directory ✅ **RESOLVED** (Removed 294 lines of unused code; not referenced in CMakeLists.txt or documentation; functionality superseded by src/core/benchmark.cpp and src/core/performance_regression.cpp; all 71 tests passing)
-- Issue #247: DOC: Incorrect source file type breakdown in README.md ✅ **RESOLVED** (Fixed file type breakdown from 13 .cpp, 7 .hpp to 9 .cpp, 11 .hpp; total count 23 files and 5,140 lines unchanged)
+- Issue #248: CODE QUALITY: Legacy performance-test.cpp is obsolete duplicate code (OPEN)
+    - tools/performance-test.cpp (314 lines) implements duplicate StabilizationProfiler class
+    - Modern benchmark framework provides superior testing (benchmark.cpp + performance_benchmark.cpp)
+    - Documentation explicitly marks it as legacy (performance-testing-implementation.md:203)
+    - Violates DRY principle - duplicate stabilization logic
+    - CMakeLists.txt:197-199 builds legacy executable alongside modern performance_benchmark
 
   - Issue #244: BUG: Compilation errors in stabilizer_opencv.cpp and benchmark.cpp ✅ **RESOLVED** (Removed extra closing brace in obs_module_unload() function; fixed mach_task_self_ to mach_task_self() function call; all 71 tests passing)
 - Issue #245: CODE QUALITY: Dead code files - video_dataset and threshold_tuner not used anywhere ✅ **RESOLVED** (Removed 728 lines of dead code; video_dataset.cpp/hpp (218 lines) and threshold_tuner.cpp/hpp (510 lines); files not referenced in CMakeLists.txt or any other source files; all 71 tests passing)

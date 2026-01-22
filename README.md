@@ -327,9 +327,6 @@ GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 # Run Phase 3 UI implementation test (validates UI components and presets)
 ./scripts/run-ui-test.sh
 
-# Run legacy performance tests (requires OpenCV)
-./scripts/run-perftest.sh
-
 # Run comprehensive performance benchmarks (NEW - Issue #224)
 ./scripts/run-perf-benchmark.sh
 
@@ -1798,7 +1795,14 @@ Video stabilization can introduce black borders at frame edges due to transform 
 
 ## 🏁 Project Status: Ready for Development
 
-### 📋 **Current Issue: No open issues**
+### 📋 **Current Issue**
+
+- Issue #248: CODE QUALITY: Legacy performance-test.cpp is obsolete duplicate code
+    - tools/performance-test.cpp (314 lines) implements duplicate StabilizationProfiler class
+    - Modern benchmark framework provides superior testing (benchmark.cpp + performance_benchmark.cpp)
+    - Documentation explicitly marks it as legacy (performance-testing-implementation.md:203)
+    - Violates DRY principle - duplicate stabilization logic
+    - CMakeLists.txt:197-199 builds legacy executable alongside modern performance_benchmark
 
 ### 📊 Codebase Statistics (Current)
 - **Total Lines of Code**: 7,362 lines (src + tests)

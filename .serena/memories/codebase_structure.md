@@ -22,17 +22,20 @@ obs-stabilizer/
 │   ├── stabilizer.cpp      # Core stabilization algorithm
 │   ├── stabilizer.h        # Core header
 │   ├── minimal_plugin_main.cpp  # Minimal test plugin
-│   ├── performance-test.cpp     # Performance benchmarks
-│   ├── memory-test.cpp          # Memory leak tests
-│   └── tests/              # Unit tests
+│   ├── core/             # Core stabilization components
+│   └── obs/              # OBS integration layer
 ├── docs/                   # Documentation
 │   ├── architecture.md     # System architecture
 │   ├── plugin-loading-*    # Troubleshooting docs
 │   └── ...
 ├── scripts/                # Build and test scripts
 │   ├── run-tests.sh       # Main test runner
-│   ├── run-perftest.sh    # Performance tests
+│   ├── run-perf-benchmark.sh  # Performance benchmarks
+│   ├── quick-perf.sh      # Quick performance validation
+│   ├── run-perf-regression.sh  # Regression detection
 │   └── fix-plugin-loading.sh  # macOS fix
+├── tools/                  # Development tools
+│   └── performance_benchmark.cpp  # Modern benchmark executable
 ├── security/               # Security audit tools
 ├── tests/                  # Test infrastructure
 ├── data/                   # Plugin resources

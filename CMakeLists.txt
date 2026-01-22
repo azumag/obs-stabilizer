@@ -192,12 +192,8 @@ install(TARGETS obs-stabilizer-opencv
          ${CMAKE_CURRENT_SOURCE_DIR}/src/core
      )
      
-     target_link_libraries(performance_benchmark ${OpenCV_LIBS})
-     
-     # Legacy performance test (tools/performance-test.cpp)
-     add_executable(performance_test tools/performance-test.cpp)
-     target_link_libraries(performance_test ${OpenCV_LIBS})
-     
-     message(STATUS "Performance testing infrastructure enabled")
+      target_link_libraries(performance_benchmark ${OpenCV_LIBS})
+      
+      message(STATUS "Performance testing infrastructure enabled")
  endif()
 

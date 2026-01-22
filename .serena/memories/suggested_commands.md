@@ -27,8 +27,14 @@ cmake --build build
 # Run core compilation test only (no dependencies)
 ./scripts/test-core-only.sh
 
-# Run performance tests
-./scripts/run-perftest.sh
+# Run performance benchmarks (modern framework)
+./scripts/run-perf-benchmark.sh
+
+# Run quick performance validation
+./scripts/quick-perf.sh
+
+# Run performance regression detection
+./scripts/run-perf-regression.sh
 
 # Run integration tests
 ./scripts/run-integration-test.sh
