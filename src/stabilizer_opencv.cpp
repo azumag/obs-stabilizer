@@ -601,7 +601,6 @@ void obs_module_unload(void)
     #ifdef HAVE_OBS_HEADERS
     FRAME_UTILS::FrameBuffer::cleanup();
     #endif
-    }
 }
 
 // Helper function to reduce code duplication in adaptive config setting
