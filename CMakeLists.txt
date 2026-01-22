@@ -129,31 +129,31 @@ install(TARGETS obs-stabilizer-opencv
 )
 
  # --- Tests ---
-enable_testing()
+ enable_testing()
 
-# Google Test
-find_package(GTest REQUIRED)
+ # Google Test
+ find_package(GTest REQUIRED)
 
- # Test Sources
- set(TEST_SOURCES
-    tests/test_basic.cpp
-    tests/test_stabilizer_core.cpp
-    tests/test_adaptive_stabilizer.cpp
-    tests/test_motion_classifier.cpp
-    tests/test_data_generator.cpp
-)
+  # Test Sources
+  set(TEST_SOURCES
+     tests/test_basic.cpp
+     tests/test_stabilizer_core.cpp
+     tests/test_adaptive_stabilizer.cpp
+     tests/test_motion_classifier.cpp
+     tests/test_data_generator.cpp
+ )
 
- if(TEST_SOURCES)
-     message(STATUS "Found test sources, enabling test suite")
-     
-      # Add test source files and core source files for testing
-      set(TEST_CORE_SOURCES
-          src/core/stabilizer_core.cpp
-          src/core/neon_feature_detection.cpp
-          src/core/motion_classifier.cpp
-          src/core/adaptive_stabilizer.cpp
-      )
-     
+  if(TEST_SOURCES)
+      message(STATUS "Found test sources, enabling test suite")
+      
+       # Add test source files and core source files for testing
+       set(TEST_CORE_SOURCES
+           src/core/stabilizer_core.cpp
+           src/core/neon_feature_detection.cpp
+           src/core/motion_classifier.cpp
+           src/core/adaptive_stabilizer.cpp
+       )
+      
      add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
      
      target_include_directories(stabilizer_tests PRIVATE
@@ -173,5 +173,36 @@ find_package(GTest REQUIRED)
      add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
      message(STATUS "Test suite enabled.")
  else()
-     message(STATUS "No test sources found, skipping test suite.")
+      message(STATUS "No test sources found, skipping test suite.")
  endif()
+
+ # --- Performance Testing Infrastructure ---
+ option(ENABLE_PERFORMANCE_TESTS "Build performance testing infrastructure" ON)
+
+ if(ENABLE_PERFORMANCE_TESTS)
+     message(STATUS "Building performance testing infrastructure")
+     
+     # Performance benchmark executable
+     set(PERF_SOURCES
+         src/core/benchmark.cpp
+         src/core/performance_regression.cpp
+         tools/performance_benchmark.cpp
+     )
+     
+     add_executable(performance_benchmark ${PERF_SOURCES})
+     
+     target_include_directories(performance_benchmark PRIVATE
+         ${CMAKE_CURRENT_SOURCE_DIR}
+         ${CMAKE_CURRENT_SOURCE_DIR}/src
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+     )
+     
+     target_link_libraries(performance_benchmark ${OpenCV_LIBS})
+     
+     # Legacy performance test (tools/performance-test.cpp)
+     add_executable(performance_test tools/performance-test.cpp)
+     target_link_libraries(performance_test ${OpenCV_LIBS})
+     
+     message(STATUS "Performance testing infrastructure enabled")
+ endif()
+

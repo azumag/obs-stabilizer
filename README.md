@@ -326,8 +326,17 @@ GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 # Run Phase 3 UI implementation test (validates UI components and presets)
 ./scripts/run-ui-test.sh
 
-# Run performance tests (requires OpenCV)
+# Run legacy performance tests (requires OpenCV)
 ./scripts/run-perftest.sh
+
+# Run comprehensive performance benchmarks (NEW - Issue #224)
+./scripts/run-perf-benchmark.sh
+
+# Run quick performance validation for development
+./scripts/quick-perf.sh
+
+# Run performance regression detection (compares against baseline)
+./scripts/run-perf-regression.sh
 
 # Run unit tests (Issue #215 - Test suite restored)
 ./build/stabilizer_tests
@@ -338,6 +347,35 @@ cd build && ctest --verbose
 # Run security audit (validates 11 security checks)
 ./security/security-audit.sh
 ```
+
+**Performance Testing Infrastructure** (NEW - Issue #224):
+
+Comprehensive performance testing system with:
+- Multi-resolution benchmarking (480p, 720p, 1080p, 1440p, 4K)
+- Automatic regression detection with configurable thresholds
+- CI/CD integration for continuous monitoring
+- Baseline management for tracking performance over time
+- Detailed metrics collection (timing, memory, frame rate)
+
+**Quick Start:**
+```bash
+# Quick validation during development
+./scripts/quick-perf.sh
+
+# Full benchmark suite
+./scripts/run-perf-benchmark.sh
+
+# Run specific scenario
+./scripts/run-perf-benchmark.sh --scenario 1080p --frames 500
+
+# Compare against baseline
+./scripts/run-perf-benchmark.sh --baseline baseline.json
+```
+
+**Documentation:**
+- User Guide: `docs/performance-testing-guide.md`
+- Architecture: `docs/performance-testing-architecture.md`
+- Implementation: `docs/performance-testing-implementation.md`
 
 ### Installation
 

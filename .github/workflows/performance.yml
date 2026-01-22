@@ -1,0 +1,210 @@
+name: Performance Tests
+
+on:
+  push:
+    paths:
+      - 'src/core/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+  pull_request:
+    paths:
+      - 'src/core/**'
+      - 'tests/**'
+      - 'CMakeLists.txt'
+  workflow_dispatch:
+    inputs:
+      run_full_benchmark:
+        description: 'Run full benchmark suite (all scenarios)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  benchmark:
+    name: Performance Benchmark (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libopencv-dev
+      
+      - name: Setup dependencies (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          brew install cmake ninja pkg-config opencv
+      
+      - name: Setup dependencies (Windows)
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      
+      - name: Setup vcpkg (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          cd vcpkg
+          ./bootstrap-vcpkg.bat
+          ./vcpkg install opencv
+      
+      - name: Configure CMake
+        run: |
+          if [ "${{ matrix.platform }}" == "windows" ]; then
+            cmake -B build -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake
+          else
+            cmake -B build
+          fi
+      
+      - name: Build performance benchmarks
+        run: |
+          cmake --build build --target performance_benchmark
+      
+      - name: Run quick performance test
+        if: github.event.inputs.run_full_benchmark != 'true'
+        run: |
+          if [ "${{ matrix.platform }}" == "windows" ]; then
+            ./build/Release/performance_benchmark.exe --scenario 1080p --frames 100 --warmup 5 --output perf_quick.csv
+          else
+            ./build/performance_benchmark --scenario 1080p --frames 100 --warmup 5 --output perf_quick.csv
+          fi
+      
+      - name: Run full benchmark suite
+        if: github.event.inputs.run_full_benchmark == 'true'
+        run: |
+          if [ "${{ matrix.platform }}" == "windows" ]; then
+            ./build/Release/performance_benchmark.exe --output perf_full.csv
+          else
+            ./build/performance_benchmark --output perf_full.csv
+          fi
+      
+      - name: Check for regressions (if baseline exists)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          # Try to download baseline from main branch
+          curl -fL -H "Accept: application/vnd.github.v3.raw" \
+            -o baseline.json \
+            https://api.github.com/repos/${{ github.repository }}/contents/results/baselines/performance_baseline.json?ref=main || echo "No baseline found"
+          
+          if [ -f baseline.json ] && [ -s baseline.json ]; then
+            echo "Baseline found, comparing..."
+            if [ "${{ matrix.platform }}" == "windows" ]; then
+              ./build/Release/performance_benchmark.exe --baseline baseline.json --output perf_current.csv || exit 1
+            else
+              ./build/performance_benchmark --baseline baseline.json --output perf_current.csv || exit 1
+            fi
+          else
+            echo "No baseline available, skipping regression check"
+          fi
+      
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results-${{ matrix.platform }}
+          path: |
+            perf_*.csv
+            perf_*.json
+          retention-days: 30
+      
+      - name: Upload performance results (if regression detected)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-regression-${{ matrix.platform }}
+          path: |
+            perf_*.csv
+            perf_*.json
+          retention-days: 90
+      
+      - name: Comment PR with results (if regression)
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Performance Regression Detected**\n\n' +
+                     'Performance tests failed on `${{ matrix.platform }}`. Please review the uploaded artifacts for details.\n\n' +
+                     'This may indicate a performance degradation in recent changes.'
+            })
+
+  performance-report:
+    name: Generate Performance Report
+    needs: benchmark
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all results
+        uses: actions/download-artifact@v4
+        with:
+          path: results/
+      
+      - name: Generate summary report
+        run: |
+          echo "# Performance Test Results" > summary.md
+          echo "" >> summary.md
+          echo "Run on: $(date)" >> summary.md
+          echo "" >> summary.md
+          echo "## Results by Platform" >> summary.md
+          
+          for dir in results/performance-results-*; do
+            platform=$(basename "$dir" | sed 's/performance-results-//')
+            echo "" >> summary.md
+            echo "### $platform" >> summary.md
+            
+            if [ -f "$dir/perf_quick.csv" ]; then
+              echo "Quick test results:" >> summary.md
+              echo '```' >> summary.md
+              cat "$dir/perf_quick.csv" >> summary.md
+              echo '```' >> summary.md
+            fi
+          done
+      
+      - name: Upload summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-summary
+          path: summary.md
+      
+      - name: Comment PR with summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('summary.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });

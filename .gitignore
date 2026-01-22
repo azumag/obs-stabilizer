@@ -53,6 +53,19 @@ run-tests
 run-integration-test
 run-ui-test
 
+# Performance testing executables
+performance_benchmark
+performance_test
+performance_benchmark.exe
+performance_test.exe
+
+# Performance test results
+results/
+perf_*.csv
+perf_*.json
+quick_perf_results.csv
+performance_results.*
+
 # Visual Studio
 .vs/
 *.vcxproj.user
