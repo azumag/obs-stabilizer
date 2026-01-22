@@ -71,6 +71,7 @@ include_directories(
 set(SOURCES
     src/stabilizer_opencv.cpp
     src/core/stabilizer_core.cpp
+    src/core/stabilizer_wrapper.cpp
     src/core/neon_feature_detection.cpp
     src/core/motion_classifier.cpp
     src/core/adaptive_stabilizer.cpp
