@@ -48,7 +48,6 @@ set(SOURCES
     src/core/neon_feature_detection.cpp
     src/core/motion_classifier.cpp
     src/core/adaptive_stabilizer.cpp
-    src/obs/obs_integration.cpp
     src/plugin-support.c
 )
 

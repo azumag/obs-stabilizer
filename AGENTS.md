@@ -3,7 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-(No open issues)
+- Issue #216: CODE QUALITY: Duplicate/unused OBS integration code in src/obs/obs_integration.cpp (Created - MEDIUM priority)
 
 Completed Issues:
 - Issue #215: TEST: Restore test suite after Issue #212 cleanup ✅ **RESOLVED** (Restored test suite with 71 unit tests, 100% pass rate, updated CI/CD integration, code coverage >20%, documentation updated)
@@ -35,3 +35,11 @@ Completed Issues:
 
 
 Next: Return to step 0 - find issues
+
+**Current Issue:** Issue #216 - CODE QUALITY: Duplicate/unused OBS integration code
+
+The codebase contains duplicate OBS integration code in two files:
+1. src/obs/obs_integration.cpp (452 lines) - unused, compiled but never called
+2. src/stabilizer_opencv.cpp (634 lines) - active implementation
+
+This violates DRY principle, creates confusion, and adds maintenance burden. The solution is to remove the unused src/obs/obs_integration.cpp files.
