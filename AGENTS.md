@@ -3,6 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
+- Issue #227: BUG: Incorrect I420 YUV format handling in frame_utils.cpp
 
 Completed Issues:
 - Issue #226: FEATURE: Implement Edge Handling controls for stabilized video output ✅ **RESOLVED** (Added EdgeMode enum (Padding, Crop, Scale); implemented apply_edge_handling() function; added UI control to OBS properties panel; updated presets with appropriate edge_mode values; all 71 unit tests passing; updated README.md with comprehensive documentation)
@@ -47,6 +48,6 @@ Completed Issues:
 - Issue #189: TEST: Expand test coverage for critical stabilization paths
 
 
-Next: Return to step 0 - find issues
+ Next: Return to step 0 - find issues
 
-**Current Issue:** None - ready for next task
+ **Current Issue:** Issue #227: BUG: Incorrect I420 YUV format handling in frame_utils.cpp

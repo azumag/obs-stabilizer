@@ -44,7 +44,7 @@ namespace FRAME_UTILS {
 
                 case VIDEO_FORMAT_NV12:
                     {
-                        cv::Mat yuv(frame->height + frame->height/2, frame->width, 
+                        cv::Mat yuv(frame->height + frame->height/2, frame->width,
                                    CV_8UC1, frame->data[0]);
                         cv::cvtColor(yuv, mat, cv::COLOR_YUV2BGRA_NV12);
                     }
@@ -52,8 +52,29 @@ namespace FRAME_UTILS {
 
                 case VIDEO_FORMAT_I420:
                     {
-                        cv::Mat yuv(frame->height + frame->height/2, frame->width, 
-                                   CV_8UC1, frame->data[0]);
+                        if (!frame->data[1] || !frame->data[2]) {
+                            obs_log(LOG_ERROR, "I420 format missing U/V plane data");
+                            return cv::Mat();
+                        }
+
+                        const int y_size = frame->width * frame->height;
+                        const int uv_size = (frame->width / 2) * (frame->height / 2);
+
+                        std::vector<uint8_t> yuv_buffer;
+                        yuv_buffer.resize(y_size + uv_size * 2);
+
+                        uint8_t* yuv_ptr = yuv_buffer.data();
+
+                        memcpy(yuv_ptr, frame->data[0], y_size);
+                        yuv_ptr += y_size;
+
+                        memcpy(yuv_ptr, frame->data[1], uv_size);
+                        yuv_ptr += uv_size;
+
+                        memcpy(yuv_ptr, frame->data[2], uv_size);
+
+                        cv::Mat yuv(frame->height + frame->height / 2, frame->width,
+                                   CV_8UC1, yuv_buffer.data());
                         cv::cvtColor(yuv, mat, cv::COLOR_YUV2BGRA_I420);
                     }
                     break;
