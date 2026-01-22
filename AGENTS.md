@@ -5,6 +5,7 @@
 New Issues:
 
 Completed Issues:
+- Issue #238: CODE QUALITY: Redundant APPLE blocks in CMakeLists.txt ✅ **RESOLVED** (Merged two separate if(APPLE) blocks into single conditional; preserved informative comment about Apple-specific configurations; reduced CMakeLists.txt by 4 lines (213 → 209); no functional changes to build system; all 71 unit tests passing)
 - Issue #237: CODE QUALITY: Inaccurate source code statistics in README.md ✅ **RESOLVED** (Updated Source Code from 5,375 to 5,818 lines (added 3 .c files: 443 lines); updated Total Lines of Code from 7,597 to 8,040 lines; corrected file count from 24 to 27 (13 .cpp, 11 .hpp, 3 .c); fixed .c files omission in statistics breakdown; all 71 unit tests passing)
 - Issue #229: CODE QUALITY: StabilizerWrapper has unnecessary mutex and header-only implementation ✅ **RESOLVED** (Removed mutex overhead; moved implementations to .cpp file; updated CMakeLists.txt; OBS filters are single-threaded by design; eliminated 10 lock_guard calls; all 71 unit tests passing; all 5 benchmark scenarios passing)
 - Issue #228: CODE QUALITY: Incomplete benchmark implementation in benchmark.cpp ✅ **RESOLVED** (Replaced TODO placeholder with actual StabilizerCore integration; added TestDataGenerator for realistic test frame generation; updated CMakeLists.txt to link required source files; added comprehensive error handling; all 5 benchmark scenarios passing from 480p to 4K; all 71 unit tests passing)
