@@ -1795,14 +1795,7 @@ Video stabilization can introduce black borders at frame edges due to transform 
 
 ## 🏁 Project Status: Ready for Development
 
-### 📋 **Current Issue**
-
-- Issue #248: CODE QUALITY: Legacy performance-test.cpp is obsolete duplicate code
-    - tools/performance-test.cpp (314 lines) implements duplicate StabilizationProfiler class
-    - Modern benchmark framework provides superior testing (benchmark.cpp + performance_benchmark.cpp)
-    - Documentation explicitly marks it as legacy (performance-testing-implementation.md:203)
-    - Violates DRY principle - duplicate stabilization logic
-    - CMakeLists.txt:197-199 builds legacy executable alongside modern performance_benchmark
+### 📋 **Current Issue: No open issues**
 
 ### 📊 Codebase Statistics (Current)
 - **Total Lines of Code**: 7,362 lines (src + tests)
