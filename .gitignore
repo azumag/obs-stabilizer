@@ -30,6 +30,7 @@ install_manifest.txt
 # Obsolete development artifacts
 fake-plugin.plugin/
 plugin-versions/
+Testing/
 step*-plugin/
 obs-stabilizer.plugin/
 
