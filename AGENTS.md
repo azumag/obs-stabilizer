@@ -3,9 +3,10 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-- Issue #208: CODE CLEANUP: Remove obsolete development artifacts (fake-plugin.plugin and plugin-versions) (Created - LOW priority)
+- Issue #211: CODE CLEANUP: Remove obsolete plugin-version-builder.sh script (Created - LOW priority)
 
 Completed Issues:
+- Issue #208: CODE CLEANUP: Remove obsolete development artifacts (fake-plugin.plugin and plugin-versions) ✅ **RESOLVED** (Removed committed build artifact obs-stabilizer.plugin from git, added to .gitignore, build system verified, all tests passing)
 - Issue #207: FEATURE: Integrate Adaptive Stabilizer UI into OBS Properties Panel ✅ **RESOLVED** (Added UI controls to enable adaptive stabilization features in OBS properties panel, backend complete and tested, UI integration complete, all 201 tests passing, documentation updated)
 - Issue #206: BUG: Performance warning system implemented but never displayed to users ✅ **RESOLVED** (Integrated performance warning display into UI, stats tracked per frame, warnings logged every 30 frames, Performance Status property added to properties panel, test added - 198/198 tests passing)
 - Issue #204: TEST: Fine-tune MotionClassifier thresholds with real-world video data ✅ **RESOLVED** (All 10 MotionClassifier tests passing (100% accuracy), comprehensive threshold tuning completed, documented in docs/motion-classifier-threshold-tuning.md)
@@ -29,6 +30,6 @@ Completed Issues:
 
 Next: Return to step 0 - find issues
 
-**Current Issue:** Issue #208 - CODE CLEANUP: Remove obsolete development artifacts (fake-plugin.plugin and plugin-versions)
+**Current Issue:** Issue #211 - CODE CLEANUP: Remove obsolete plugin-version-builder.sh script
 
-During plugin development, several intermediate directories and test artifacts were created that are no longer needed. These directories (fake-plugin.plugin/ and plugin-versions/) clutter the repository and should be removed to improve code organization and developer experience.
+The scripts/plugin-version-builder.sh script is obsolete and references the non-existent plugin-versions/ directory that was removed in issue #208. This script should be removed to avoid confusing developers.
