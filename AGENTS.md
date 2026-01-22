@@ -3,9 +3,10 @@
 作業が完了したらコミットしてプッシュすること
 
 New Issues:
-- Issue #216: CODE QUALITY: Duplicate/unused OBS integration code in src/obs/obs_integration.cpp (Created - MEDIUM priority)
+(No open issues)
 
 Completed Issues:
+- Issue #216: CODE QUALITY: Duplicate/unused OBS integration code in src/obs/obs_integration.cpp ✅ **RESOLVED** (Removed 717 lines of unused code, updated CMakeLists.txt and README.md, eliminated code confusion and maintenance burden, aligns with DRY/YAGNI/KISS principles)
 - Issue #215: TEST: Restore test suite after Issue #212 cleanup ✅ **RESOLVED** (Restored test suite with 71 unit tests, 100% pass rate, updated CI/CD integration, code coverage >20%, documentation updated)
 - Issue #214: BUG: Memory leak in stabilizer_filter_create exception handling ✅ **RESOLVED** (Replaced raw delete with RAII pattern, eliminated memory leak risk, consistent with modern C++ practices)
 - Issue #213: BUG: CMakeLists.txt references deleted test files causing build failure ✅ **RESOLVED** (Updated CMakeLists.txt to disable test suite after test files were removed in Issue #212, build system now works correctly)
@@ -35,11 +36,3 @@ Completed Issues:
 
 
 Next: Return to step 0 - find issues
-
-**Current Issue:** Issue #216 - CODE QUALITY: Duplicate/unused OBS integration code
-
-The codebase contains duplicate OBS integration code in two files:
-1. src/obs/obs_integration.cpp (452 lines) - unused, compiled but never called
-2. src/stabilizer_opencv.cpp (634 lines) - active implementation
-
-This violates DRY principle, creates confusion, and adds maintenance burden. The solution is to remove the unused src/obs/obs_integration.cpp files.
