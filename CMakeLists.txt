@@ -99,9 +99,7 @@ if(APPLE)
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:include>
     )
-endif()
 
-if(APPLE)
     set_target_properties(obs-stabilizer-opencv PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup"
         INSTALL_RPATH "@loader_path/../Frameworks"
