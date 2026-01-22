@@ -11,9 +11,23 @@ runs:
       if: inputs.platform != 'windows'
       shell: bash
       run: |
-        echo "Running simplified test validation"
+        echo "Running unit tests"
+        if [ -f "build/stabilizer_tests" ]; then
+          echo "Unit test executable found - running tests"
+          if ./build/stabilizer_tests; then
+            echo "Unit tests passed"
+          else
+            EXIT_CODE=$?
+            echo "::error::Unit tests failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
+        else
+          echo "No unit test executable found - skipping unit tests"
+        fi
+
+        echo "Running standalone build validation"
         if [ -f "build/obs-stabilizer-standalone" ]; then
-          echo "Standalone build found - running test"
+          echo "Standalone build found - running validation"
           if ./build/obs-stabilizer-standalone; then
             echo "Build validation tests passed"
           else
@@ -29,9 +43,23 @@ runs:
       if: inputs.platform == 'windows'
       shell: powershell
       run: |
-        Write-Host "Running simplified test validation"
+        Write-Host "Running unit tests"
+        if (Test-Path "build\RelWithDebInfo\stabilizer_tests.exe") {
+          Write-Host "Unit test executable found - running tests"
+          $result = & "build\RelWithDebInfo\stabilizer_tests.exe"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Unit tests passed"
+          } else {
+            Write-Host "::error::Unit tests failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+        } else {
+          Write-Host "No unit test executable found - skipping unit tests"
+        }
+
+        Write-Host "Running standalone build validation"
         if (Test-Path "build\RelWithDebInfo\obs-stabilizer-standalone.exe") {
-          Write-Host "Standalone build found - running test"
+          Write-Host "Standalone build found - running validation"
           $result = & "build\RelWithDebInfo\obs-stabilizer-standalone.exe"
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Build validation tests passed"

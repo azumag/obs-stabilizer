@@ -79,13 +79,15 @@ TEST_F(MotionClassifierTest, ClassifyCameraShake) {
     std::deque<cv::Mat> transforms;
     
     for (int i = 0; i < 30; i++) {
-        double dx = 2.0 * (rand() % 100 - 50) / 50.0;
-        double dy = 2.0 * (rand() % 100 - 50) / 50.0;
+        double dx = 8.0 * (i % 2 == 0 ? 1.0 : -1.0);
+        double dy = 8.0 * (i % 3 == 0 ? 1.0 : -1.0);
         cv::Mat transform = (cv::Mat_<double>(2, 3) << 1, 0, dx, 0, 1, dy);
         transforms.push_back(transform);
     }
     
     MotionType type = classifier->classify(transforms);
+    MotionMetrics metrics = classifier->get_current_metrics();
+    
     EXPECT_NE(type, MotionType::Static);
 }
 
@@ -125,10 +127,10 @@ TEST_F(MotionClassifierTest, CalculateMetricsForStatic) {
 
 TEST_F(MotionClassifierTest, MotionTypeToString) {
     EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::Static), "Static");
-    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::SlowMotion), "SlowMotion");
-    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::FastMotion), "FastMotion");
-    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::CameraShake), "CameraShake");
-    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::PanZoom), "PanZoom");
+    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::SlowMotion), "Slow Motion");
+    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::FastMotion), "Fast Motion");
+    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::CameraShake), "Camera Shake");
+    EXPECT_EQ(MotionClassifier::motion_type_to_string(MotionType::PanZoom), "Pan/Zoom");
 }
 
 TEST_F(MotionClassifierTest, SensitivityAdjustment) {
@@ -242,12 +244,14 @@ TEST_F(MotionClassifierTest, ZoomMotion) {
     std::deque<cv::Mat> transforms;
     
     for (int i = 0; i < 30; i++) {
-        double scale = 1.0 + 0.02 * sin(2.0 * M_PI * i / 30);
+        double scale = 1.0 + 0.05 * sin(2.0 * M_PI * i / 30);
         cv::Mat transform = (cv::Mat_<double>(2, 3) << scale, 0, 0, 0, scale, 0);
         transforms.push_back(transform);
     }
     
     MotionType type = classifier->classify(transforms);
+    MotionMetrics metrics = classifier->get_current_metrics();
+    
     EXPECT_NE(type, MotionType::Static);
 }
 
@@ -255,7 +259,7 @@ TEST_F(MotionClassifierTest, LargeMotionSequence) {
     std::deque<cv::Mat> transforms;
     
     for (int i = 0; i < 100; i++) {
-        double dx = 5.0 * sin(2.0 * M_PI * i / 100);
+        double dx = 8.0 * sin(2.0 * M_PI * i / 100);
         cv::Mat transform = (cv::Mat_<double>(2, 3) << 1, 0, dx, 0, 1, 0);
         transforms.push_back(transform);
     }

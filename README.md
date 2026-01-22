@@ -306,8 +306,11 @@ GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 # Run performance tests (requires OpenCV)
 ./scripts/run-perftest.sh
 
-# Note: Test suite disabled - unit tests removed in Issue #212
-# To enable tests, restore or create test files in tests/ directory
+# Run unit tests (Issue #215 - Test suite restored)
+./build/stabilizer_tests
+
+# Run tests via CTest
+cd build && ctest --verbose
 
 # Run security audit (validates 11 security checks)
 ./security/security-audit.sh
@@ -464,19 +467,17 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
 | 4K         | <15ms/frame         | Performance tested | ✅ Performance tested |
 
 **Test Suite Features:**
-- **Comprehensive Coverage**: 156 tests with 100% pass rate (up from 85 tests)
-- **Dual-layer testing**: Core compilation tests (no dependencies) + full suite (when available)
-- **Environment-independent**: Tests work whether OpenCV is installed or not
-- Performance benchmarking across resolutions (when OpenCV available)
-- Memory stability testing for extended operation (no leaks detected)
+- **Comprehensive Coverage**: 71 unit tests with 100% pass rate (Issue #215 - Test suite restored)
+- **Core Component Testing**: StabilizerCore, AdaptiveStabilizer, MotionClassifier
+- **Google Test Framework**: All tests run automatically in CI/CD pipeline
+- **High Code Coverage**: stabilizer_core (50%), motion_classifier (95%), adaptive_stabilizer (40%)
 - **Security audit system (11/11 security tests passing)**
 - **Modular architecture validation** - ensures Phase 2.5 refactoring integrity
-- Automated test framework with graceful dependency handling
-- **Expanded Test Categories (71 new tests added)**:
-  - Algorithm Edge Cases: Feature exhaustion, rapid motion, scene changes, low-light conditions (18 tests)
-  - Resource Management: Memory leak detection, thread safety, buffer overflow protection (15 tests)
-  - Format-Specific: NV12/I420 edge cases, cross-format validation, boundary testing (27 tests)
-  - Performance Monitoring: Regression detection, memory usage tracking, FPS stability (11 tests)
+- **Test Categories**:
+  - Basic Functionality: OpenCV initialization, frame generation, constants validation (16 tests)
+  - StabilizerCore: Core stabilization logic, parameter validation, frame processing (17 tests)
+  - AdaptiveStabilizer: Adaptive features, motion classification, long sequence processing (18 tests)
+  - MotionClassifier: Motion type classification, metrics calculation, sensitivity adjustment (20 tests)
 
 *Run `./run-tests.sh` for comprehensive testing or `./test-core-only.sh` for basic validation.*
 
