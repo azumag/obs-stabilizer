@@ -1801,7 +1801,7 @@ Video stabilization can introduce black borders at frame edges due to transform 
 - **Total Lines of Code**: 6,441 lines (src + tests)
 - **Source Code (src/)**: 5,140 lines (24 files: 9 .cpp, 11 .hpp, 3 .c, 1 .h)
 - **Test Code (tests/)**: 1,301 lines (7 files: 5 .cpp, 2 .hpp)
-- **Documentation**: 12,450 lines (47 .md files)
+ - **Documentation**: 8,724 lines (33 files)
 - **Production Status**: Clean, well-architected, fully tested
 
 **Recent Completed Feature:**
