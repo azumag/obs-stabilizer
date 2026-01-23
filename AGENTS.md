@@ -3,6 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 
+- Issue #260: CODE QUALITY: Empty include/util directory - dead directory ✅ **RESOLVED** (Removed empty include/util directory that remained after Issue #257; directory contained no files and was not tracked by git; verified no references in source code or CMakeLists.txt; all 71 tests passing; no functional changes)
 - Issue #259: DOC: Phase 3 features already implemented but listed as upcoming ✅ **RESOLVED** (Updated README to correctly reflect that Phase 3 features are complete: User-Friendly UI with OBS properties panel; Cross-Platform support for Windows, macOS ARM64, Linux; Advanced Settings with edge handling and stabilization strength controls; removed 'Next Phase Features (Phase 3)' section; all 71 tests passing; commit 1002c1c)
 - Issue #258: DOC: Outdated codebase statistics in README.md ✅ **RESOLVED** (Updated codebase statistics to accurate values: Total lines 6,441→6,041; Source lines 5,140→4,740; File count 24→22; .c files 3→1; all 71 tests passing; commit dff13e2)
 - Issue #257: CODE QUALITY: Dead code - unused OBS compatibility headers ✅ **RESOLVED** (Removed unused OBS compatibility headers: include/util/bmem.h (17 lines), include/obs/obs-data.h (33 lines), include/obs/obs-properties.h (87 lines) - total 137 lines removed; all 71 tests passing; real OBS headers now provide all necessary functionality)

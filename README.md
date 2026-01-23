@@ -1805,6 +1805,7 @@ Video stabilization can introduce black borders at frame edges due to transform 
 - **Production Status**: Clean, well-architected, fully tested
 
 **Recent Completed Feature:**
+- [x] **Issue #260**: CODE QUALITY: Empty include/util directory - dead directory ✅ **RESOLVED** (Removed empty include/util directory that remained after Issue #257; directory contained no files and was not tracked by git; verified no references in source code or CMakeLists.txt; all 71 tests passing; no functional changes)
 - [x] **Issue #244**: BUG: Compilation errors in stabilizer_opencv.cpp and benchmark.cpp ✅ **RESOLVED** (Removed extra closing brace in obs_module_unload() function (stabilizer_opencv.cpp:604); fixed mach_task_self_ to mach_task_self() function call (benchmark.cpp:518); all 71 tests passing)
 - [x] **Issue #245**: CODE QUALITY: Dead code files - video_dataset and threshold_tuner not used anywhere ✅ **RESOLVED** (Removed 728 lines of dead code: video_dataset.cpp/hpp (218 lines), threshold_tuner.cpp/hpp (510 lines); files not referenced in CMakeLists.txt or any other source files; all 71 tests passing)
 - [x] **Issue #213**: BUG: CMakeLists.txt references deleted test files causing build failure ✅ **RESOLVED** (Updated CMakeLists.txt to disable test suite after test files were removed in Issue #212, build system now works correctly)
