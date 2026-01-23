@@ -3,6 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 
+- Issue #255: CODE QUALITY: Dead code - include/obs-frontend-api.h unused functions ✅ **RESOLVED** (Removed unused file include/obs-frontend-api.h (15 lines, 226 bytes) that defined two functions never called anywhere; functions never included or referenced; added in commit f6ad7a0; all 71 tests passing)
 - Issue #254: DOC: Inaccurate documentation statistics in README.md ✅ **RESOLVED** (Updated documentation statistics from 12,450 lines (47 files) to accurate 8,724 lines (33 files); verified with actual file counts; all 71 tests passing)
 - Issue #253: DOC: Outdated date references in README.md ✅ **RESOLVED** (Updated all date references from \"July 30, 2024\" to \"January 23, 2026\" in 6 locations; updated security audit reference date; all 71 tests passing)
 - Issue #252: DOC: Fix outdated code statistics in README.md ✅ **RESOLVED** (Updated codebase statistics: Test Code 2,222→1,301 lines; Total 6,362→6,441 lines; Source files 23→24 files; Test files 9→7 files; all 71 tests passing)
