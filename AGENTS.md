@@ -3,6 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 
+- Issue #258: DOC: Outdated codebase statistics in README.md ✅ **RESOLVED** (Updated codebase statistics to accurate values: Total lines 6,441→6,041; Source lines 5,140→4,740; File count 24→22; .c files 3→1; all 71 tests passing; commit dff13e2)
 - Issue #257: CODE QUALITY: Dead code - unused OBS compatibility headers ✅ **RESOLVED** (Removed unused OBS compatibility headers: include/util/bmem.h (17 lines), include/obs/obs-data.h (33 lines), include/obs/obs-properties.h (87 lines) - total 137 lines removed; all 71 tests passing; real OBS headers now provide all necessary functionality)
 - Issue #256: BUG: OBS module export functions not compiled - plugin will fail to load in OBS ✅ **RESOLVED** (Added proper C linkage and MODULE_EXPORT to obs_module functions in src/stabilizer_opencv.cpp; removed dead code: obs_stubs.c (333 lines) and obs_module_exports.c (79 lines); fixed unterminated #ifdef HAVE_OBS_HEADERS block; all 71 tests passing; plugin now exports required obs_module_name, obs_module_description, obs_module_load, obs_module_unload functions for successful OBS loading)
 - Issue #255: CODE QUALITY: Dead code - include/obs-frontend-api.h unused functions ✅ **RESOLVED** (Removed unused file include/obs-frontend-api.h (15 lines, 226 bytes) that defined two functions never called anywhere; functions never included or referenced; added in commit f6ad7a0; all 71 tests passing)
