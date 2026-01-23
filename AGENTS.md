@@ -3,6 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 
+- Issue #261: DOC: Move outdated technical debt reports to history directory ✅ **RESOLVED** (Moved 3 outdated reports from August 2025 to docs/history/: CI_CD_COMPREHENSIVE_STATUS_REPORT.md (10K), TECHNICAL_DEBT_ANALYSIS_REPORT.md (11K), TECHNICAL_DEBT_COMPREHENSIVE_ANALYSIS.md (9.2K); reports contained historical information about issues already resolved; no references found in current documentation; all 71 tests passing; improved repository organization)
 - Issue #260: CODE QUALITY: Empty include/util directory - dead directory ✅ **RESOLVED** (Removed empty include/util directory that remained after Issue #257; directory contained no files and was not tracked by git; verified no references in source code or CMakeLists.txt; all 71 tests passing; no functional changes)
 - Issue #259: DOC: Phase 3 features already implemented but listed as upcoming ✅ **RESOLVED** (Updated README to correctly reflect that Phase 3 features are complete: User-Friendly UI with OBS properties panel; Cross-Platform support for Windows, macOS ARM64, Linux; Advanced Settings with edge handling and stabilization strength controls; removed 'Next Phase Features (Phase 3)' section; all 71 tests passing; commit 1002c1c)
 - Issue #258: DOC: Outdated codebase statistics in README.md ✅ **RESOLVED** (Updated codebase statistics to accurate values: Total lines 6,441→6,041; Source lines 5,140→4,740; File count 24→22; .c files 3→1; all 71 tests passing; commit dff13e2)
