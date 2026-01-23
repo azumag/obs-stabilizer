@@ -3,6 +3,7 @@
 作業が完了したらコミットしてプッシュすること
 
 
+- Issue #256: BUG: OBS module export functions not compiled - plugin will fail to load in OBS ✅ **RESOLVED** (Added proper C linkage and MODULE_EXPORT to obs_module functions in src/stabilizer_opencv.cpp; removed dead code: obs_stubs.c (333 lines) and obs_module_exports.c (79 lines); fixed unterminated #ifdef HAVE_OBS_HEADERS block; all 71 tests passing; plugin now exports required obs_module_name, obs_module_description, obs_module_load, obs_module_unload functions for successful OBS loading)
 - Issue #255: CODE QUALITY: Dead code - include/obs-frontend-api.h unused functions ✅ **RESOLVED** (Removed unused file include/obs-frontend-api.h (15 lines, 226 bytes) that defined two functions never called anywhere; functions never included or referenced; added in commit f6ad7a0; all 71 tests passing)
 - Issue #254: DOC: Inaccurate documentation statistics in README.md ✅ **RESOLVED** (Updated documentation statistics from 12,450 lines (47 files) to accurate 8,724 lines (33 files); verified with actual file counts; all 71 tests passing)
 - Issue #253: DOC: Outdated date references in README.md ✅ **RESOLVED** (Updated all date references from \"July 30, 2024\" to \"January 23, 2026\" in 6 locations; updated security audit reference date; all 71 tests passing)
