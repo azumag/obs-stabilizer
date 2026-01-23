@@ -73,7 +73,7 @@ OBS Stabilizer provides real-time video stabilization for livestreams and record
 
 **Phase 2.5**: Successfully refactored from monolithic architecture to modular design with thread-safe core engine, clean OBS integration layer, and separated concerns for enhanced maintainability and Phase 3 UI development.
 
-### Current Features (Phase 2 Complete)
+### Current Features (Phase 3 Complete)
 
 - **Real-time Processing**: ✅ Full HD processing with transform smoothing
 - **Low Latency**: ✅ Optimized feature tracking and frame transformation
@@ -82,12 +82,9 @@ OBS Stabilizer provides real-time video stabilization for livestreams and record
 - **Performance Testing**: ✅ Comprehensive benchmarking and memory validation
 - **Security Hardened**: 🔒 Buffer overflow protection and input validation
 - **Memory Safe**: 🔒 Pre-allocated buffers and bounds checking
-
-### Next Phase Features (Phase 3)
-
-- **User-Friendly UI**: Integrated OBS properties panel with presets
-- **Cross-Platform**: Enhanced Windows, macOS, and Linux support
-- **Advanced Settings**: Crop mode and stabilization strength controls
+- **User-Friendly UI**: ✅ Integrated OBS properties panel with presets (Issue #207)
+- **Cross-Platform**: ✅ Enhanced Windows, macOS (ARM64 native), and Linux support
+- **Advanced Settings**: ✅ Edge handling controls (Padding, Crop, Scale) and stabilization strength controls (Issue #226)
 
 ## Technical Specifications
 
