@@ -578,9 +578,23 @@ static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_sourc
         return nullptr;
     }
 }
+#endif // HAVE_OBS_HEADERS
 
-// Plugin entry points
-bool obs_module_load(void)
+#ifdef HAVE_OBS_HEADERS
+// Plugin entry points - C linkage required for OBS to find these functions
+extern "C" {
+
+MODULE_EXPORT const char *obs_module_name(void)
+{
+    return "Video Stabilizer";
+}
+
+MODULE_EXPORT const char *obs_module_description(void)
+{
+    return "Real-time video stabilization plugin for OBS Studio using OpenCV";
+}
+
+MODULE_EXPORT bool obs_module_load(void)
 {
     obs_log(LOG_INFO, "Loading OBS Stabilizer Plugin (Modular Architecture)");
     
@@ -594,20 +608,17 @@ bool obs_module_load(void)
     return true;
 }
 
-void obs_module_unload(void)
+MODULE_EXPORT void obs_module_unload(void)
 {
     obs_log(LOG_INFO, "OBS Stabilizer Plugin unloaded");
     
-    #ifdef HAVE_OBS_HEADERS
     FRAME_UTILS::FrameBuffer::cleanup();
-    #endif
 }
 
-// Helper function to reduce code duplication in adaptive config setting
+}
+
 static void set_adaptive_config(obs_data_t *settings, AdaptiveStabilization::AdaptiveConfig& config)
 {
-    // Helper function to set multiple adaptive configuration parameters
-    // This reduces code duplication between stabilizer_filter_create and stabilizer_filter_update
     config.static_smoothing = obs_data_get_int(settings, "static_smoothing");
     config.static_correction = obs_data_get_double(settings, "static_correction");
     config.static_features = obs_data_get_int(settings, "static_features");

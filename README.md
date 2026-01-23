@@ -16,13 +16,14 @@ These principles guided the Phase 5 refactoring, resulting in a clean, secure, a
 
 ## 🔧 **Plugin Loading Issues - RESOLVED**
 
-**Latest Fix (January 23, 2026)**: Critical plugin loading problems have been completely resolved through proper OBS library integration:
+**Latest Fix (January 24, 2026)**: Critical plugin loading problems have been completely resolved through proper OBS library integration:
 
 **Problems Resolved:**
 - ✅ **Undefined Symbol Errors**: Fixed `obs_log` and `obs_register_source` linking issues
 - ✅ **OBS Library Detection**: Implemented proper macOS framework detection (`/Applications/OBS.app/Contents/Frameworks/libobs.framework`)
 - ✅ **Symbol Bridge**: Created compatibility layer for OBS API differences (`plugin-support.c`)
 - ✅ **Build System**: Enhanced CMakeLists.txt with proper OBS library linking and HAVE_OBS_HEADERS definition
+- ✅ **Missing Module Exports**: Fixed obs_module_name, obs_module_description, obs_module_load, obs_module_unload exports with proper C linkage (Issue #256)
 
 **Technical Implementation:**
 - **Symbol Mapping**: Bridge functions map `obs_register_source` → `obs_register_source_s` and `obs_log` → `blogva`
@@ -36,6 +37,8 @@ These principles guided the Phase 5 refactoring, resulting in a clean, secure, a
 - **Plugin Binary Format Fix**: Corrected CMakeLists.txt to build as MODULE library instead of executable
 - **Apple Silicon Native**: Built as ARM64 architecture for optimal M1/M2/M3/M4 Mac performance
 - **Qt Dependency Resolution**: Eliminated Qt version conflicts by creating Qt-independent minimal plugin
+- **Module Export Functions**: Added proper `extern "C"` linkage and `MODULE_EXPORT` to obs_module functions in stabilizer_opencv.cpp
+- **Dead Code Removal**: Removed unused obs_stubs.c (334 lines) and obs_module_exports.c (79 lines)
 
 **Result**: Plugin now loads successfully in OBS Studio with proper initialization logging and filter registration.
 
@@ -1820,6 +1823,7 @@ Video stabilization can introduce black borders at frame edges due to transform 
     - Issue #217: BUG: Apple Accelerate color conversion functions are broken ✅ **RESOLVED** (Removed broken AccelerateColorConverter stub class, simplified color conversion)
     - Issue #218: BUG: apple_accelerate.hpp file still exists despite commit claiming removal ✅ **RESOLVED** (File was supposedly removed but still existed, now properly deleted and committed, all 71 tests passing)
     - Issue #219: DOC: Improve plugin usage documentation and examples ✅ **RESOLVED** (Added comprehensive user guide with 1,900+ lines covering installation, usage, troubleshooting; added performance characteristics with resource requirements by resolution; added 5 example use cases; verified with existing test suite 71/71 passing; created E2E testing guide with 6 phases and 30+ scenarios; created integration test scenarios documentation; all documentation follows existing style and conventions)
+    - Issue #256: BUG: OBS module export functions not compiled - plugin will fail to load in OBS ✅ **RESOLVED** (Added proper C linkage and MODULE_EXPORT to obs_module functions in stabilizer_opencv.cpp; removed dead code: obs_stubs.c (334 lines) and obs_module_exports.c (79 lines); all 71 tests passing; plugin now exports required obs_module_name, obs_module_description, obs_module_load, obs_module_unload functions)
 
 ### ✅ **PHASE 4 COMPLETE**
 - **Issue #18**: CI/CD Pipeline ✅ **CLOSED** - Multi-platform automation operational (100%)
