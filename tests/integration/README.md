@@ -14,22 +14,23 @@ OBS Stabilizerプラグインの自動結合テストと自動修正システム
 
 ```
 tests/integration/
-├── run_integration_tests.sh      # メインのテストランナー（自動修正付き）
-├── auto_fix.py                   # Pythonによるコード自動修正
-├── test_00_preflight.sh          # 事前チェックテスト
-├── test_01_build.sh              # ビルドテスト
-├── test_02_plugin_loading.sh     # プラグインロードテスト
-├── test_03_basic_functionality.sh # 基本機能テスト
-├── test_04_crash_detection.sh    # クラッシュ検出テスト
-├── test_99_cleanup.sh            # クリーンアップ
-├── fix_patterns/                 # 自動修正スクリプト
-│   ├── fix_preflight.sh
-│   ├── fix_build.sh
-│   ├── fix_plugin_loading.sh
-│   ├── fix_basic_functionality.sh
-│   └── fix_crash.sh
-└── results/                      # テスト結果とログ
+ ├── auto_fix.py                   # Pythonによるコード自動修正
+ ├── test_00_preflight.sh          # 事前チェックテスト
+ ├── test_01_build.sh              # ビルドテスト
+ ├── test_02_plugin_loading.sh     # プラグインロードテスト
+ ├── test_03_basic_functionality.sh # 基本機能テスト
+ ├── test_04_crash_detection.sh    # クラッシュ検出テスト
+ ├── test_99_cleanup.sh            # クリーンアップ
+ ├── fix_patterns/                 # 自動修正スクリプト
+ │   ├── fix_preflight.sh
+ │   ├── fix_build.sh
+ │   ├── fix_plugin_loading.sh
+ │   ├── fix_basic_functionality.sh
+ │   └── fix_crash.sh
+ └── results/                      # テスト結果とログ
 ```
+
+Note: 各テストスクリプトは個別に実行可能です。一括実行スクリプトはまだ実装されていません。
 
 ## 使用方法
 
