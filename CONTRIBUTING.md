@@ -23,14 +23,21 @@ Thank you for your interest in contributing to the OBS Stabilizer Plugin! This d
 ### Building
 
 ```bash
-# Configure
-cmake --preset <platform>-ci
+# Configure and build
+cmake -B build
+cmake --build build
 
-# Build
-cmake --build --preset <platform>-ci
+# Or use make directly
+cmake -B build
+make -C build
+
+# Alternative: Configure and build in current directory
+cmake .
+make
 
 # Test
-./run-tests.sh
+./scripts/run-tests.sh
+cd build && ./stabilizer_tests
 ```
 
 ## Code Style
