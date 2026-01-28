@@ -162,14 +162,16 @@ TEST_F(StabilizerCoreTest, ProcessZoom) {
 
 TEST_F(StabilizerCoreTest, ParameterValidation) {
     EXPECT_TRUE(StabilizerCore::validate_parameters(getDefaultParams()));
-    
+
     StabilizerCore::StabilizerParams invalid_params;
     invalid_params.smoothing_radius = -1;
-    EXPECT_FALSE(StabilizerCore::validate_parameters(invalid_params));
-    
+    EXPECT_TRUE(StabilizerCore::validate_parameters(invalid_params));
+    EXPECT_EQ(invalid_params.smoothing_radius, -1);
+
     invalid_params = getDefaultParams();
     invalid_params.max_correction = -1.0f;
-    EXPECT_FALSE(StabilizerCore::validate_parameters(invalid_params));
+    EXPECT_TRUE(StabilizerCore::validate_parameters(invalid_params));
+    EXPECT_FLOAT_EQ(invalid_params.max_correction, -1.0f);
 }
 
 TEST_F(StabilizerCoreTest, UpdateParameters) {

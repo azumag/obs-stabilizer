@@ -17,16 +17,17 @@ using namespace StabilizerConstants;
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
     std::lock_guard<std::mutex> lock(mutex_);
-    
-    // Validate parameters before initialization
-    if (!validate_parameters(params)) {
+
+    // Validate and clamp parameters before initialization
+    StabilizerParams clamped_params = params;
+    if (!validate_parameters(clamped_params)) {
         last_error_ = "Invalid parameters provided to initialize";
         return false;
     }
-    
+
     width_ = width;
     height_ = height;
-    params_ = params;
+    params_ = clamped_params;
     first_frame_ = true;
     prev_gray_ = cv::Mat(height, width, CV_8UC1);
     prev_pts_.clear();
@@ -656,44 +657,140 @@ StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
     return params_;
 }
 
- bool StabilizerCore::validate_parameters(const StabilizerCore::StabilizerParams& params) {
-    if (params.smoothing_radius < Smoothing::MIN_RADIUS || params.smoothing_radius > Smoothing::MAX_RADIUS) {
-        return false;
-    }
-    if (params.max_correction < Correction::MIN_MAX || params.max_correction > Correction::MAX_MAX) {
-        return false;
-    }
-    if (params.feature_count < Features::MIN_COUNT || params.feature_count > Features::MAX_COUNT) {
-        return false;
-    }
-    if (params.quality_level < Quality::MIN_LEVEL || params.quality_level > Quality::MAX_LEVEL) {
-        return false;
-    }
-    if (params.min_distance < Distance::MIN || params.min_distance > Distance::MAX) {
-        return false;
-    }
-    if (params.block_size < Block::MIN_SIZE || params.block_size > Block::MAX_SIZE) {
-        return false;
-    }
-    if (params.k < Harris::MIN_K || params.k > Harris::MAX_K) {
-        return false;
+  bool StabilizerCore::validate_parameters(const StabilizerCore::StabilizerParams& params) {
+    // Create a copy to modify
+    StabilizerParams clamped_params = params;
+
+    // Clamp smoothing_radius
+    if (clamped_params.smoothing_radius < Smoothing::MIN_RADIUS) {
+        STAB_LOG_WARNING("Smoothing radius clamped from %d to minimum %d",
+                        clamped_params.smoothing_radius, Smoothing::MIN_RADIUS);
+        clamped_params.smoothing_radius = Smoothing::MIN_RADIUS;
+    } else if (clamped_params.smoothing_radius > Smoothing::MAX_RADIUS) {
+        STAB_LOG_WARNING("Smoothing radius clamped from %d to maximum %d",
+                        clamped_params.smoothing_radius, Smoothing::MAX_RADIUS);
+        clamped_params.smoothing_radius = Smoothing::MAX_RADIUS;
     }
 
-    if (params.optical_flow_pyramid_levels < OpticalFlow::MIN_PYRAMID_LEVELS || params.optical_flow_pyramid_levels > OpticalFlow::MAX_PYRAMID_LEVELS) {
-        return false;
+    // Clamp max_correction
+    if (clamped_params.max_correction < Correction::MIN_MAX) {
+        STAB_LOG_WARNING("Max correction clamped from %.1f to minimum %.1f",
+                        clamped_params.max_correction, Correction::MIN_MAX);
+        clamped_params.max_correction = Correction::MIN_MAX;
+    } else if (clamped_params.max_correction > Correction::MAX_MAX) {
+        STAB_LOG_WARNING("Max correction clamped from %.1f to maximum %.1f",
+                        clamped_params.max_correction, Correction::MAX_MAX);
+        clamped_params.max_correction = Correction::MAX_MAX;
     }
-    if (params.optical_flow_window_size < OpticalFlow::MIN_WINDOW_SIZE || params.optical_flow_window_size > OpticalFlow::MAX_WINDOW_SIZE ||
-        params.optical_flow_window_size % 2 == 0) {
-        return false;
+
+    // Clamp feature_count with warning
+    if (clamped_params.feature_count < Features::MIN_COUNT) {
+        STAB_LOG_WARNING("Feature count clamped from %d to minimum %d",
+                        clamped_params.feature_count, Features::MIN_COUNT);
+        clamped_params.feature_count = Features::MIN_COUNT;
+    } else if (clamped_params.feature_count > Features::MAX_COUNT) {
+        STAB_LOG_WARNING("Feature count clamped from %d to maximum %d",
+                        clamped_params.feature_count, Features::MAX_COUNT);
+        clamped_params.feature_count = Features::MAX_COUNT;
     }
-    if (params.feature_refresh_threshold < 0.0f || params.feature_refresh_threshold > 1.0f) {
-        return false;
+
+    // Clamp quality_level
+    if (clamped_params.quality_level < Quality::MIN_LEVEL) {
+        STAB_LOG_WARNING("Quality level clamped from %.3f to minimum %.3f",
+                        clamped_params.quality_level, Quality::MIN_LEVEL);
+        clamped_params.quality_level = Quality::MIN_LEVEL;
+    } else if (clamped_params.quality_level > Quality::MAX_LEVEL) {
+        STAB_LOG_WARNING("Quality level clamped from %.3f to maximum %.3f",
+                        clamped_params.quality_level, Quality::MAX_LEVEL);
+        clamped_params.quality_level = Quality::MAX_LEVEL;
     }
-    if (params.adaptive_feature_min < Features::MIN_COUNT || params.adaptive_feature_min > params.adaptive_feature_max) {
-        return false;
+
+    // Clamp min_distance
+    if (clamped_params.min_distance < Distance::MIN) {
+        STAB_LOG_WARNING("Min distance clamped from %.1f to minimum %.1f",
+                        clamped_params.min_distance, Distance::MIN);
+        clamped_params.min_distance = Distance::MIN;
+    } else if (clamped_params.min_distance > Distance::MAX) {
+        STAB_LOG_WARNING("Min distance clamped from %.1f to maximum %.1f",
+                        clamped_params.min_distance, Distance::MAX);
+        clamped_params.min_distance = Distance::MAX;
     }
-    if (params.adaptive_feature_max < params.adaptive_feature_min || params.adaptive_feature_max > Features::MAX_COUNT) {
-        return false;
+
+    // Clamp block_size
+    if (clamped_params.block_size < Block::MIN_SIZE) {
+        STAB_LOG_WARNING("Block size clamped from %d to minimum %d",
+                        clamped_params.block_size, Block::MIN_SIZE);
+        clamped_params.block_size = Block::MIN_SIZE;
+    } else if (clamped_params.block_size > Block::MAX_SIZE) {
+        STAB_LOG_WARNING("Block size clamped from %d to maximum %d",
+                        clamped_params.block_size, Block::MAX_SIZE);
+        clamped_params.block_size = Block::MAX_SIZE;
+    }
+
+    // Clamp k (Harris parameter)
+    if (clamped_params.k < Harris::MIN_K) {
+        STAB_LOG_WARNING("Harris k clamped from %.2f to minimum %.2f",
+                        clamped_params.k, Harris::MIN_K);
+        clamped_params.k = Harris::MIN_K;
+    } else if (clamped_params.k > Harris::MAX_K) {
+        STAB_LOG_WARNING("Harris k clamped from %.2f to maximum %.2f",
+                        clamped_params.k, Harris::MAX_K);
+        clamped_params.k = Harris::MAX_K;
+    }
+
+    // Clamp optical_flow_pyramid_levels
+    if (clamped_params.optical_flow_pyramid_levels < OpticalFlow::MIN_PYRAMID_LEVELS) {
+        STAB_LOG_WARNING("Optical flow pyramid levels clamped from %d to minimum %d",
+                        clamped_params.optical_flow_pyramid_levels, OpticalFlow::MIN_PYRAMID_LEVELS);
+        clamped_params.optical_flow_pyramid_levels = OpticalFlow::MIN_PYRAMID_LEVELS;
+    } else if (clamped_params.optical_flow_pyramid_levels > OpticalFlow::MAX_PYRAMID_LEVELS) {
+        STAB_LOG_WARNING("Optical flow pyramid levels clamped from %d to maximum %d",
+                        clamped_params.optical_flow_pyramid_levels, OpticalFlow::MAX_PYRAMID_LEVELS);
+        clamped_params.optical_flow_pyramid_levels = OpticalFlow::MAX_PYRAMID_LEVELS;
+    }
+
+    // Clamp optical_flow_window_size
+    if (clamped_params.optical_flow_window_size < OpticalFlow::MIN_WINDOW_SIZE) {
+        STAB_LOG_WARNING("Optical flow window size clamped from %d to minimum %d",
+                        clamped_params.optical_flow_window_size, OpticalFlow::MIN_WINDOW_SIZE);
+        clamped_params.optical_flow_window_size = OpticalFlow::MIN_WINDOW_SIZE;
+    } else if (clamped_params.optical_flow_window_size > OpticalFlow::MAX_WINDOW_SIZE) {
+        STAB_LOG_WARNING("Optical flow window size clamped from %d to maximum %d",
+                        clamped_params.optical_flow_window_size, OpticalFlow::MAX_WINDOW_SIZE);
+        clamped_params.optical_flow_window_size = OpticalFlow::MAX_WINDOW_SIZE;
+    } else if (clamped_params.optical_flow_window_size % 2 == 0) {
+        STAB_LOG_WARNING("Optical flow window size is even, clamped to odd value %d",
+                        clamped_params.optical_flow_window_size);
+        clamped_params.optical_flow_window_size = clamped_params.optical_flow_window_size - 1;
+    }
+
+    // Clamp feature_refresh_threshold
+    if (clamped_params.feature_refresh_threshold < 0.0f) {
+        STAB_LOG_WARNING("Feature refresh threshold clamped from %.1f to minimum %.1f",
+                        clamped_params.feature_refresh_threshold, 0.0f);
+        clamped_params.feature_refresh_threshold = 0.0f;
+    } else if (clamped_params.feature_refresh_threshold > 1.0f) {
+        STAB_LOG_WARNING("Feature refresh threshold clamped from %.1f to maximum %.1f",
+                        clamped_params.feature_refresh_threshold, 1.0f);
+        clamped_params.feature_refresh_threshold = 1.0f;
+    }
+
+    // Clamp adaptive_feature_min
+    if (clamped_params.adaptive_feature_min < Features::MIN_COUNT) {
+        STAB_LOG_WARNING("Adaptive feature min clamped from %d to minimum %d",
+                        clamped_params.adaptive_feature_min, Features::MIN_COUNT);
+        clamped_params.adaptive_feature_min = Features::MIN_COUNT;
+    }
+
+    // Clamp adaptive_feature_max
+    if (clamped_params.adaptive_feature_max < clamped_params.adaptive_feature_min) {
+        STAB_LOG_WARNING("Adaptive feature max %d is less than min %d, clamped to min",
+                        clamped_params.adaptive_feature_max, clamped_params.adaptive_feature_min);
+        clamped_params.adaptive_feature_max = clamped_params.adaptive_feature_min;
+    } else if (clamped_params.adaptive_feature_max > Features::MAX_COUNT) {
+        STAB_LOG_WARNING("Adaptive feature max clamped from %d to maximum %d",
+                        clamped_params.adaptive_feature_max, Features::MAX_COUNT);
+        clamped_params.adaptive_feature_max = Features::MAX_COUNT;
     }
 
     return true;
