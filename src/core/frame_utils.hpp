@@ -15,12 +15,17 @@
 #include <mutex>
 #include <vector>
 #include <string>
+#include <climits> // For SIZE_MAX reference (security audit)
 
 namespace FRAME_UTILS {
 
     // Constants for frame buffer management
     constexpr int DATA_PLANES_COUNT = 8;
     constexpr int MEMORY_GROWTH_FACTOR = 2;
+
+    // Maximum dimension constraints (prevent integer overflow)
+    constexpr uint32_t MAX_FRAME_WIDTH = 16384;   // 16K
+    constexpr uint32_t MAX_FRAME_HEIGHT = 16384;  // 16K
 
     // Frame format enumeration
     enum class FrameFormat {

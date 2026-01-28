@@ -156,6 +156,50 @@ TEST_F(BasicTest, TestProcessingConstants) {
     EXPECT_GT(Processing::DEFAULT_MIN_DISTANCE, 0.0f);
 }
 
+#ifdef HAVE_OBS_HEADERS
+TEST_F(BasicTest, TestFrameDimensionValidation) {
+    // Test that maximum dimension constants are properly defined
+    EXPECT_GT(FRAME_UTILS::MAX_FRAME_WIDTH, 0u);
+    EXPECT_GT(FRAME_UTILS::MAX_FRAME_HEIGHT, 0u);
+    
+    // Test reasonable limits (16K is safe upper bound)
+    EXPECT_EQ(FRAME_UTILS::MAX_FRAME_WIDTH, 16384u);
+    EXPECT_EQ(FRAME_UTILS::MAX_FRAME_HEIGHT, 16384u);
+}
+
+TEST_F(BasicTest, TestOverflowProtectionLargeFrame) {
+    // Test with frame dimensions near overflow point
+    // This validates that the code rejects oversized frames
+    obs_source_frame frame;
+    frame.width = 20000;  // Exceeds MAX_FRAME_WIDTH
+    frame.height = 20000; // Exceeds MAX_FRAME_HEIGHT
+    frame.format = VIDEO_FORMAT_BGRA;
+    frame.data[0] = nullptr;
+    
+    // Should return empty matrix for invalid dimensions
+    cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
+    EXPECT_TRUE(result.empty());
+}
+
+TEST_F(BasicTest, TestOverflowProtectionZeroDimension) {
+    // Test with zero dimensions (edge case)
+    obs_source_frame frame;
+    frame.width = 0;
+    frame.height = 480;
+    frame.format = VIDEO_FORMAT_BGRA;
+    frame.data[0] = nullptr;
+    
+    cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
+    EXPECT_TRUE(result.empty());
+    
+    // Test other zero dimension
+    frame.width = 640;
+    frame.height = 0;
+    result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
+    EXPECT_TRUE(result.empty());
+}
+#endif
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

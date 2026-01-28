@@ -16,9 +16,12 @@ These principles guided the Phase 5 refactoring, resulting in a clean, secure, a
 
 ## 🔧 **Plugin Loading Issues - RESOLVED**
 
-**Latest Fix (January 29, 2026)**: Fixed broken include in frame_utils.cpp that would cause compilation failure with OBS headers available:
+**Latest Fix (January 29, 2026)**: Fixed integer overflow vulnerability in frame conversion:
 
 **Problems Resolved:**
+- ✅ **Integer Overflow Protection**: Added dimension validation and overflow checks in frame_utils.cpp (Issue #280)
+- ✅ **Dimension Validation**: Rejects frames exceeding 16Kx16K resolution
+- ✅ **Type Safety**: Changed size calculations from int to size_t to prevent signed overflow
 - ✅ **Broken Include**: Removed non-existent `stabilizer_constants_c.h` include from src/core/frame_utils.cpp (Issue #279)
 - ✅ **Missing Constants**: Added `DATA_PLANES_COUNT` and `MEMORY_GROWTH_FACTOR` as constexpr values to frame_utils.hpp
 - ✅ **Undefined Symbol Errors**: Fixed `obs_log` and `obs_register_source` linking issues

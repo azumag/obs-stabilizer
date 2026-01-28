@@ -23,6 +23,15 @@ namespace FRAME_UTILS {
             return cv::Mat();
         }
 
+        // Validate frame dimensions to prevent integer overflow
+        if (frame->width == 0 || frame->height == 0 ||
+            frame->width > MAX_FRAME_WIDTH || frame->height > MAX_FRAME_HEIGHT) {
+            obs_log(LOG_ERROR, "Invalid frame dimensions: %ux%u (max: %ux%u)",
+                     frame->width, frame->height, MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT);
+            Performance::track_conversion_failure();
+            return cv::Mat();
+        }
+
         try {
             cv::Mat mat;
 
@@ -57,11 +66,24 @@ namespace FRAME_UTILS {
                             return cv::Mat();
                         }
 
-                        const int y_size = frame->width * frame->height;
-                        const int uv_size = (frame->width / 2) * (frame->height / 2);
+                        // Calculate sizes with overflow protection
+                        // Note: SIZE_MAX from <climits> used for overflow detection reference
+                        // Use size_t for size calculations (unsigned, larger range than int)
+                        const size_t y_size = static_cast<size_t>(frame->width) * 
+                                             static_cast<size_t>(frame->height);
+                        const size_t uv_size = static_cast<size_t>(frame->width / 2) * 
+                                              static_cast<size_t>(frame->height / 2);
+
+                        // Check for integer overflow in total size
+                        const size_t total_size = y_size + uv_size * 2;
+                        if (y_size > 0 && total_size < y_size) {
+                            obs_log(LOG_ERROR, "Integer overflow in I420 buffer size calculation");
+                            Performance::track_conversion_failure();
+                            return cv::Mat();
+                        }
 
                         std::vector<uint8_t> yuv_buffer;
-                        yuv_buffer.resize(y_size + uv_size * 2);
+                        yuv_buffer.resize(total_size);
 
                         uint8_t* yuv_ptr = yuv_buffer.data();
 
