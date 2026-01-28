@@ -1,7 +1,20 @@
 #include "core/motion_classifier.hpp"
+#include "logging.hpp"
 #include <cmath>
 #include <numeric>
 #include <algorithm>
+#include <limits>
+
+// Logging macros
+#ifndef STAB_LOG_ERROR
+#define STAB_LOG_ERROR(...) CORE_LOG_ERROR(__VA_ARGS__)
+#endif
+#ifndef STAB_LOG_WARNING
+#define STAB_LOG_WARNING(...) CORE_LOG_WARNING(__VA_ARGS__)
+#endif
+#ifndef STAB_LOG_INFO
+#define STAB_LOG_INFO(...) CORE_LOG_INFO(__VA_ARGS__)
+#endif
 
 using namespace AdaptiveStabilization;
 
@@ -203,12 +216,63 @@ MotionMetrics MotionClassifier::calculate_metrics(const std::deque<cv::Mat>& tra
 MotionType MotionClassifier::classify_from_metrics(const MotionMetrics& metrics) const {
     double sensitivity_factor = sensitivity_;
     
+    // Validate sensitivity factor input
+    if (sensitivity_factor <= 0.0) {
+        STAB_LOG_ERROR("Invalid sensitivity factor: %.6f in MotionClassifier::classify_from_metrics", sensitivity_factor);
+        sensitivity_factor = 1.0;
+    }
+    if (sensitivity_factor > 100.0) {
+        STAB_LOG_WARNING("Sensitivity factor too high: %.6f, clamping to 100.0 in MotionClassifier::classify_from_metrics", sensitivity_factor);
+        sensitivity_factor = 100.0;
+    }
+    
     double static_threshold = 6.0 * sensitivity_factor;
     double slow_threshold = 15.0 * sensitivity_factor;
     double fast_threshold = 40.0 * sensitivity_factor;
     double variance_threshold = 3.0 * sensitivity_factor;
     double high_freq_threshold = 0.70 * sensitivity_factor;
     double consistency_threshold = 0.96 / sensitivity_factor;
+    
+    // Clamp thresholds to sensible limits
+    static_threshold = std::clamp(static_threshold, 0.0, 100.0);
+    slow_threshold = std::clamp(slow_threshold, 0.0, 100.0);
+    fast_threshold = std::clamp(fast_threshold, 0.0, 100.0);
+    variance_threshold = std::clamp(variance_threshold, 0.0, 100.0);
+    high_freq_threshold = std::clamp(high_freq_threshold, 0.0, 1.0);
+    consistency_threshold = std::clamp(consistency_threshold, 0.0, 1.0);
+    
+    // Log warning if thresholds were clamped
+    double original_static_threshold = 6.0 * sensitivity_factor;
+    double original_slow_threshold = 15.0 * sensitivity_factor;
+    double original_fast_threshold = 40.0 * sensitivity_factor;
+    double original_variance_threshold = 3.0 * sensitivity_factor;
+    double original_high_freq_threshold = 0.70 * sensitivity_factor;
+    double original_consistency_threshold = 0.96 / sensitivity_factor;
+    
+    if (static_threshold < original_static_threshold) {
+        STAB_LOG_WARNING("Static threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
+                        original_static_threshold, static_threshold);
+    }
+    if (slow_threshold < original_slow_threshold) {
+        STAB_LOG_WARNING("Slow threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
+                        original_slow_threshold, slow_threshold);
+    }
+    if (fast_threshold < original_fast_threshold) {
+        STAB_LOG_WARNING("Fast threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
+                        original_fast_threshold, fast_threshold);
+    }
+    if (variance_threshold < original_variance_threshold) {
+        STAB_LOG_WARNING("Variance threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
+                        original_variance_threshold, variance_threshold);
+    }
+    if (high_freq_threshold < original_high_freq_threshold) {
+        STAB_LOG_WARNING("High frequency threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
+                        original_high_freq_threshold, high_freq_threshold);
+    }
+    if (consistency_threshold < original_consistency_threshold) {
+        STAB_LOG_WARNING("Consistency threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
+                        original_consistency_threshold, consistency_threshold);
+    }
     
     if (metrics.mean_magnitude < static_threshold &&
         metrics.variance_magnitude < variance_threshold) {
