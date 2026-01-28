@@ -324,9 +324,6 @@ GITHUB_ACTIONS=1 cmake -DBUILD_STANDALONE=ON -B build-standalone
 # Run core compilation test only (no dependencies required)
 ./scripts/test-core-only.sh
 
-# Run Phase 3 UI implementation test (validates UI components and presets)
-./scripts/run-ui-test.sh
-
 # Run comprehensive performance benchmarks (NEW - Issue #224)
 ./scripts/run-perf-benchmark.sh
 

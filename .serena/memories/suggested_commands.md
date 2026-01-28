@@ -36,12 +36,6 @@ cmake --build build
 # Run performance regression detection
 ./scripts/run-perf-regression.sh
 
-# Run integration tests
-./scripts/run-integration-test.sh
-
-# Run UI implementation test
-./scripts/run-ui-test.sh
-
 # Run security audit
 ./security/security-audit.sh
 ```
