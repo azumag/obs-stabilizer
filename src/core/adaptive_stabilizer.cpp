@@ -29,39 +29,39 @@ bool AdaptiveStabilizer::initialize(uint32_t width, uint32_t height,
 
 cv::Mat AdaptiveStabilizer::process_frame(const cv::Mat& frame) {
     if (!initialized_) {
-        last_error_ = "Stabilizer not initialized";
+        last_error_ = "Stabilizer not initialized in AdaptiveStabilizer::process_frame";
         return cv::Mat();
     }
-    
+
     if (frame.empty()) {
-        last_error_ = "Empty frame provided to process_frame";
+        last_error_ = "Empty frame provided to AdaptiveStabilizer::process_frame";
         return cv::Mat();
     }
-    
+
     cv::Mat result = core_.process_frame(frame);
-    
+
     std::string core_error = core_.get_last_error();
     if (!core_error.empty()) {
         last_error_ = core_error;
         return cv::Mat();
     }
-    
+
     if (adaptive_enabled_ && !result.empty()) {
         update_adaptive_parameters();
     }
-    
+
     return result;
 }
 
 void AdaptiveStabilizer::update_parameters(const StabilizerCore::StabilizerParams& params) {
     if (!initialized_) {
-        last_error_ = "Cannot update parameters: stabilizer not initialized";
+        last_error_ = "Cannot update parameters: stabilizer not initialized in AdaptiveStabilizer::update_parameters";
         return;
     }
-    
+
     core_.update_parameters(params);
     previous_params_ = params;
-    
+
     std::string core_error = core_.get_last_error();
     if (!core_error.empty()) {
         last_error_ = core_error;

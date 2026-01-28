@@ -21,7 +21,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     // Validate and clamp parameters before initialization
     StabilizerParams clamped_params = params;
     if (!validate_parameters(clamped_params)) {
-        last_error_ = "Invalid parameters provided to initialize";
+        last_error_ = "Invalid parameters provided to StabilizerCore::initialize: " + last_error_;
         return false;
     }
 
@@ -44,13 +44,13 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     try {
         // Early return for empty frames (likely common case)
         if (frame.empty()) {
-            last_error_ = "Empty frame provided";
+            last_error_ = "Empty frame provided to StabilizerCore::process_frame";
             return frame;
         }
 
         // Frame validation with branch prediction hints
         if (!validate_frame(frame)) {
-            last_error_ = "Invalid frame dimensions";
+            last_error_ = "Invalid frame dimensions: " + std::to_string(frame.rows) + "x" + std::to_string(frame.cols) + " in StabilizerCore::process_frame";
             return cv::Mat();
         }
 
@@ -71,7 +71,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     } else if (num_channels == 1) {
         gray = frame;
     } else {
-        last_error_ = "Unsupported frame format";
+        last_error_ = "Unsupported frame format: " + std::to_string(num_channels) + " channels in StabilizerCore::process_frame";
         return cv::Mat();
     }
 
