@@ -4,7 +4,6 @@
  */
 
 #include "frame_utils.hpp"
-#include "stabilizer_constants_c.h"
 #include <cstring>
 #include <algorithm>
 

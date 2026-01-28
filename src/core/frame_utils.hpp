@@ -18,6 +18,10 @@
 
 namespace FRAME_UTILS {
 
+    // Constants for frame buffer management
+    constexpr int DATA_PLANES_COUNT = 8;
+    constexpr int MEMORY_GROWTH_FACTOR = 2;
+
     // Frame format enumeration
     enum class FrameFormat {
         BGRA,

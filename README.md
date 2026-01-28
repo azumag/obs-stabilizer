@@ -16,9 +16,11 @@ These principles guided the Phase 5 refactoring, resulting in a clean, secure, a
 
 ## 🔧 **Plugin Loading Issues - RESOLVED**
 
-**Latest Fix (January 24, 2026)**: Critical plugin loading problems have been completely resolved through proper OBS library integration:
+**Latest Fix (January 29, 2026)**: Fixed broken include in frame_utils.cpp that would cause compilation failure with OBS headers available:
 
 **Problems Resolved:**
+- ✅ **Broken Include**: Removed non-existent `stabilizer_constants_c.h` include from src/core/frame_utils.cpp (Issue #279)
+- ✅ **Missing Constants**: Added `DATA_PLANES_COUNT` and `MEMORY_GROWTH_FACTOR` as constexpr values to frame_utils.hpp
 - ✅ **Undefined Symbol Errors**: Fixed `obs_log` and `obs_register_source` linking issues
 - ✅ **OBS Library Detection**: Implemented proper macOS framework detection (`/Applications/OBS.app/Contents/Frameworks/libobs.framework`)
 - ✅ **Symbol Bridge**: Created compatibility layer for OBS API differences (`plugin-support.c`)
