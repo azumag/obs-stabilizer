@@ -1,155 +1,115 @@
-# Implementation Guide for Issue #171 Deployment Strategy
+# OBS Stabilizer Implementation Guide
 
 ## Quick Start
 
-### Building Static Version (Recommended)
+### Building from Source
+
 ```bash
 mkdir build && cd build
-cmake -DOPENCV_DEPLOYMENT_STRATEGY=Static ..
-make -j4
+cmake -B build
+cmake --build build
 ```
 
-### Building Bundled Version
-```bash
-mkdir build && cd build
-cmake -DOPENCV_DEPLOYMENT_STRATEGY=Bundled ..
-make -j4
-```
+### Alternative Build Commands
 
-### Building System Dependencies (Current)
 ```bash
-mkdir build && cd build
-cmake -DOPENCV_DEPLOYMENT_STRATEGY=System ..
-make -j4
+# Or use make directly
+cmake -B build
+make -C build
+
+# Or configure and build in current directory
+cmake .
+make
 ```
 
 ## Installation Instructions
 
-### Static Distribution (Simplest)
+### macOS
+
 ```bash
-# macOS
-cp obs-stabilizer-opencv.plugin ~/Library/Application\ Support/obs-studio/plugins/
+# Copy plugin to OBS plugins directory
+cp build/obs-stabilizer-opencv.so ~/Library/Application\ Support/obs-studio/plugins/
 
-# Windows
-copy obs-stabilizer-opencv.dll "%PROGRAMFILES%\obs-studio\obs-plugins\64bit\"
+# Fix plugin loading (required for macOS)
+./scripts/fix-plugin-loading.sh
 
-# Linux  
-cp obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/
+# Optional: Bundle OpenCV libraries
+./scripts/bundle_opencv.sh
 ```
 
-### Bundled Distribution
+### Linux
+
 ```bash
-# Copy plugin and opencv-libraries directory together
-cp -r obs-stabilizer-opencv.* opencv-libraries/ ~/.config/obs-studio/plugins/
+# Copy plugin to OBS plugins directory
+cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/
 ```
 
-## Build System Changes Made
+### Windows
 
-### 1. New CMake Configuration Files
-- `cmake/StaticOpenCV.cmake`: Static linking configuration
-- `cmake/BundledOpenCV.cmake`: Bundled distribution setup
-- `cmake/verify-bundled-libs.sh.in`: Library verification script
-
-### 2. Updated Main CMakeLists.txt
-- Added `OPENCV_DEPLOYMENT_STRATEGY` option
-- Strategy-specific configuration loading
-- Conditional linking based on strategy
-
-### 3. Enhanced Architecture Document
-- Complete deployment strategy section
-- Platform-specific implementation details
-- Migration path and success metrics
-
-## Testing the Implementation
-
-### 1. Static Build Test
 ```bash
-cmake -DOPENCV_DEPLOYMENT_STRATEGY=Static ..
-make -j4
-# Check final binary size (should be ~15-20MB)
-ls -lh obs-stabilizer-opencv.*
+# Copy plugin to OBS plugins directory
+copy build\\obs-stabilizer-opencv.dll "%APPDATA%\\obs-studio\\plugins\\"
 ```
 
-### 2. Bundled Build Test
+## Build System Details
+
+### CMake Configuration
+
+The project uses a simple, straightforward CMake build system:
+- Direct OpenCV integration via `find_package(OpenCV)`
+- No complex deployment strategies or conditional compilation
+- Cross-platform support (Windows, macOS, Linux)
+- Standalone executable mode when OBS headers are not available
+
+### Build Options
+
 ```bash
-cmake -DOPENCV_DEPLOYMENT_STRATEGY=Bundled ..
-make -j4
-# Verify bundled libraries
-ls -la opencv-libraries/
+# Standard build (detects OBS automatically)
+cmake -B build
+
+# Custom OBS path (if needed)
+cmake -DOBS_INCLUDE_PATH=/path/to/obs/include -B build
+
+# Custom OpenCV path (if needed)
+cmake -DOpenCV_DIR=/path/to/opencv/cmake -B build
 ```
 
-### 3. System Dependencies Test
+## Testing
+
+### Run Unit Tests
+
 ```bash
-cmake -DOPENCV_DEPLOYMENT_STRATEGY=System ..
-make -j4
-# Should work as before (current approach)
+cd build
+./stabilizer_tests
 ```
 
-## CI/CD Updates Required
+### Run Performance Benchmarks
 
-### 1. Update GitHub Actions
-- Add multi-strategy build matrix
-- Upload different artifact types
-- Add size monitoring
+```bash
+# Quick performance validation
+./scripts/quick-perf.sh
 
-### 2. Release Process
-- Generate static builds by default
-- Offer bundled builds for advanced features
-- Maintain system builds for compatibility
+# Full benchmark suite
+./scripts/run-perf-benchmark.sh
 
-## Migration Timeline
+# Performance regression detection
+./scripts/run-perf-regression.sh
+```
 
-### Phase 1 (Weeks 1-2)
-- [x] Static linking implementation
-- [x] Build system configuration
-- [x] Documentation updates
-- [ ] CI/CD pipeline updates
+### Security Audit
 
-### Phase 2 (Weeks 3-4)
-- [ ] Cross-platform testing
-- [ ] Performance benchmarking
-- [ ] Size optimization
-- [ ] Installation script development
+```bash
+# Run security audit script
+./security/security-audit.sh
+```
 
-### Phase 3 (Weeks 5-6)
-- [ ] User testing
-- [ ] Documentation refinement
-- [ ] Release preparation
-- [ ] Migration guide creation
+## Architecture
 
-### Phase 4 (Weeks 7-8)
-- [ ] Production release
-- [ ] Monitoring setup
-- [ ] Support ticket tracking
-- [ ] User feedback collection
+The plugin follows a modular architecture:
+- **StabilizerCore**: Core stabilization engine
+- **OBSIntegration**: OBS Studio API integration layer
+- **AdaptiveStabilizer**: Motion-aware parameter adjustment
+- **MotionClassifier**: Motion type detection
+- **FrameUtils**: Video format conversion utilities
 
-## Files Modified/Created
-
-### New Files
-- `docs/DEPLOYMENT_STRATEGY.md` - Complete deployment strategy
-- `cmake/StaticOpenCV.cmake` - Static linking configuration
-- `cmake/BundledOpenCV.cmake` - Bundled distribution setup
-- `cmake/verify-bundled-libs.sh.in` - Library verification script
-- `IMPLEMENTATION_GUIDE.md` - This implementation guide
-
-### Modified Files
-- `CMakeLists.txt` - Added deployment strategy options
-- `docs/ARCHITECTURE_2026-01-18.md` - Added deployment section
-
-## Next Steps
-
-1. **Commit Changes**: All implementation files are ready for commit
-2. **Update CI/CD**: Modify GitHub Actions for multi-strategy builds
-3. **Test Thoroughly**: Run comprehensive cross-platform tests
-4. **Release**: Create first static distribution release
-5. **Monitor**: Track installation success rates and user feedback
-
-## Contact and Support
-
-For questions about this implementation:
-- Review the complete deployment strategy document
-- Check the architecture document for technical details
-- Create issues for specific problems encountered
-- Monitor the project board for progress updates
-
-This implementation resolves Issue #171 by providing a comprehensive solution to OpenCV dependency complexity while maintaining flexibility for different deployment scenarios.
+For complete architecture details, see `docs/ARCHITECTURE.md`.
