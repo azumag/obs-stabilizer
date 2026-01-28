@@ -29,7 +29,7 @@ These principles guided the Phase 5 refactoring, resulting in a clean, secure, a
 - **Symbol Mapping**: Bridge functions map `obs_register_source` → `obs_register_source_s` and `obs_log` → `blogva`
 - **Library Linking**: Direct path linking to OBS framework with proper rpath configuration
 - **OpenCV Optimization**: Reduced dependencies from 56 to 7 essential libraries (core, imgproc, video, features2d)
-- **Plugin Bundle Structure**: Added Resources directory with localization files (en-US.ini)
+- **Plugin Bundle Structure**: Proper macOS plugin bundle format with correct directory structure
 - **Code Signing Fix**: Resolved invalid signature preventing plugin loading
 - **Duplicate Plugin Resolution**: Eliminated conflicting obs-stabilizer-fixed.plugin directory
 - **Info.plist Configuration**: Added missing platform compatibility keys (CFBundleDisplayName, CFBundleSupportedPlatforms, LSMinimumSystemVersion)
