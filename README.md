@@ -58,7 +58,7 @@ These principles guided the Phase 5 refactoring, resulting in a clean, secure, a
 ## ⚠️ **Current Status: Critical Architectural Review Required**
 
 **Current Project Status:**
-- ✅ **Production-Ready Codebase**: 6,720 lines of well-organized, tested code
+- ✅ **Production-Ready Codebase**: 6,432 lines of well-organized, tested code
 - ✅ **Clean Architecture**: Modular design with clear separation of concerns
 - ✅ **Comprehensive Testing**: 71 unit tests with 100% pass rate
 - ✅ **File Organization**: Successfully resolved (19+ files → 9 essential files in project root)
@@ -1798,10 +1798,10 @@ Video stabilization can introduce black borders at frame edges due to transform 
 ### 📋 **Current Issue: No open issues**
 
 ### 📊 Codebase Statistics (Current)
-- **Total Lines of Code**: 6,278 lines (src + tests)
-- **Source Code (src/ + include/)**: 4,977 lines (24 files: 9 .cpp, 11 .hpp, 2 .c, 2 .h)
+- **Total Lines of Code**: 6,432 lines (src + tests + tools)
+- **Source Code (src/ + include/ + tools/)**: 5,131 lines (25 files: 10 .cpp, 11 .hpp, 1 .c, 3 .h)
 - **Test Code (tests/)**: 1,301 lines (7 files: 5 .cpp, 2 .hpp)
- - **Documentation**: 7,491 lines (23 files)
+ - **Documentation**: 12,943 lines (56 files)
 - **Production Status**: Clean, well-architected, fully tested
 
 **Recent Completed Feature:**
