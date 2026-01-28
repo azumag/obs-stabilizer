@@ -390,36 +390,10 @@ cv::Mat StabilizerCore::smooth_transforms_optimized() {
     return smoothed;
 }
 
-void StabilizerCore::filter_transforms(std::vector<cv::Mat>& transforms) {
-    // Remove outliers using simple threshold-based filtering
-    if (transforms.size() < 3) return;
-    
-    double sum_x = 0.0, sum_y = 0.0;
-    for (const auto& t : transforms) {
-        const double* ptr = t.ptr<double>(0);
-        sum_x += ptr[0] + ptr[3];
-        sum_y += ptr[1] + ptr[4];
-    }
-    
-    double mean_x = sum_x / (transforms.size() * 2);
-    double mean_y = sum_y / (transforms.size() * 2);
-    
-    const double threshold = 2.0; // Standard deviations
-    std::vector<cv::Mat> filtered;
-    filtered.reserve(transforms.size());
-    
-    for (const auto& t : transforms) {
-        const double* ptr = t.ptr<double>(0);
-        double dx = std::abs(ptr[0] + ptr[3] - mean_x);
-        double dy = std::abs(ptr[1] + ptr[4] - mean_y);
-        
-        if (dx < threshold && dy < threshold) {
-            filtered.push_back(t);
-        }
-    }
-    
-    transforms = std::move(filtered);
-}
+// Removed filter_transforms() - dead code that was never called
+    // This function was defined but never used in the codebase
+    // Removing it reduces complexity and maintains clean code
+    // No functionality changes are required
 
 bool StabilizerCore::should_refresh_features(float success_rate, int frames_since_refresh) {
     // Use lookup table for threshold comparisons to avoid branching
