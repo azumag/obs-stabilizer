@@ -168,25 +168,44 @@ install(TARGETS obs-stabilizer-opencv
       message(STATUS "No test sources found, skipping test suite.")
  endif()
 
- # --- Performance Testing Infrastructure ---
- option(ENABLE_PERFORMANCE_TESTS "Build performance testing infrastructure" ON)
+  # --- Performance Testing Infrastructure ---
+  option(ENABLE_PERFORMANCE_TESTS "Build performance testing infrastructure" ON)
 
- if(ENABLE_PERFORMANCE_TESTS)
-     message(STATUS "Building performance testing infrastructure")
-     
-      # Performance benchmark executable
-      set(PERF_SOURCES
-          src/core/benchmark.cpp
-          src/core/performance_regression.cpp
-          src/core/stabilizer_core.cpp
-          src/core/neon_feature_detection.cpp
-          tests/test_data_generator.cpp
-          tools/performance_benchmark.cpp
+  if(ENABLE_PERFORMANCE_TESTS)
+      message(STATUS "Building performance testing infrastructure")
+      
+       # Performance benchmark executable
+       set(PERF_SOURCES
+           src/core/benchmark.cpp
+           src/core/performance_regression.cpp
+           src/core/stabilizer_core.cpp
+           src/core/neon_feature_detection.cpp
+           tests/test_data_generator.cpp
+           tools/performance_benchmark.cpp
+       )
+
+       add_executable(performance_benchmark ${PERF_SOURCES})
+       
+       # Singlerun executable - lightweight validation tool
+       set(SINGLERUN_SOURCES
+           tools/singlerun.cpp
+           src/core/benchmark.cpp
+           src/core/stabilizer_core.cpp
+           src/core/neon_feature_detection.cpp
+           tests/test_data_generator.cpp
+       )
+
+       add_executable(singlerun ${SINGLERUN_SOURCES})
+       
+       target_include_directories(singlerun PRIVATE
+          ${CMAKE_CURRENT_SOURCE_DIR}
+          ${CMAKE_CURRENT_SOURCE_DIR}/src
+          ${CMAKE_CURRENT_SOURCE_DIR}/src/core
       )
-
-      add_executable(performance_benchmark ${PERF_SOURCES})
+      
+      target_link_libraries(singlerun ${OpenCV_LIBS})
      
-     target_include_directories(performance_benchmark PRIVATE
+      target_include_directories(performance_benchmark PRIVATE
          ${CMAKE_CURRENT_SOURCE_DIR}
          ${CMAKE_CURRENT_SOURCE_DIR}/src
          ${CMAKE_CURRENT_SOURCE_DIR}/src/core
