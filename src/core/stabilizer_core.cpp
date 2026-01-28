@@ -207,12 +207,15 @@ bool StabilizerCore::detect_features(const cv::Mat& gray, std::vector<cv::Point2
         return !points.empty();
 
     } catch (const cv::Exception& e) {
+        last_error_ = std::string("OpenCV exception in detect_features: ") + e.what();
         STAB_LOG_ERROR("OpenCV exception in detect_features: %s", e.what());
         return false;
     } catch (const std::exception& e) {
+        last_error_ = std::string("Standard exception in detect_features: ") + e.what();
         STAB_LOG_ERROR("Standard exception in detect_features: %s", e.what());
         return false;
     } catch (...) {
+        last_error_ = "Unknown exception in detect_features";
         STAB_LOG_ERROR("Unknown exception in detect_features");
         return false;
     }
@@ -265,12 +268,15 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
         return i >= MIN_FEATURES_FOR_TRACKING;
 
     } catch (const cv::Exception& e) {
+        last_error_ = std::string("OpenCV exception in track_features: ") + e.what();
         STAB_LOG_ERROR("OpenCV exception in track_features: %s", e.what());
         return false;
     } catch (const std::exception& e) {
+        last_error_ = std::string("Standard exception in track_features: ") + e.what();
         STAB_LOG_ERROR("Standard exception in track_features: %s", e.what());
         return false;
     } catch (...) {
+        last_error_ = "Unknown exception in track_features";
         STAB_LOG_ERROR("Unknown exception in track_features");
         return false;
     }
@@ -304,12 +310,15 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
         return transform;
 
     } catch (const cv::Exception& e) {
+        last_error_ = std::string("OpenCV exception in estimate_transform: ") + e.what();
         STAB_LOG_ERROR("OpenCV exception in estimate_transform: %s", e.what());
         return cv::Mat::eye(2, 3, CV_64F);
     } catch (const std::exception& e) {
+        last_error_ = std::string("Standard exception in estimate_transform: ") + e.what();
         STAB_LOG_ERROR("Standard exception in estimate_transform: %s", e.what());
         return cv::Mat::eye(2, 3, CV_64F);
     } catch (...) {
+        last_error_ = "Unknown exception in estimate_transform";
         STAB_LOG_ERROR("Unknown exception in estimate_transform");
         return cv::Mat::eye(2, 3, CV_64F);
     }
@@ -436,12 +445,15 @@ cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& tra
         cv::warpAffine(frame, warped_frame, transform, frame.size());
         return warped_frame;
     } catch (const cv::Exception& e) {
+        last_error_ = std::string("OpenCV exception in apply_transform: ") + e.what();
         STAB_LOG_ERROR("OpenCV exception in apply_transform: %s", e.what());
         return frame.clone();
     } catch (const std::exception& e) {
+        last_error_ = std::string("Standard exception in apply_transform: ") + e.what();
         STAB_LOG_ERROR("Standard exception in apply_transform: %s", e.what());
         return frame.clone();
     } catch (...) {
+        last_error_ = "Unknown exception in apply_transform";
         STAB_LOG_ERROR("Unknown exception in apply_transform");
         return frame.clone();
     }
@@ -536,12 +548,15 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
                 return frame;
         }
     } catch (const cv::Exception& e) {
+        last_error_ = std::string("OpenCV exception in apply_edge_handling: ") + e.what();
         STAB_LOG_ERROR("OpenCV exception in apply_edge_handling: %s", e.what());
         return frame.clone();
     } catch (const std::exception& e) {
+        last_error_ = std::string("Standard exception in apply_edge_handling: ") + e.what();
         STAB_LOG_ERROR("Standard exception in apply_edge_handling: %s", e.what());
         return frame.clone();
     } catch (...) {
+        last_error_ = "Unknown exception in apply_edge_handling";
         STAB_LOG_ERROR("Unknown exception in apply_edge_handling");
         return frame.clone();
     }
