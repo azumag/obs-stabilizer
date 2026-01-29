@@ -96,11 +96,11 @@ obs-stabilizer/
 
 ## Codebase Statistics
 
-- **Source Code**: 4,346 lines (21 files: 9 .cpp, 10 .hpp, 1 .c, 1 .h)
-- **Test Code**: 1,301 lines (7 files: 5 .cpp, 2 .hpp)
-- **Tools**: 154 lines (1 file: 1 .cpp)
+- **Source Code**: 4,541 lines (21 files: 9 .cpp, 10 .hpp, 1 .c, 1 .h)
+- **Test Code**: 1,347 lines (7 files: 5 .cpp, 2 .hpp)
+- **Tools**: 324 lines (2 files: 2 .cpp)
 - **Documentation**: 9,750 lines (38 files)
-- **Total Code**: 5,801 lines (src + tests + tools)
+- **Total Code**: 6,212 lines (src + tests + tools)
 
 ## Development Philosophy
 
