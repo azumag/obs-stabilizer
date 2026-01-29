@@ -165,9 +165,9 @@ namespace FRAME_UTILS {
             buffer_.frame.timestamp = reference_frame->timestamp;
 
             cv::Mat converted = convert_mat_format(mat, reference_frame->format);
-            
+
             size_t required_size = converted.total() * converted.elemSize();
-            
+
             if (converted.empty()) {
                 obs_log(LOG_ERROR, "Converted matrix is empty in FrameBuffer::create");
                 Performance::track_conversion_failure();
@@ -176,6 +176,12 @@ namespace FRAME_UTILS {
 
             if (required_size == 0) {
                 obs_log(LOG_ERROR, "Required buffer size is zero in FrameBuffer::create");
+                Performance::track_conversion_failure();
+                return nullptr;
+            }
+
+            if (!converted.data) {
+                obs_log(LOG_ERROR, "Converted matrix data pointer is null in FrameBuffer::create");
                 Performance::track_conversion_failure();
                 return nullptr;
             }
