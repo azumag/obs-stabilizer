@@ -67,6 +67,10 @@ perf_*.json
 quick_perf_results.csv
 performance_results.*
 
+# Test output files
+test_output.csv
+test_output.json
+
 # Visual Studio
 .vs/
 *.vcxproj.user
