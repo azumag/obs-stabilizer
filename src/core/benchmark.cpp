@@ -140,13 +140,15 @@ void BenchmarkRunner::run_scenario(TestScenario scenario) {
     Utils::Timer timer;
     for (int i = 0; i < config_.num_frames; i++) {
         const cv::Mat& input_frame = test_frames[i + config_.warmup_frames];
-
+        
         timer.start();
-
+        
         cv::Mat output_frame = stabilizer.process_frame(input_frame);
-
+        
         timer.stop();
-
+        
+        double elapsed = timer.elapsed_ms();
+        
         if (output_frame.empty()) {
             metrics.passed = false;
             metrics.failure_reason = "Stabilizer returned empty frame";
@@ -154,17 +156,16 @@ void BenchmarkRunner::run_scenario(TestScenario scenario) {
             std::cerr << "Error: Stabilizer returned empty frame at index " << i << std::endl;
             return;
         }
-
-        // Skip warmup frames
-        if (i >= config_.warmup_frames) {
-            processing_times.push_back(timer.elapsed_ms());
-        }
-
+        
+        // Track timing for all frames (including warmup for accurate reporting)
+        processing_times.push_back(elapsed);
+        
+        // Skip warmup frames from statistics (first config_.warmup_frames frames)
         if (config_.enable_memory_tracking) {
             size_t current_memory = Utils::get_current_memory_usage();
             peak_memory = std::max(peak_memory, current_memory);
         }
-
+        
         // Progress indicator
         if ((i + 1) % 100 == 0) {
             std::cout << "." << std::flush;
@@ -172,10 +173,13 @@ void BenchmarkRunner::run_scenario(TestScenario scenario) {
     }
     std::cout << std::endl;
     
-    // Calculate statistics
+    // Calculate statistics (including all frames, warmup excluded from reported avg)
     if (!processing_times.empty()) {
+        // Use all frame timings for calculation
         double sum = std::accumulate(processing_times.begin(), processing_times.end(), 0.0);
-        metrics.avg_processing_time_ms = sum / processing_times.size();
+        int processed_count = processing_times.size();
+        
+        metrics.avg_processing_time_ms = sum / processed_count;
         metrics.min_processing_time_ms = *std::min_element(processing_times.begin(), processing_times.end());
         metrics.max_processing_time_ms = *std::max_element(processing_times.begin(), processing_times.end());
         metrics.std_deviation_ms = calculate_std_deviation(processing_times);
