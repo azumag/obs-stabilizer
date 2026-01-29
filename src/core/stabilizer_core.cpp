@@ -668,6 +668,14 @@ StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
         clamped_params.feature_count = Features::MAX_COUNT;
     }
 
+    // Clamp feature_count to adaptive stabilization range (performance optimized)
+    if (clamped_params.feature_count > StabilizerConstants::AdaptiveFeatures::MAX_ADAPTIVE_FEATURES) {
+        STAB_LOG_WARNING("Feature count reduced to maximum adaptive value: %d (was %d)",
+                        StabilizerConstants::AdaptiveFeatures::MAX_ADAPTIVE_FEATURES,
+                        clamped_params.feature_count);
+        clamped_params.feature_count = StabilizerConstants::AdaptiveFeatures::MAX_ADAPTIVE_FEATURES;
+    }
+
     // Clamp quality_level
     if (clamped_params.quality_level < Quality::MIN_LEVEL) {
         STAB_LOG_WARNING("Quality level clamped from %.3f to minimum %.3f",

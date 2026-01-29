@@ -95,6 +95,9 @@ namespace AdaptiveFeatures {
     constexpr int RECORDING_MIN = 200;
     constexpr int RECORDING_MAX = 800;
 
+    // Maximum feature count for adaptive stabilization (performance optimized range)
+    constexpr int MAX_ADAPTIVE_FEATURES = 500;
+
     // Feature refresh thresholds for presets
     constexpr float GAMING_REFRESH = 0.6f;
     constexpr float STREAMING_REFRESH = 0.5f;
