@@ -74,8 +74,8 @@ public:
 
     void set_quality_level(float quality) { quality_level = quality; }
     void set_min_distance(float distance) { min_distance = distance; }
-    void set_block_size(int block_size) { block_size = block_size; }
-    void set_ksize(int ksize) { ksize = ksize; }
+    void set_block_size(int block_size) { this->block_size = block_size; }
+    void set_ksize(int ksize) { this->ksize = ksize; }
 };
 
 }

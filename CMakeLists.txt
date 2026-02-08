@@ -133,6 +133,7 @@ install(TARGETS obs-stabilizer-opencv
      tests/test_adaptive_stabilizer.cpp
      tests/test_motion_classifier.cpp
      tests/test_data_generator.cpp
+     tests/test_neon_feature_detection.cpp
  )
 
   if(TEST_SOURCES)

@@ -31,11 +31,11 @@ void NEONFeatureDetector::set_min_distance(float distance) {
 }
 
 void NEONFeatureDetector::set_block_size(int block_size) {
-    block_size = std::max(1, std::min(31, block_size));
+    this->block_size = std::max(1, std::min(31, block_size));
 }
 
 void NEONFeatureDetector::set_ksize(int ksize) {
-    ksize = std::max(1, std::min(31, ksize));
+    this->ksize = std::max(1, std::min(31, ksize));
 }
 
 void NEONFeatureDetector::compute_gradients(const cv::Mat& gray,
