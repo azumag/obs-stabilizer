@@ -79,6 +79,7 @@ runs:
       shell: powershell
       run: |
         echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
+        New-Item -ItemType Directory -Force -Path "C:\vcpkg\archives" | Out-Null
         echo "VCPKG_DEFAULT_BINARY_CACHE=C:\vcpkg\archives" >> $env:GITHUB_ENV
 
     - name: Install vcpkg and OpenCV (Windows)
