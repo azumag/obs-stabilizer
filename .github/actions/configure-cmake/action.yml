@@ -22,5 +22,7 @@ runs:
       run: |
         mkdir build
         cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON -DOpenCV_DIR="$env:VCPKG_ROOT\installed\x64-windows"
+        $vcpkgRoot = "$env:VCPKG_ROOT"
+        $toolchainFile = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DVCPKG_TARGET_TRIPLET=x64-windows
         Write-Host "CMake configuration completed for standalone build"

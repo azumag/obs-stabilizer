@@ -69,6 +69,7 @@ runs:
         path: |
           C:\vcpkg\installed
           C:\vcpkg\buildtrees
+          C:\vcpkg\downloads
         key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/actions/setup-build-env/action.yml') }}
         restore-keys: |
           vcpkg-${{ runner.os }}-
@@ -78,21 +79,29 @@ runs:
       shell: powershell
       run: |
         echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
- 
-    - name: Install OpenCV via vcpkg (Windows)
+        echo "VCPKG_DEFAULT_BINARY_CACHE=C:\vcpkg\archives" >> $env:GITHUB_ENV
+
+    - name: Install vcpkg and OpenCV (Windows)
       if: inputs.platform == 'windows'
       shell: powershell
       run: |
-        if (Test-Path "C:\vcpkg") {
-          Write-Host "vcpkg cache found, skipping installation"
+        if (Test-Path "C:\vcpkg\installed\x64-windows\include\opencv4") {
+          Write-Host "OpenCV vcpkg cache found, skipping installation"
         } else {
           Write-Host "Installing vcpkg..."
-          git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
-          cd C:\vcpkg
-          .\bootstrap-vcpkg.bat -disableMetrics
-          .\vcpkg integrate install
+          if (-not (Test-Path "C:\vcpkg")) {
+            git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+            cd C:\vcpkg
+            .\bootstrap-vcpkg.bat -disableMetrics
+            .\vcpkg integrate install
+          } else {
+            cd C:\vcpkg
+            if (-not (Test-Path ".\vcpkg.exe")) {
+              .\bootstrap-vcpkg.bat -disableMetrics
+            }
+          }
           
           Write-Host "Installing OpenCV via vcpkg (this may take a while)..."
-          .\vcpkg install opencv:x64-windows --recurse
+          .\vcpkg install opencv:x64-windows
           Write-Host "OpenCV installed successfully"
         }

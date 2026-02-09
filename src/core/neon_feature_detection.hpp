@@ -80,6 +80,13 @@ public:
     void set_min_distance(float distance) { min_distance = distance; }
     void set_block_size(int block_size) { this->block_size = std::max(1, std::min(31, block_size)); }
     void set_ksize(int ksize) { this->ksize = std::max(1, std::min(31, ksize)); }
+
+private:
+    bool available;
+    float quality_level;
+    float min_distance;
+    int block_size;
+    int ksize;
 };
 
 }
