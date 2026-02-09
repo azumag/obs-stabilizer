@@ -66,7 +66,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         mkdir -p package/obs-stabilizer
-        cp build/src/*.so package/obs-stabilizer/
+        cp build/*.so package/obs-stabilizer/
         cp README.md LICENSE package/obs-stabilizer/
         cd package
         tar -czf ../obs-stabilizer-linux.tar.gz obs-stabilizer/
@@ -75,7 +75,7 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         mkdir package\obs-stabilizer
-        copy build\src\Release\*.dll package\obs-stabilizer\
+        copy build\RelWithDebInfo\*.dll package\obs-stabilizer\
         copy README.md package\obs-stabilizer\
         copy LICENSE package\obs-stabilizer\
         cd package
@@ -85,8 +85,7 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: |
         mkdir -p package/obs-stabilizer
-        cp build/src/*.dylib package/obs-stabilizer/ || true
-        cp build/src/*.so package/obs-stabilizer/ || true
+        cp build/*.so package/obs-stabilizer/
         cp README.md LICENSE package/obs-stabilizer/
         cd package
         tar -czf ../obs-stabilizer-macos.tar.gz obs-stabilizer/

@@ -82,7 +82,7 @@ jobs:
           echo "🧪 Running unit tests..."
           mkdir -p tmp/builds/test
           cd tmp/builds/test
-          cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_STANDALONE=ON
+          cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug
           ninja
           ./stabilizer_tests || exit 1
           echo "✅ All unit tests passed"
@@ -97,7 +97,7 @@ jobs:
             echo "Coverage reports not found, running coverage build..."
             mkdir -p tmp/builds/coverage
             cd tmp/builds/coverage
-            cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage" -DBUILD_STANDALONE=ON
+            cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage"
             ninja
             ./stabilizer_tests || exit 1
             cd ../..
@@ -173,7 +173,7 @@ jobs:
           if [ -f "tests/integration_test.cpp" ]; then
             mkdir -p tmp/builds/integration
             cd tmp/builds/integration
-            cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_STANDALONE=ON
+            cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug
             ninja
             ./integration_test || echo "Integration tests completed with some failures"
           else

@@ -108,11 +108,29 @@ if(APPLE)
     )
 endif()
 
-set_target_properties(obs-stabilizer-opencv PROPERTIES
-    PREFIX ""
-    OUTPUT_NAME "obs-stabilizer-opencv"
-    SUFFIX ".so"
-)
+# Set platform-specific suffix for the library
+if(WIN32)
+    set_target_properties(obs-stabilizer-opencv PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "obs-stabilizer-opencv"
+        SUFFIX ".dll"
+    )
+elseif(APPLE)
+    # macOS typically uses .so or .dylib for OBS plugins
+    # Using .so to match OBS plugin conventions
+    set_target_properties(obs-stabilizer-opencv PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "obs-stabilizer-opencv"
+        SUFFIX ".so"
+    )
+else()
+    # Linux and other Unix systems
+    set_target_properties(obs-stabilizer-opencv PROPERTIES
+        PREFIX ""
+        OUTPUT_NAME "obs-stabilizer-opencv"
+        SUFFIX ".so"
+    )
+endif()
 
 # --- Installation ---
 install(TARGETS obs-stabilizer-opencv
@@ -175,15 +193,14 @@ install(TARGETS obs-stabilizer-opencv
   if(ENABLE_PERFORMANCE_TESTS)
       message(STATUS "Building performance testing infrastructure")
       
-       # Performance benchmark executable
-       set(PERF_SOURCES
-           src/core/benchmark.cpp
-           src/core/performance_regression.cpp
-           src/core/stabilizer_core.cpp
-           src/core/feature_detection.cpp
-           tests/test_data_generator.cpp
-           tools/performance_benchmark.cpp
-       )
+        # Performance benchmark executable
+        set(PERF_SOURCES
+            src/core/benchmark.cpp
+            src/core/stabilizer_core.cpp
+            src/core/feature_detection.cpp
+            tests/test_data_generator.cpp
+            tools/performance_benchmark.cpp
+        )
 
        add_executable(performance_benchmark ${PERF_SOURCES})
        

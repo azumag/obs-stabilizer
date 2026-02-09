@@ -43,7 +43,7 @@ jobs:
           name: obs-stabilizer-ubuntu-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/obs-stabilizer-standalone
+            build/obs-stabilizer-opencv.so
 
   build-windows:
     name: Build on Windows
@@ -77,7 +77,7 @@ jobs:
           name: obs-stabilizer-windows-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/RelWithDebInfo/obs-stabilizer-standalone.exe
+            build/RelWithDebInfo/obs-stabilizer-opencv.dll
 
   build-macos:
     name: Build on macOS
@@ -111,4 +111,4 @@ jobs:
           name: obs-stabilizer-macos-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/obs-stabilizer-standalone
+            build/obs-stabilizer-opencv.so

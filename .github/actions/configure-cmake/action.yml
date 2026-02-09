@@ -13,7 +13,7 @@ runs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
         echo "CMake configuration completed for standalone build"
 
     - name: Configure CMake (Windows)
@@ -24,5 +24,5 @@ runs:
         cd build
         $vcpkgRoot = "$env:VCPKG_ROOT"
         $toolchainFile = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=ON -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DVCPKG_TARGET_TRIPLET=x64-windows
+        cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DVCPKG_TARGET_TRIPLET=x64-windows
         Write-Host "CMake configuration completed for standalone build"

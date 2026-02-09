@@ -36,7 +36,7 @@ jobs:
       run: |
         mkdir -p tmp/builds/coverage tmp/tests
         cd tmp/builds/coverage
-        cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage" -DBUILD_STANDALONE=ON
+        cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage"
         ninja
     
     - name: Run tests with coverage
