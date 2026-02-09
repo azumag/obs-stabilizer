@@ -80,12 +80,11 @@ jobs:
       - name: Run unit tests
         run: |
           echo "🧪 Running unit tests..."
-          mkdir -p tmp/builds/test tmp/tests
+          mkdir -p tmp/builds/test
           cd tmp/builds/test
           cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_STANDALONE=ON
           ninja
-          cd ..
-          ./tests/stabilizer_tests || exit 1
+          ./stabilizer_tests || exit 1
           echo "✅ All unit tests passed"
       
       - name: Check code coverage
@@ -100,8 +99,8 @@ jobs:
             cd tmp/builds/coverage
             cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage" -DBUILD_STANDALONE=ON
             ninja
-            cd ..
-            ./tests/stabilizer_tests || exit 1
+            ./stabilizer_tests || exit 1
+            cd ../..
             gcovr --root . --html --html-details -o tmp/coverage-report.html || echo "Coverage report generation failed"
             gcovr --root . --xml -o tmp/coverage.xml || echo "Coverage XML generation failed"
             echo "✅ Code coverage check completed"
@@ -176,8 +175,7 @@ jobs:
             cd tmp/builds/integration
             cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_STANDALONE=ON
             ninja
-            cd ..
-            ./tests/integration_test || echo "Integration tests completed with some failures"
+            ./integration_test || echo "Integration tests completed with some failures"
           else
             echo "⚠️ No integration tests found - consider adding them"
           fi
