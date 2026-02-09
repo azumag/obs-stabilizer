@@ -49,12 +49,13 @@ jobs:
             cmake \
             ninja-build \
             pkg-config \
-            libopencv-dev
+            libopencv-dev \
+            libgtest-dev
       
       - name: Setup dependencies (macOS)
         if: matrix.platform == 'macos'
         run: |
-          brew install cmake ninja pkg-config opencv
+          brew install cmake ninja pkg-config opencv googletest
       
       - name: Setup dependencies (Windows)
         if: matrix.platform == 'windows'
@@ -68,7 +69,7 @@ jobs:
           git clone https://github.com/Microsoft/vcpkg.git
           cd vcpkg
           ./bootstrap-vcpkg.bat
-          ./vcpkg install opencv
+          ./vcpkg install opencv googletest
       
       - name: Configure CMake
         run: |
