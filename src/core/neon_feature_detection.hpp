@@ -63,19 +63,23 @@ public:
     }
 
     int detect_features_opencv(const cv::Mat& gray, std::vector<cv::Point2f>& points) {
+        int max_corners = static_cast<int>(quality_level * 1000);
+        cv::Mat mask = cv::Mat::ones(gray.size(), CV_8U);
+
         cv::goodFeaturesToTrack(gray, points,
-                               static_cast<int>(quality_level * 1000),
-                               quality_level,
+                               max_corners, quality_level,
                                min_distance,
-                               cv::Size(block_size, block_size),
-                               cv::Size(ksize, ksize));
+                               mask,
+                               block_size,
+                               false,
+                               ksize);
         return static_cast<int>(points.size());
     }
 
     void set_quality_level(float quality) { quality_level = quality; }
     void set_min_distance(float distance) { min_distance = distance; }
-    void set_block_size(int block_size) { this->block_size = block_size; }
-    void set_ksize(int ksize) { this->ksize = ksize; }
+    void set_block_size(int block_size) { this->block_size = std::max(1, std::min(31, block_size)); }
+    void set_ksize(int ksize) { this->ksize = std::max(1, std::min(31, ksize)); }
 };
 
 }

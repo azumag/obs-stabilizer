@@ -12,7 +12,6 @@ NEONFeatureDetector::NEONFeatureDetector()
     , block_size(3)
     , ksize(3)
 {
-    available = true;
 }
 
 NEONFeatureDetector::~NEONFeatureDetector() {

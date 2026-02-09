@@ -64,6 +64,33 @@ TEST_F(NEONFeatureDetectorTest, SetBlockSize_BoundaryValues) {
     EXPECT_NO_THROW(detector.detect_features_opencv(test_image, points));
 }
 
+// Test that set_block_size clamps invalid values to valid range [1, 31]
+TEST_F(NEONFeatureDetectorTest, SetBlockSize_ClampsToRange) {
+    // Test clamping of 0 to 1 (lower bound)
+    detector.set_block_size(0);
+    std::vector<cv::Point2f> points1;
+    int count1 = detector.detect_features_opencv(test_image, points1);
+    EXPECT_GE(count1, 0);
+    
+    // Test clamping of negative value to 1
+    detector.set_block_size(-5);
+    std::vector<cv::Point2f> points2;
+    int count2 = detector.detect_features_opencv(test_image, points2);
+    EXPECT_GE(count2, 0);
+    
+    // Test clamping of 32 to 31 (upper bound)
+    detector.set_block_size(32);
+    std::vector<cv::Point2f> points3;
+    int count3 = detector.detect_features_opencv(test_image, points3);
+    EXPECT_GE(count3, 0);
+    
+    // Test clamping of large value to 31
+    detector.set_block_size(100);
+    std::vector<cv::Point2f> points4;
+    int count4 = detector.detect_features_opencv(test_image, points4);
+    EXPECT_GE(count4, 0);
+}
+
 // Test boundary values for set_ksize
 TEST_F(NEONFeatureDetectorTest, SetKsize_BoundaryValues) {
     // Should accept valid values
@@ -73,6 +100,33 @@ TEST_F(NEONFeatureDetectorTest, SetKsize_BoundaryValues) {
     
     std::vector<cv::Point2f> points;
     EXPECT_NO_THROW(detector.detect_features_opencv(test_image, points));
+}
+
+// Test that set_ksize clamps invalid values to valid range [1, 31]
+TEST_F(NEONFeatureDetectorTest, SetKsize_ClampsToRange) {
+    // Test clamping of 0 to 1 (lower bound)
+    detector.set_ksize(0);
+    std::vector<cv::Point2f> points1;
+    int count1 = detector.detect_features_opencv(test_image, points1);
+    EXPECT_GE(count1, 0);
+    
+    // Test clamping of negative value to 1
+    detector.set_ksize(-5);
+    std::vector<cv::Point2f> points2;
+    int count2 = detector.detect_features_opencv(test_image, points2);
+    EXPECT_GE(count2, 0);
+    
+    // Test clamping of 32 to 31 (upper bound)
+    detector.set_ksize(32);
+    std::vector<cv::Point2f> points3;
+    int count3 = detector.detect_features_opencv(test_image, points3);
+    EXPECT_GE(count3, 0);
+    
+    // Test clamping of large value to 31
+    detector.set_ksize(100);
+    std::vector<cv::Point2f> points4;
+    int count4 = detector.detect_features_opencv(test_image, points4);
+    EXPECT_GE(count4, 0);
 }
 
 // Test that set_quality_level works correctly
