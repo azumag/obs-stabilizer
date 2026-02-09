@@ -186,12 +186,6 @@ namespace FRAME_UTILS {
                 return nullptr;
             }
 
-            if (converted.data == nullptr) {
-                obs_log(LOG_ERROR, "Converted matrix data pointer is null in FrameBuffer::create");
-                Performance::track_conversion_failure();
-                return nullptr;
-            }
-
             if (buffer_.buffer.size() < required_size) {
                 buffer_.buffer.resize(required_size);
             } else if (buffer_.buffer.size() > required_size * MEMORY_GROWTH_FACTOR) {

@@ -45,6 +45,9 @@ cv::Mat generate_rotation_frame(const cv::Mat& base_frame, int frame_index, int 
 // Generate frame with zoom
 cv::Mat generate_zoom_frame(const cv::Mat& base_frame, int frame_index, int total_frames, float zoom_speed);
 
+// Generate frame with programmable black borders for testing edge handling modes
+cv::Mat generate_test_frame_with_borders(int width, int height, int border_pixels);
+
 } // namespace TestDataGenerator
 
 #endif // TEST_DATA_GENERATOR_HPP

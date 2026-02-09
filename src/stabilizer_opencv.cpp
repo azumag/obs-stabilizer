@@ -12,6 +12,7 @@
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_wrapper.hpp"
 #include "core/adaptive_stabilizer.hpp"
+#include "core/parameter_validation.hpp"
 #include <memory>
 #include <cstring>
 #include <opencv2/opencv.hpp>

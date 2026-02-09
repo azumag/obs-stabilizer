@@ -7,8 +7,6 @@
 
 #ifdef HAVE_OBS_HEADERS
 #include <obs-module.h>
-#else
-#include "obs-module.h"
 #endif
 
 #include <opencv2/opencv.hpp>
@@ -37,7 +35,8 @@ namespace FRAME_UTILS {
         UNKNOWN
     };
 
-    // Frame conversion utilities
+#ifdef HAVE_OBS_HEADERS
+    // Frame conversion utilities (only available when OBS headers are present)
     namespace Conversion {
         // Convert OBS frame to OpenCV Mat
         cv::Mat obs_to_cv(const obs_source_frame* frame);
@@ -97,8 +96,17 @@ namespace FRAME_UTILS {
         // Get error message for invalid frame
         std::string get_frame_error_message(const obs_source_frame* frame);
     }
+#else
+    // Minimal validation utilities for standalone mode (no OBS dependencies)
+    namespace Validation {
+        // Validate OpenCV Mat only
+        inline bool validate_cv_mat(const cv::Mat& mat) {
+            return !mat.empty() && mat.cols > 0 && mat.rows > 0;
+        }
+    }
+#endif
 
-    // Performance monitoring
+    // Performance monitoring (available in both modes)
     namespace Performance {
         // Track conversion performance
         void track_conversion_time(const std::string& operation, double duration_ms);
@@ -114,6 +122,37 @@ namespace FRAME_UTILS {
         };
         
         static ConversionStats get_stats();
+    }
+
+    // Color conversion utilities (available in both modes)
+    namespace ColorConversion {
+        /**
+         * Convert OpenCV Mat to grayscale
+         * Supports BGRA, BGR, and grayscale input formats
+         * @param frame Input frame (BGRA, BGR, or grayscale)
+         * @return Grayscale Mat or empty Mat on error
+         */
+        inline cv::Mat convert_to_grayscale(const cv::Mat& frame) {
+            if (frame.empty()) {
+                return cv::Mat();
+            }
+
+            cv::Mat gray;
+            switch (frame.channels()) {
+                case 4:
+                    cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
+                    break;
+                case 3:
+                    cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+                    break;
+                case 1:
+                    gray = frame;
+                    break;
+                default:
+                    return cv::Mat();
+            }
+            return gray;
+        }
     }
 
 } // namespace FRAME_UTILS

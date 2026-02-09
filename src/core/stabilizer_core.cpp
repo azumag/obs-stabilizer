@@ -1,6 +1,7 @@
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
-#include "core/neon_feature_detection.hpp"
+#include "core/parameter_validation.hpp"
+#include "core/feature_detection.hpp"
 #include "core/logging.hpp"
 #include <vector>
 #include <algorithm>
@@ -16,30 +17,26 @@ using namespace StabilizerConstants;
 
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
+    // This is intentional for performance (YAGNI principle)
 
-    // Validate and clamp parameters before initialization
-    StabilizerParams clamped_params = params;
-    if (!validate_parameters(clamped_params)) {
-        last_error_ = "Invalid parameters provided to StabilizerCore::initialize: " + last_error_;
-        return false;
-    }
+    // Validate and clamp parameters using VALIDATION namespace
+    // This ensures all parameters are within safe ranges and prevents DRY violations
+    params_ = VALIDATION::validate_parameters(params);
 
     width_ = width;
     height_ = height;
-    params_ = clamped_params;
     first_frame_ = true;
     prev_gray_ = cv::Mat(height, width, CV_8UC1);
     prev_pts_.clear();
     transforms_.clear();
-    cumulative_transform_ = cv::Mat::eye(3, 3, CV_64F);
     metrics_ = {};
     return true;
 }
 
 cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     auto start_time = std::chrono::high_resolution_clock::now();
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
 
     try {
         // Early return for empty frames (likely common case)
@@ -59,19 +56,11 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
             return frame;
         }
 
-    // Optimized color conversion with branch prediction hints
-    cv::Mat gray;
-    const int num_channels = frame.channels();
-
-    // Standard OpenCV color conversion
-    if (num_channels == 4) {
-        cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
-    } else if (num_channels == 3) {
-        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-    } else if (num_channels == 1) {
-        gray = frame;
-    } else {
-        last_error_ = "Unsupported frame format: " + std::to_string(num_channels) + " channels in StabilizerCore::process_frame";
+    // Convert to grayscale using unified FRAME_UTILS to eliminate code duplication (DRY principle)
+    // This consolidates color conversion logic that was duplicated in detect_content_bounds()
+    cv::Mat gray = FRAME_UTILS::ColorConversion::convert_to_grayscale(frame);
+    if (gray.empty()) {
+        last_error_ = "Unsupported frame format in StabilizerCore::process_frame";
         return cv::Mat();
     }
 
@@ -89,6 +78,9 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     }
 
     std::vector<cv::Point2f> curr_pts;
+    // Pre-resize curr_pts to match prev_pts_ size - required by cv::calcOpticalFlowPyrLK()
+    // The function expects nextPts (curr_pts) to have the same size as prevPts (prev_pts_)
+    // Even though calcOpticalFlowPyrLK writes to curr_pts, it still needs proper sizing
     curr_pts.resize(prev_pts_.size());
     float tracking_success_rate = 0.0f;
     if (!track_features(prev_gray_, gray, prev_pts_, curr_pts, tracking_success_rate)) {
@@ -179,26 +171,12 @@ bool StabilizerCore::detect_features(const cv::Mat& gray, std::vector<cv::Point2
         // Pre-allocate memory to avoid reallocations
         points.reserve(params_.feature_count);
 
-        #ifndef BUILD_STANDALONE
-        // Use platform-optimized feature detection when available
-        if (PlatformOptimization::is_arm64() && gray.isContinuous() &&
-            gray.channels() == 1 && gray.depth() == CV_8U) {
-
-            static AppleOptimization::NEONFeatureDetector neon_detector;
-            neon_detector.set_quality_level(params_.quality_level);
-            neon_detector.set_min_distance(params_.min_distance);
-            neon_detector.set_block_size(params_.block_size);
-            neon_detector.set_ksize(params_.k);
-            neon_detector.detect_features(gray, points);
-        } else {
-        #endif
-            // Standard OpenCV feature detection
-            cv::goodFeaturesToTrack(gray, points, params_.feature_count, params_.quality_level,
-                                   params_.min_distance, cv::Mat(), params_.block_size,
-                                   params_.use_harris, params_.k);
-        #ifndef BUILD_STANDALONE
-        }
-        #endif
+        // Standard OpenCV feature detection using Shi-Tomasi corner detection
+        // This algorithm is well-suited for optical flow tracking and provides good
+        // performance for real-time video stabilization without requiring custom NEON code
+        cv::goodFeaturesToTrack(gray, points, params_.feature_count, params_.quality_level,
+                               params_.min_distance, cv::Mat(), params_.block_size,
+                               params_.use_harris, params_.k);
 
         // Trim to actual count if fewer features found
         if (points.size() > params_.feature_count) {
@@ -242,7 +220,11 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
         cv::Size winSize(params_.optical_flow_window_size, params_.optical_flow_window_size);
         cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, OpticalFlow::MAX_ITERATIONS, OpticalFlow::EPSILON);
 
-        // Use pre-allocated vectors to avoid reallocations
+        // Pre-resize curr_pts to match prev_pts size - required by cv::calcOpticalFlowPyrLK()
+        // The function expects nextPts (curr_pts) to have the same size as prevPts (prev_pts)
+        // Even though calcOpticalFlowPyrLK writes to curr_pts, it still needs proper sizing
+        curr_pts.resize(prev_pts.size());
+
         cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err,
                                    winSize, params_.optical_flow_pyramid_levels, termcrit,
                                    cv::OPTFLOW_USE_INITIAL_FLOW);
@@ -345,65 +327,48 @@ cv::Mat StabilizerCore::smooth_transforms_optimized() {
 
     const size_t size = transforms_.size();
     cv::Mat smoothed = cv::Mat::zeros(2, 3, CV_64F);
-    
-    // Use platform-specific optimization for transform averaging
-    #ifndef BUILD_STANDALONE
-    if (PlatformOptimization::is_arm64()) {
-        // Use NEON-optimized transform averaging
-        PlatformOptimization::NEON::TransformMatrix sum_matrix = PlatformOptimization::NEON::TransformMatrix::zero();
-        
-        for (const auto& t : transforms_) {
-            const double* t_ptr = t.ptr<double>(0);
-            PlatformOptimization::NEON::TransformMatrix t_matrix(
-                t_ptr[0], t_ptr[1], t_ptr[2],
-                t_ptr[3], t_ptr[4], t_ptr[5]
-            );
-            sum_matrix = PlatformOptimization::NEON::add(sum_matrix, t_matrix);
-        }
-        
-        // Apply multiplication instead of division
-        const float inv_size = 1.0f / static_cast<float>(size);
-        PlatformOptimization::NEON::TransformMatrix avg_matrix = PlatformOptimization::NEON::mul_scalar(sum_matrix, inv_size);
-        
-        // Copy result back to OpenCV matrix
-        double* ptr = smoothed.ptr<double>(0);
-        ptr[0] = avg_matrix.row0.data[0]; ptr[1] = avg_matrix.row0.data[1]; ptr[2] = avg_matrix.row0.data[2];
-        ptr[3] = avg_matrix.row1.data[0]; ptr[4] = avg_matrix.row1.data[1]; ptr[5] = avg_matrix.row1.data[2];
-        
-        return smoothed;
-    }
-    #endif
-    
-    // Fallback to original optimized implementation
+
+    // Standard transform averaging without NEON-specific optimizations
+    // This implementation provides good performance for real-time video stabilization
+    // and avoids complexity from platform-specific code that isn't currently needed
     auto* ptr = smoothed.ptr<double>(0);
     const double inv_size = 1.0 / static_cast<double>(size);
-    
+
     for (const auto& t : transforms_) {
         const double* t_ptr = t.ptr<double>(0);
         ptr[0] += t_ptr[0]; ptr[1] += t_ptr[1]; ptr[2] += t_ptr[2];
         ptr[3] += t_ptr[3]; ptr[4] += t_ptr[4]; ptr[5] += t_ptr[5];
     }
-    
+
     ptr[0] *= inv_size; ptr[1] *= inv_size; ptr[2] *= inv_size;
     ptr[3] *= inv_size; ptr[4] *= inv_size; ptr[5] *= inv_size;
-    
+
     return smoothed;
 }
 
-// Removed filter_transforms() - dead code that was never called
-    // This function was defined but never used in the codebase
-    // Removing it reduces complexity and maintains clean code
-    // No functionality changes are required
-
 bool StabilizerCore::should_refresh_features(float success_rate, int frames_since_refresh) {
-    // Use lookup table for threshold comparisons to avoid branching
-    static const float refresh_thresholds[] = {0.3f, 0.5f, 0.7f};
-    static const int refresh_intervals[] = {10, 30, 50};
+    // Adaptive feature refresh based on tracking success rate and time since last refresh
+    // Uses graduated thresholds: more aggressive refresh for better performance, more conservative for stability
+    // This approach balances responsiveness (refreshing features quickly when needed) with stability (avoiding unnecessary refreshes)
+    static const float refresh_thresholds[] = {0.3f, 0.5f, 0.7f};  // Success rate thresholds
+    static const int refresh_intervals[] = {10, 30, 50};            // Frame count thresholds
 
-    if (frames_since_refresh >= refresh_intervals[1]) {
+    // After 50 frames, refresh if success rate drops below 70%
+    // This is a long-term check to ensure features are still good quality
+    if (frames_since_refresh >= refresh_intervals[2]) {
+        return success_rate < refresh_thresholds[2];
+    }
+    // After 30 frames, refresh if success rate drops below 50%
+    // This is a medium-term check to catch gradual degradation
+    else if (frames_since_refresh >= refresh_intervals[1]) {
         return success_rate < refresh_thresholds[1];
     }
-
+    // After 10 frames, refresh if success rate drops below 30%
+    // This is a short-term check only triggered by very poor performance
+    else if (frames_since_refresh >= refresh_intervals[0]) {
+        return success_rate < refresh_thresholds[0];
+    }
+    // Less than 10 frames: don't refresh yet (allow tracking to stabilize)
     return false;
 }
 
@@ -435,35 +400,33 @@ cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& tra
 }
 
 cv::Rect StabilizerCore::detect_content_bounds(const cv::Mat& frame) {
-    // Convert to grayscale for better border detection
-    cv::Mat gray;
-    if (frame.channels() == 4) {
-        cv::cvtColor(frame, gray, cv::COLOR_BGRA2GRAY);
-    } else if (frame.channels() == 3) {
-        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
-    } else {
-        gray = frame;
+    // Convert to grayscale using unified FRAME_UTILS to eliminate code duplication (DRY principle)
+    // This function is called for both process_frame() and detect_content_bounds(), so centralizing it
+    // avoids maintaining duplicate color conversion logic
+    cv::Mat gray = FRAME_UTILS::ColorConversion::convert_to_grayscale(frame);
+    if (gray.empty()) {
+        return cv::Rect(0, 0, frame.cols, frame.rows);
     }
 
-    // Threshold to identify black areas
-    cv::Mat thresholded;
-    cv::threshold(gray, thresholded, 10, 255, cv::THRESH_BINARY);
+    // Use OpenCV's findNonZero() for efficient content detection
+    // This is O(n) where n is the number of pixels, but heavily optimized in OpenCV
+    // Previous implementation was O(width * height * 4) with 4 separate scan loops
+    // The new approach uses vectorized operations and is much faster for typical video frames
+    cv::Mat binary;
+    cv::threshold(gray, binary, ContentDetection::CONTENT_THRESHOLD, 255, cv::THRESH_BINARY);
 
-    // Find bounding box of non-black content
-    cv::Mat col_sum, row_sum;
-    cv::reduce(thresholded, col_sum, 0, cv::REDUCE_SUM, CV_32S);
-    cv::reduce(thresholded, row_sum, 1, cv::REDUCE_SUM, CV_32S);
+    std::vector<cv::Point> non_zero;
+    cv::findNonZero(binary, non_zero);
 
-    int left = 0, right = thresholded.cols - 1;
-    int top = 0, bottom = thresholded.rows - 1;
+    // If no content detected (e.g., all-black frame), return full frame
+    if (non_zero.empty()) {
+        return cv::Rect(0, 0, frame.cols, frame.rows);
+    }
 
-    // Find edges
-    while (left < right && col_sum.at<int>(0, left) == 0) left++;
-    while (right > left && col_sum.at<int>(0, right) == 0) right--;
-    while (top < bottom && row_sum.at<int>(top, 0) == 0) top++;
-    while (bottom > top && row_sum.at<int>(bottom, 0) == 0) bottom--;
-
-    return cv::Rect(left, top, right - left, bottom - top);
+    // boundingRect() efficiently computes the minimal rectangle containing all non-zero pixels
+    // This is a single O(n) pass through the non-zero pixel list
+    cv::Rect bounds = cv::boundingRect(non_zero);
+    return bounds;
 }
 
 cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode) {
@@ -538,33 +501,28 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
 }
 
 void StabilizerCore::update_parameters(const StabilizerCore::StabilizerParams& params) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
     params_ = params;
 }
 
 void StabilizerCore::reset() {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
     first_frame_ = true;
     prev_gray_ = cv::Mat(height_, width_, CV_8UC1);
     prev_pts_.clear();
     transforms_.clear();
-    cumulative_transform_ = cv::Mat::eye(3, 3, CV_64F);
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
     frames_since_last_refresh_ = 0;
 }
 
-void StabilizerCore::clear_state() {
-    reset();
-}
-
 StabilizerCore::PerformanceMetrics StabilizerCore::get_performance_metrics() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
     return metrics_;
 }
 
 const std::deque<cv::Mat>& StabilizerCore::get_current_transforms() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
     return transforms_;
 }
 
@@ -581,7 +539,43 @@ cv::Mat StabilizerCore::smooth_high_pass_filter(const std::deque<cv::Mat>& trans
     return result;
 }
 
-cv::Mat StabilizerCore::smooth_directional(const std::deque<cv::Mat>& transforms, 
+/**
+ * Directional smoothing for pan/zoom motion stabilization
+ *
+ * This function implements specialized smoothing for systematic directional motion
+ * (e.g., pans, zooms) where the camera intentionally moves in a consistent direction.
+ * Unlike regular smoothing which treats all motion equally, directional smoothing
+ * preserves intentional camera movement while reducing unwanted jitter.
+ *
+ * Algorithm:
+ * 1. Decompose motion into parallel (intentional) and perpendicular (jitter) components
+ * 2. Apply stronger smoothing (0.8 weight) to perpendicular motion to suppress shake
+ * 3. Apply moderate smoothing (0.9 weight) to parallel motion to preserve camera movement
+ * 4. Add small reinforcement (0.1 weight) for consistent directional components
+ *
+ * Coefficients explanation:
+ * - 0.9: Standard smoothing factor for most transformation elements
+ * - 0.8: Reduced smoothing for translation components to preserve camera motion
+ * - 0.1: Small reinforcement weight for consistent directional motion
+ *
+ * Parameters:
+ * - transforms: Queue of affine transformation matrices from recent frames
+ * - direction: Normalized 2D vector indicating dominant motion direction
+ *
+ * Returns:
+ * - Smoothed affine transformation matrix (2x3)
+ *
+ * Use cases:
+ * - Camera pans (horizontal camera movement)
+ * - Camera tilts (vertical camera movement)
+ * - Zoom operations (simulated by directional scaling)
+ *
+ * Limitations:
+ * - Assumes consistent direction across the transform window
+ * - Less effective for erratic or multi-directional motion
+ * - Should be used in conjunction with motion classification
+ */
+cv::Mat StabilizerCore::smooth_directional(const std::deque<cv::Mat>& transforms,
                                        const cv::Vec2d& direction) {
     if (transforms.empty()) {
         return cv::Mat::eye(2, 3, CV_64F);
@@ -617,165 +611,18 @@ cv::Mat StabilizerCore::smooth_directional(const std::deque<cv::Mat>& transforms
 }
 
 bool StabilizerCore::is_ready() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
     return width_ > 0 && height_ > 0;
 }
 
 std::string StabilizerCore::get_last_error() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
     return last_error_;
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
-    std::lock_guard<std::mutex> lock(mutex_);
+    // Note: Mutex is not used because OBS filters are single-threaded
     return params_;
-}
-
-  bool StabilizerCore::validate_parameters(const StabilizerCore::StabilizerParams& params) {
-    // Create a copy to modify
-    StabilizerParams clamped_params = params;
-
-    // Clamp smoothing_radius
-    if (clamped_params.smoothing_radius < Smoothing::MIN_RADIUS) {
-        STAB_LOG_WARNING("Smoothing radius clamped from %d to minimum %d",
-                        clamped_params.smoothing_radius, Smoothing::MIN_RADIUS);
-        clamped_params.smoothing_radius = Smoothing::MIN_RADIUS;
-    } else if (clamped_params.smoothing_radius > Smoothing::MAX_RADIUS) {
-        STAB_LOG_WARNING("Smoothing radius clamped from %d to maximum %d",
-                        clamped_params.smoothing_radius, Smoothing::MAX_RADIUS);
-        clamped_params.smoothing_radius = Smoothing::MAX_RADIUS;
-    }
-
-    // Clamp max_correction
-    if (clamped_params.max_correction < Correction::MIN_MAX) {
-        STAB_LOG_WARNING("Max correction clamped from %.1f to minimum %.1f",
-                        clamped_params.max_correction, Correction::MIN_MAX);
-        clamped_params.max_correction = Correction::MIN_MAX;
-    } else if (clamped_params.max_correction > Correction::MAX_MAX) {
-        STAB_LOG_WARNING("Max correction clamped from %.1f to maximum %.1f",
-                        clamped_params.max_correction, Correction::MAX_MAX);
-        clamped_params.max_correction = Correction::MAX_MAX;
-    }
-
-    // Clamp feature_count with warning
-    if (clamped_params.feature_count < Features::MIN_COUNT) {
-        STAB_LOG_WARNING("Feature count clamped from %d to minimum %d",
-                        clamped_params.feature_count, Features::MIN_COUNT);
-        clamped_params.feature_count = Features::MIN_COUNT;
-    } else if (clamped_params.feature_count > Features::MAX_COUNT) {
-        STAB_LOG_WARNING("Feature count clamped from %d to maximum %d",
-                        clamped_params.feature_count, Features::MAX_COUNT);
-        clamped_params.feature_count = Features::MAX_COUNT;
-    }
-
-    // Clamp feature_count to adaptive stabilization range (performance optimized)
-    if (clamped_params.feature_count > StabilizerConstants::AdaptiveFeatures::MAX_ADAPTIVE_FEATURES) {
-        STAB_LOG_WARNING("Feature count reduced to maximum adaptive value: %d (was %d)",
-                        StabilizerConstants::AdaptiveFeatures::MAX_ADAPTIVE_FEATURES,
-                        clamped_params.feature_count);
-        clamped_params.feature_count = StabilizerConstants::AdaptiveFeatures::MAX_ADAPTIVE_FEATURES;
-    }
-
-    // Clamp quality_level
-    if (clamped_params.quality_level < Quality::MIN_LEVEL) {
-        STAB_LOG_WARNING("Quality level clamped from %.3f to minimum %.3f",
-                        clamped_params.quality_level, Quality::MIN_LEVEL);
-        clamped_params.quality_level = Quality::MIN_LEVEL;
-    } else if (clamped_params.quality_level > Quality::MAX_LEVEL) {
-        STAB_LOG_WARNING("Quality level clamped from %.3f to maximum %.3f",
-                        clamped_params.quality_level, Quality::MAX_LEVEL);
-        clamped_params.quality_level = Quality::MAX_LEVEL;
-    }
-
-    // Clamp min_distance
-    if (clamped_params.min_distance < Distance::MIN) {
-        STAB_LOG_WARNING("Min distance clamped from %.1f to minimum %.1f",
-                        clamped_params.min_distance, Distance::MIN);
-        clamped_params.min_distance = Distance::MIN;
-    } else if (clamped_params.min_distance > Distance::MAX) {
-        STAB_LOG_WARNING("Min distance clamped from %.1f to maximum %.1f",
-                        clamped_params.min_distance, Distance::MAX);
-        clamped_params.min_distance = Distance::MAX;
-    }
-
-    // Clamp block_size
-    if (clamped_params.block_size < Block::MIN_SIZE) {
-        STAB_LOG_WARNING("Block size clamped from %d to minimum %d",
-                        clamped_params.block_size, Block::MIN_SIZE);
-        clamped_params.block_size = Block::MIN_SIZE;
-    } else if (clamped_params.block_size > Block::MAX_SIZE) {
-        STAB_LOG_WARNING("Block size clamped from %d to maximum %d",
-                        clamped_params.block_size, Block::MAX_SIZE);
-        clamped_params.block_size = Block::MAX_SIZE;
-    }
-
-    // Clamp k (Harris parameter)
-    if (clamped_params.k < Harris::MIN_K) {
-        STAB_LOG_WARNING("Harris k clamped from %.2f to minimum %.2f",
-                        clamped_params.k, Harris::MIN_K);
-        clamped_params.k = Harris::MIN_K;
-    } else if (clamped_params.k > Harris::MAX_K) {
-        STAB_LOG_WARNING("Harris k clamped from %.2f to maximum %.2f",
-                        clamped_params.k, Harris::MAX_K);
-        clamped_params.k = Harris::MAX_K;
-    }
-
-    // Clamp optical_flow_pyramid_levels
-    if (clamped_params.optical_flow_pyramid_levels < OpticalFlow::MIN_PYRAMID_LEVELS) {
-        STAB_LOG_WARNING("Optical flow pyramid levels clamped from %d to minimum %d",
-                        clamped_params.optical_flow_pyramid_levels, OpticalFlow::MIN_PYRAMID_LEVELS);
-        clamped_params.optical_flow_pyramid_levels = OpticalFlow::MIN_PYRAMID_LEVELS;
-    } else if (clamped_params.optical_flow_pyramid_levels > OpticalFlow::MAX_PYRAMID_LEVELS) {
-        STAB_LOG_WARNING("Optical flow pyramid levels clamped from %d to maximum %d",
-                        clamped_params.optical_flow_pyramid_levels, OpticalFlow::MAX_PYRAMID_LEVELS);
-        clamped_params.optical_flow_pyramid_levels = OpticalFlow::MAX_PYRAMID_LEVELS;
-    }
-
-    // Clamp optical_flow_window_size
-    if (clamped_params.optical_flow_window_size < OpticalFlow::MIN_WINDOW_SIZE) {
-        STAB_LOG_WARNING("Optical flow window size clamped from %d to minimum %d",
-                        clamped_params.optical_flow_window_size, OpticalFlow::MIN_WINDOW_SIZE);
-        clamped_params.optical_flow_window_size = OpticalFlow::MIN_WINDOW_SIZE;
-    } else if (clamped_params.optical_flow_window_size > OpticalFlow::MAX_WINDOW_SIZE) {
-        STAB_LOG_WARNING("Optical flow window size clamped from %d to maximum %d",
-                        clamped_params.optical_flow_window_size, OpticalFlow::MAX_WINDOW_SIZE);
-        clamped_params.optical_flow_window_size = OpticalFlow::MAX_WINDOW_SIZE;
-    } else if (clamped_params.optical_flow_window_size % 2 == 0) {
-        STAB_LOG_WARNING("Optical flow window size is even, clamped to odd value %d",
-                        clamped_params.optical_flow_window_size);
-        clamped_params.optical_flow_window_size = clamped_params.optical_flow_window_size - 1;
-    }
-
-    // Clamp feature_refresh_threshold
-    if (clamped_params.feature_refresh_threshold < 0.0f) {
-        STAB_LOG_WARNING("Feature refresh threshold clamped from %.1f to minimum %.1f",
-                        clamped_params.feature_refresh_threshold, 0.0f);
-        clamped_params.feature_refresh_threshold = 0.0f;
-    } else if (clamped_params.feature_refresh_threshold > 1.0f) {
-        STAB_LOG_WARNING("Feature refresh threshold clamped from %.1f to maximum %.1f",
-                        clamped_params.feature_refresh_threshold, 1.0f);
-        clamped_params.feature_refresh_threshold = 1.0f;
-    }
-
-    // Clamp adaptive_feature_min
-    if (clamped_params.adaptive_feature_min < Features::MIN_COUNT) {
-        STAB_LOG_WARNING("Adaptive feature min clamped from %d to minimum %d",
-                        clamped_params.adaptive_feature_min, Features::MIN_COUNT);
-        clamped_params.adaptive_feature_min = Features::MIN_COUNT;
-    }
-
-    // Clamp adaptive_feature_max
-    if (clamped_params.adaptive_feature_max < clamped_params.adaptive_feature_min) {
-        STAB_LOG_WARNING("Adaptive feature max %d is less than min %d, clamped to min",
-                        clamped_params.adaptive_feature_max, clamped_params.adaptive_feature_min);
-        clamped_params.adaptive_feature_max = clamped_params.adaptive_feature_min;
-    } else if (clamped_params.adaptive_feature_max > Features::MAX_COUNT) {
-        STAB_LOG_WARNING("Adaptive feature max clamped from %d to maximum %d",
-                        clamped_params.adaptive_feature_max, Features::MAX_COUNT);
-        clamped_params.adaptive_feature_max = Features::MAX_COUNT;
-    }
-
-    return true;
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() {

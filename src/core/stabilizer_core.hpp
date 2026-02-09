@@ -11,7 +11,6 @@
 #include <opencv2/video/tracking.hpp>
 #include <opencv2/features2d.hpp>
 
-#include <mutex>
 #include <memory>
 #include <deque>
 #include <vector>
@@ -28,6 +27,9 @@
  * Implements Lucas-Kanade optical flow for real-time stabilization
  */
 class StabilizerCore {
+    // Forward declaration for test access
+    friend class StabilizerCoreTest;
+
 public:
     enum class EdgeMode {
         Padding,    // Keep black borders (current behavior)
@@ -79,7 +81,6 @@ public:
     struct PerformanceMetrics {
         double avg_processing_time = 0.0;
         uint64_t frame_count = 0;
-        std::chrono::high_resolution_clock::time_point last_frame_time;
     };
 
     /**
@@ -105,14 +106,9 @@ public:
     void update_parameters(const StabilizerParams& params);
 
     /**
-     * Reset the stabilizer state (clear previous frame data)
-     */
+      * Reset the stabilizer state (clear previous frame data)
+      */
     void reset();
-
-    /**
-     * @brief Clear all internal state
-     */
-    void clear_state();
     
     /**
      * Get current performance metrics
@@ -150,15 +146,19 @@ public:
      */
     StabilizerParams get_current_params() const;
 
-    // Parameter validation
-    static bool validate_parameters(const StabilizerParams& params);
-
     // Preset configurations
     static StabilizerParams get_preset_gaming();
     static StabilizerParams get_preset_streaming();
     static StabilizerParams get_preset_recording();
 
     bool validate_frame(const cv::Mat& frame);
+
+    /**
+     * Detect content bounds in a frame
+     * @param frame Input frame to analyze
+     * @return Rectangle containing non-black content
+     */
+    cv::Rect detect_content_bounds(const cv::Mat& frame);
 
 private:
     // Core algorithm implementation
@@ -180,11 +180,8 @@ private:
     // Edge handling (Issue #226)
     cv::Mat apply_edge_handling(const cv::Mat& frame, EdgeMode mode);
 
-    // Helper for edge handling: detect content bounds
-    cv::Rect detect_content_bounds(const cv::Mat& frame);
-
     // Internal state
-    mutable std::mutex mutex_;
+    // Note: Mutex is not used because OBS filters are single-threaded
     uint32_t width_ = 0;
     uint32_t height_ = 0;
     bool first_frame_ = true;
@@ -195,7 +192,6 @@ private:
     cv::Mat prev_gray_;
     std::vector<cv::Point2f> prev_pts_;
     std::deque<cv::Mat> transforms_;
-    cv::Mat cumulative_transform_;
 
     // Performance monitoring
     PerformanceMetrics metrics_;
@@ -216,52 +212,4 @@ private:
     static constexpr double MAX_TRANSFORM_SCALE = 100.0;
     static constexpr double MAX_TRANSLATION = 2000.0;
     static constexpr double TRACKING_ERROR_THRESHOLD = 50.0;
-};
-
-/**
- * Type-safe wrapper for transformation matrices
- * Provides thread-safe operations and validation
- */
-class TransformMatrix {
-public:
-    TransformMatrix();
-    explicit TransformMatrix(const cv::Mat& matrix);
-    
-    // Matrix operations
-    TransformMatrix operator*(const TransformMatrix& other) const;
-    TransformMatrix inverse() const;
-    
-    // Accessors
-    cv::Mat get_matrix() const { return matrix_; }
-    bool is_valid() const;
-    
-    // Utility methods
-    static TransformMatrix identity();
-    static TransformMatrix from_affine(double tx, double ty, double angle, double scale);
-    
-private:
-    cv::Mat matrix_;
-    mutable std::mutex mutex_;
-};
-
-/**
- * Error handling utilities
- */
-class ErrorHandler {
-public:
-    enum class ErrorType {
-        Initialization,
-        Memory,
-        OpenCV,
-        Parameter,
-        Processing,
-        Thread
-    };
-    
-    static std::string format_error(ErrorType type, const std::string& message);
-    static void log_error(ErrorType type, const std::string& message);
-    static std::string get_last_error();
-    
-private:
-    static thread_local std::string last_error_;
 };

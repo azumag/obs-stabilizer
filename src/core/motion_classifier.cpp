@@ -18,12 +18,36 @@
 
 using namespace AdaptiveStabilization;
 
+/**
+ * Motion classification thresholds (multiplied by sensitivity)
+ * These base values define the motion detection boundaries in pixels/frame
+ */
+namespace {
+    // Base thresholds for motion magnitude classification (pixels/frame)
+    constexpr double STATIC_THRESHOLD_BASE = 6.0;      // Threshold for static motion detection
+    constexpr double SLOW_THRESHOLD_BASE = 15.0;       // Threshold for slow motion detection
+    constexpr double FAST_THRESHOLD_BASE = 40.0;       // Threshold for fast motion detection
+    constexpr double VARIANCE_THRESHOLD_BASE = 3.0;    // Motion variance threshold for classification
+    constexpr double HIGH_FREQ_THRESHOLD_BASE = 0.70;  // Ratio threshold for high-frequency shake detection
+    constexpr double CONSISTENCY_BASE = 0.96;          // Direction consistency threshold for pan/zoom detection
+
+    // Valid sensitivity range for motion classification
+    constexpr double MIN_SENSITIVITY = 0.1;
+    constexpr double MAX_SENSITIVITY = 10.0;
+}
+
 MotionClassifier::MotionClassifier(size_t window_size, double sensitivity)
     : window_size_(window_size)
     , sensitivity_(sensitivity)
     , current_type_(MotionType::Static)
     , current_metrics_()
 {
+    // Validate and clamp sensitivity factor during construction
+    if (sensitivity_ <= 0.0) {
+        STAB_LOG_ERROR("Invalid sensitivity factor: %.6f in MotionClassifier constructor", sensitivity_);
+        sensitivity_ = 1.0;
+    }
+    sensitivity_ = std::clamp(sensitivity_, MIN_SENSITIVITY, MAX_SENSITIVITY);
 }
 
 std::string MotionClassifier::motion_type_to_string(MotionType type) {
@@ -214,80 +238,29 @@ MotionMetrics MotionClassifier::calculate_metrics(const std::deque<cv::Mat>& tra
 }
 
 MotionType MotionClassifier::classify_from_metrics(const MotionMetrics& metrics) const {
-    double sensitivity_factor = sensitivity_;
-    
-    // Validate sensitivity factor input
-    if (sensitivity_factor <= 0.0) {
-        STAB_LOG_ERROR("Invalid sensitivity factor: %.6f in MotionClassifier::classify_from_metrics", sensitivity_factor);
-        sensitivity_factor = 1.0;
-    }
-    if (sensitivity_factor > 100.0) {
-        STAB_LOG_WARNING("Sensitivity factor too high: %.6f, clamping to 100.0 in MotionClassifier::classify_from_metrics", sensitivity_factor);
-        sensitivity_factor = 100.0;
-    }
-    
-    double static_threshold = 6.0 * sensitivity_factor;
-    double slow_threshold = 15.0 * sensitivity_factor;
-    double fast_threshold = 40.0 * sensitivity_factor;
-    double variance_threshold = 3.0 * sensitivity_factor;
-    double high_freq_threshold = 0.70 * sensitivity_factor;
-    double consistency_threshold = 0.96 / sensitivity_factor;
-    
-    // Clamp thresholds to sensible limits
-    static_threshold = std::clamp(static_threshold, 0.0, 100.0);
-    slow_threshold = std::clamp(slow_threshold, 0.0, 100.0);
-    fast_threshold = std::clamp(fast_threshold, 0.0, 100.0);
-    variance_threshold = std::clamp(variance_threshold, 0.0, 100.0);
-    high_freq_threshold = std::clamp(high_freq_threshold, 0.0, 1.0);
-    consistency_threshold = std::clamp(consistency_threshold, 0.0, 1.0);
-    
-    // Log warning if thresholds were clamped
-    double original_static_threshold = 6.0 * sensitivity_factor;
-    double original_slow_threshold = 15.0 * sensitivity_factor;
-    double original_fast_threshold = 40.0 * sensitivity_factor;
-    double original_variance_threshold = 3.0 * sensitivity_factor;
-    double original_high_freq_threshold = 0.70 * sensitivity_factor;
-    double original_consistency_threshold = 0.96 / sensitivity_factor;
-    
-    if (static_threshold < original_static_threshold) {
-        STAB_LOG_WARNING("Static threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
-                        original_static_threshold, static_threshold);
-    }
-    if (slow_threshold < original_slow_threshold) {
-        STAB_LOG_WARNING("Slow threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
-                        original_slow_threshold, slow_threshold);
-    }
-    if (fast_threshold < original_fast_threshold) {
-        STAB_LOG_WARNING("Fast threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
-                        original_fast_threshold, fast_threshold);
-    }
-    if (variance_threshold < original_variance_threshold) {
-        STAB_LOG_WARNING("Variance threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
-                        original_variance_threshold, variance_threshold);
-    }
-    if (high_freq_threshold < original_high_freq_threshold) {
-        STAB_LOG_WARNING("High frequency threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
-                        original_high_freq_threshold, high_freq_threshold);
-    }
-    if (consistency_threshold < original_consistency_threshold) {
-        STAB_LOG_WARNING("Consistency threshold clamped from %.2f to %.2f in MotionClassifier::classify_from_metrics", 
-                        original_consistency_threshold, consistency_threshold);
-    }
-    
+    // Sensitivity is validated and clamped in constructor
+    // Calculate thresholds using named constants
+    double static_threshold = STATIC_THRESHOLD_BASE * sensitivity_;
+    double slow_threshold = SLOW_THRESHOLD_BASE * sensitivity_;
+    double fast_threshold = FAST_THRESHOLD_BASE * sensitivity_;
+    double variance_threshold = VARIANCE_THRESHOLD_BASE * sensitivity_;
+    double high_freq_threshold = HIGH_FREQ_THRESHOLD_BASE;
+    double consistency_threshold = CONSISTENCY_BASE / sensitivity_;
+
     if (metrics.mean_magnitude < static_threshold &&
         metrics.variance_magnitude < variance_threshold) {
         return MotionType::Static;
     }
-    
+
     if (metrics.high_frequency_ratio > high_freq_threshold) {
         return MotionType::CameraShake;
     }
-    
+
     if (metrics.mean_magnitude >= slow_threshold &&
         metrics.mean_magnitude < fast_threshold) {
         return MotionType::FastMotion;
     }
-    
+
     if (metrics.mean_magnitude >= static_threshold &&
         metrics.mean_magnitude < slow_threshold) {
         if (metrics.consistency_score > consistency_threshold &&
@@ -296,7 +269,7 @@ MotionType MotionClassifier::classify_from_metrics(const MotionMetrics& metrics)
         }
         return MotionType::SlowMotion;
     }
-    
+
     return MotionType::SlowMotion;
 }
 

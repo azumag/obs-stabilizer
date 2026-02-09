@@ -72,7 +72,7 @@ set(SOURCES
     src/stabilizer_opencv.cpp
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
-    src/core/neon_feature_detection.cpp
+    src/core/feature_detection.cpp
     src/core/motion_classifier.cpp
     src/core/adaptive_stabilizer.cpp
     src/plugin-support.c
@@ -133,7 +133,7 @@ install(TARGETS obs-stabilizer-opencv
      tests/test_adaptive_stabilizer.cpp
      tests/test_motion_classifier.cpp
      tests/test_data_generator.cpp
-     tests/test_neon_feature_detection.cpp
+     tests/test_feature_detection.cpp
  )
 
   if(TEST_SOURCES)
@@ -142,7 +142,7 @@ install(TARGETS obs-stabilizer-opencv
        # Add test source files and core source files for testing
        set(TEST_CORE_SOURCES
            src/core/stabilizer_core.cpp
-           src/core/neon_feature_detection.cpp
+           src/core/feature_detection.cpp
            src/core/motion_classifier.cpp
            src/core/adaptive_stabilizer.cpp
        )
@@ -180,7 +180,7 @@ install(TARGETS obs-stabilizer-opencv
            src/core/benchmark.cpp
            src/core/performance_regression.cpp
            src/core/stabilizer_core.cpp
-           src/core/neon_feature_detection.cpp
+           src/core/feature_detection.cpp
            tests/test_data_generator.cpp
            tools/performance_benchmark.cpp
        )
@@ -192,7 +192,7 @@ install(TARGETS obs-stabilizer-opencv
            tools/singlerun.cpp
            src/core/benchmark.cpp
            src/core/stabilizer_core.cpp
-           src/core/neon_feature_detection.cpp
+           src/core/feature_detection.cpp
            tests/test_data_generator.cpp
        )
 

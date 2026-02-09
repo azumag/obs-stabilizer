@@ -43,7 +43,7 @@ bool StabilizerWrapper::is_initialized() {
 void StabilizerWrapper::clear_state() {
     try {
         if (stabilizer) {
-            stabilizer->clear_state();
+            stabilizer->reset();
         }
     } catch (const std::exception&) {
     }

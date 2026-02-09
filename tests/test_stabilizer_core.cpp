@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "../src/core/stabilizer_core.hpp"
+#include "../src/core/parameter_validation.hpp"
 #include "test_constants.hpp"
 #include "test_data_generator.hpp"
 
@@ -161,17 +162,33 @@ TEST_F(StabilizerCoreTest, ProcessZoom) {
 }
 
 TEST_F(StabilizerCoreTest, ParameterValidation) {
-    EXPECT_TRUE(StabilizerCore::validate_parameters(getDefaultParams()));
-
+    // Test that VALIDATION::validate_parameters clamps invalid values to valid ranges
     StabilizerCore::StabilizerParams invalid_params;
-    invalid_params.smoothing_radius = -1;
-    EXPECT_TRUE(StabilizerCore::validate_parameters(invalid_params));
-    EXPECT_EQ(invalid_params.smoothing_radius, -1);
+    invalid_params.smoothing_radius = -1;  // Invalid: below MIN_RADIUS (1)
 
-    invalid_params = getDefaultParams();
-    invalid_params.max_correction = -1.0f;
-    EXPECT_TRUE(StabilizerCore::validate_parameters(invalid_params));
-    EXPECT_FLOAT_EQ(invalid_params.max_correction, -1.0f);
+    StabilizerCore::StabilizerParams clamped = VALIDATION::validate_parameters(invalid_params);
+
+    // Verify clamping occurred
+    EXPECT_EQ(clamped.smoothing_radius, StabilizerConstants::Smoothing::MIN_RADIUS);
+    EXPECT_NE(clamped.smoothing_radius, -1);  // Should NOT be -1 anymore
+
+    // Test other edge cases
+    invalid_params = StabilizerCore::StabilizerParams();
+    invalid_params.max_correction = -1.0f;  // Invalid: below MIN_MAX (0.0f)
+    clamped = VALIDATION::validate_parameters(invalid_params);
+    EXPECT_FLOAT_EQ(clamped.max_correction, StabilizerConstants::Correction::MIN_MAX);
+
+    // Test clamping above maximum
+    invalid_params = StabilizerCore::StabilizerParams();
+    invalid_params.feature_count = 10000;  // Invalid: above MAX_COUNT (2000)
+    clamped = VALIDATION::validate_parameters(invalid_params);
+    EXPECT_EQ(clamped.feature_count, StabilizerConstants::Features::MAX_COUNT);
+
+    // Test block_size is forced to be odd
+    invalid_params = StabilizerCore::StabilizerParams();
+    invalid_params.block_size = 10;  // Even number
+    clamped = VALIDATION::validate_parameters(invalid_params);
+    EXPECT_EQ(clamped.block_size, 11);  // Should be incremented to odd number
 }
 
 TEST_F(StabilizerCoreTest, UpdateParameters) {
@@ -205,11 +222,13 @@ TEST_F(StabilizerCoreTest, ResetState) {
 TEST_F(StabilizerCoreTest, ClearState) {
     StabilizerCore::StabilizerParams params = getDefaultParams();
     ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
-    
+
     cv::Mat frame = TestDataGenerator::generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
     stabilizer->process_frame(frame);
-    
-    stabilizer->clear_state();
+
+    // clear_state() was removed as it was a simple wrapper around reset()
+    // Use reset() directly instead
+    stabilizer->reset();
 }
 
 TEST_F(StabilizerCoreTest, PerformanceMetrics) {
@@ -278,16 +297,191 @@ TEST_F(StabilizerCoreTest, DifferentFeatureCounts) {
 
 TEST_F(StabilizerCoreTest, DifferentSmoothingWindows) {
     StabilizerCore::StabilizerParams params = getDefaultParams();
-    
+
     params.smoothing_radius = Processing::SMALL_SMOOTHING_WINDOW;
     ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
     cv::Mat frame = TestDataGenerator::generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
     cv::Mat processed = stabilizer->process_frame(frame);
     EXPECT_FALSE(processed.empty());
-    
+
     stabilizer->reset();
     params.smoothing_radius = Processing::LARGE_SMOOTHING_WINDOW;
     ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
     processed = stabilizer->process_frame(frame);
     EXPECT_FALSE(processed.empty());
+}
+
+TEST_F(StabilizerCoreTest, EdgeModePadding) {
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat frame = TestDataGenerator::generate_test_frame(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
+    cv::Mat processed = stabilizer->process_frame(frame);
+
+    EXPECT_EQ(processed.size(), frame.size());
+    EXPECT_FALSE(processed.empty());
+}
+
+TEST_F(StabilizerCoreTest, EdgeModeCrop) {
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.edge_mode = StabilizerCore::EdgeMode::Crop;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat frame = TestDataGenerator::generate_test_frame_with_borders(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 50);
+    cv::Mat processed = stabilizer->process_frame(frame);
+
+    EXPECT_FALSE(processed.empty());
+    EXPECT_GT(processed.cols, 0);
+    EXPECT_GT(processed.rows, 0);
+}
+
+TEST_F(StabilizerCoreTest, EdgeModeScale) {
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.edge_mode = StabilizerCore::EdgeMode::Scale;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat frame = TestDataGenerator::generate_test_frame_with_borders(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 50);
+    cv::Mat processed = stabilizer->process_frame(frame);
+
+    EXPECT_EQ(processed.size(), cv::Size(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT));
+    EXPECT_FALSE(processed.empty());
+}
+
+TEST_F(StabilizerCoreTest, DetectContentBounds) {
+    // Create a frame with black borders and content in the center
+    cv::Mat frame(480, 640, CV_8UC4, cv::Scalar(0, 0, 0, 255));
+    // Add content in center, leave borders black
+    cv::rectangle(frame, cv::Rect(100, 100, 440, 280), cv::Scalar(128, 128, 128, 255), -1);
+
+    StabilizerCore core;
+    cv::Rect bounds = core.detect_content_bounds(frame);
+
+    // Verify bounds detected correctly
+    EXPECT_EQ(bounds.x, 100);
+    EXPECT_EQ(bounds.y, 100);
+    EXPECT_EQ(bounds.width, 440);
+    EXPECT_EQ(bounds.height, 280);
+}
+
+TEST_F(StabilizerCoreTest, DetectContentBoundsFullFrame) {
+    // Create a frame without black borders (all content)
+    cv::Mat frame(480, 640, CV_8UC4, cv::Scalar(128, 128, 128, 255));
+
+    StabilizerCore core;
+    cv::Rect bounds = core.detect_content_bounds(frame);
+
+    // Verify bounds cover the full frame
+    EXPECT_EQ(bounds.x, 0);
+    EXPECT_EQ(bounds.y, 0);
+    EXPECT_EQ(bounds.width, 640);
+    EXPECT_EQ(bounds.height, 480);
+}
+
+TEST_F(StabilizerCoreTest, DetectContentBoundsExtremeBorder) {
+    // Create a frame with extreme borders (> width/2)
+    cv::Mat frame(480, 640, CV_8UC4, cv::Scalar(0, 0, 0, 255));
+    // Content is smaller than half the frame
+    cv::rectangle(frame, cv::Rect(350, 250, 100, 60), cv::Scalar(128, 128, 128, 255), -1);
+
+    StabilizerCore core;
+    cv::Rect bounds = core.detect_content_bounds(frame);
+
+    // Verify bounds detected within frame
+    EXPECT_GE(bounds.x, 0);
+    EXPECT_GE(bounds.y, 0);
+    EXPECT_GT(bounds.width, 0);
+    EXPECT_GT(bounds.height, 0);
+}
+
+TEST_F(StabilizerCoreTest, DetectContentBoundsMinFrameSize) {
+    // Create a frame at minimum size (32x32)
+    cv::Mat frame(32, 32, CV_8UC4, cv::Scalar(128, 128, 128, 255));
+
+    StabilizerCore core;
+    cv::Rect bounds = core.detect_content_bounds(frame);
+
+    // Verify bounds work at minimum frame size
+    EXPECT_EQ(bounds.x, 0);
+    EXPECT_EQ(bounds.y, 0);
+    EXPECT_EQ(bounds.width, 32);
+    EXPECT_EQ(bounds.height, 32);
+}
+
+TEST_F(StabilizerCoreTest, DetectContentBoundsUltraWideAspect) {
+    // Create an ultrawide 21:9 frame (840x360)
+    cv::Mat frame(360, 840, CV_8UC4, cv::Scalar(0, 0, 0, 255));
+    cv::rectangle(frame, cv::Rect(50, 40, 740, 280), cv::Scalar(128, 128, 128, 255), -1);
+
+    StabilizerCore core;
+    cv::Rect bounds = core.detect_content_bounds(frame);
+
+    // Verify bounds detected correctly for ultrawide
+    EXPECT_EQ(bounds.x, 50);
+    EXPECT_EQ(bounds.y, 40);
+    EXPECT_EQ(bounds.width, 740);
+    EXPECT_EQ(bounds.height, 280);
+}
+
+TEST_F(StabilizerCoreTest, DetectContentBoundsSquareAspect) {
+    // Create a square 1:1 frame (480x480)
+    cv::Mat frame(480, 480, CV_8UC4, cv::Scalar(0, 0, 0, 255));
+    cv::rectangle(frame, cv::Rect(80, 80, 320, 320), cv::Scalar(128, 128, 128, 255), -1);
+
+    StabilizerCore core;
+    cv::Rect bounds = core.detect_content_bounds(frame);
+
+    // Verify bounds detected correctly for square aspect
+    EXPECT_EQ(bounds.x, 80);
+    EXPECT_EQ(bounds.y, 80);
+    EXPECT_EQ(bounds.width, 320);
+    EXPECT_EQ(bounds.height, 320);
+}
+
+TEST_F(StabilizerCoreTest, DetectContentBoundsAllBlack) {
+    // Create a completely black frame (no content)
+    cv::Mat frame(480, 640, CV_8UC4, cv::Scalar(0, 0, 0, 255));
+
+    StabilizerCore core;
+    cv::Rect bounds = core.detect_content_bounds(frame);
+
+    // For all-black frames, expect full frame bounds or minimal valid bounds
+    EXPECT_GT(bounds.width, 0);
+    EXPECT_GT(bounds.height, 0);
+    EXPECT_LE(bounds.x, 640);
+    EXPECT_LE(bounds.y, 480);
+}
+
+TEST_F(StabilizerCoreTest, EdgeModeWithMinimalBorders) {
+    // Test EdgeMode with full frame content (no borders)
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.edge_mode = StabilizerCore::EdgeMode::Crop;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat frame = TestDataGenerator::generate_test_frame(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
+    cv::Mat processed = stabilizer->process_frame(frame);
+
+    // With full frame content, output should match input size
+    EXPECT_EQ(processed.size(), frame.size());
+    EXPECT_FALSE(processed.empty());
+}
+
+TEST_F(StabilizerCoreTest, EdgeModeWithLargeBorders) {
+    // Test EdgeMode with frame containing large black borders (> width/4)
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.edge_mode = StabilizerCore::EdgeMode::Crop;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat frame = TestDataGenerator::generate_test_frame_with_borders(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 200);
+    cv::Mat processed = stabilizer->process_frame(frame);
+
+    // With large borders, output should be smaller but valid
+    EXPECT_FALSE(processed.empty());
+    EXPECT_GT(processed.cols, 0);
+    EXPECT_GT(processed.rows, 0);
 }

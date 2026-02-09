@@ -138,4 +138,22 @@ cv::Mat generate_zoom_frame(const cv::Mat& base_frame, int frame_index, int tota
     return create_motion_frame(base_frame, 0.0f, 0.0f, 0.0f, zoom);
 }
 
+cv::Mat generate_test_frame_with_borders(int width, int height, int border_pixels) {
+    cv::Mat frame = cv::Mat::zeros(height, width, CV_8UC4);
+
+    // Add content in center, leaving borders black
+    int content_x = border_pixels;
+    int content_y = border_pixels;
+    int content_w = width - 2 * border_pixels;
+    int content_h = height - 2 * border_pixels;
+
+    // Ensure content area is non-negative
+    if (content_w > 0 && content_h > 0) {
+        cv::rectangle(frame, cv::Rect(content_x, content_y, content_w, content_h),
+                      cv::Scalar(128, 128, 128, 255), -1);
+    }
+
+    return frame;
+}
+
 } // namespace TestDataGenerator

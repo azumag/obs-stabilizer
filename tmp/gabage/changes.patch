@@ -1,0 +1,17 @@
+diff --git a/rloop.sh b/rloop.sh
+index 443037c..130cd67 100755
+--- a/rloop.sh
++++ b/rloop.sh
+@@ -16,10 +16,10 @@ while true; do
+ 		opencode run "/flow-resolve" --agent='zai'
+ 		;;
+ 	"PLANNED")
+-		opencode run "/implement" --agent='zai'
++		opencode run "/flow-implement" --agent='zai'
+ 		;;
+ 	"CHANGE_REQUESTED")
+-		opencode run "/implement" --agent='zai'
++		opencode run "/flow-implement" --agent='zai'
+ 		;;
+ 	"IMPLEMENTED")
+ 		opencode run "/flow-review" --agent='zai'

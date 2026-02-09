@@ -4,6 +4,11 @@
 
 namespace StabilizerConstants {
 
+// Image size constraints
+constexpr int MIN_IMAGE_SIZE = 32;
+constexpr int MAX_IMAGE_WIDTH = 7680;
+constexpr int MAX_IMAGE_HEIGHT = 4320;
+
 // Smoothing Parameters
 namespace Smoothing {
     constexpr int MIN_RADIUS = 1;
@@ -102,6 +107,15 @@ namespace AdaptiveFeatures {
     constexpr float GAMING_REFRESH = 0.6f;
     constexpr float STREAMING_REFRESH = 0.5f;
     constexpr float RECORDING_REFRESH = 0.4f;
+}
+
+// Content Detection Parameters
+namespace ContentDetection {
+    // Threshold for determining if a pixel contains content (non-black)
+    // Values below this are considered black border pixels
+    constexpr int CONTENT_THRESHOLD = 10;
+    // Maximum border search region in pixels
+    constexpr int BORDER_SEARCH_MAX = 100;
 }
 
 } // namespace StabilizerConstants
