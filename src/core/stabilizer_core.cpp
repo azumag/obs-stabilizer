@@ -1,8 +1,14 @@
+// Include OpenCV headers first to ensure all OpenCV types are defined
+#include <opencv2/opencv.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/video/tracking.hpp>
+#include <opencv2/features2d.hpp>
+
+#include "core/logging.hpp"
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
 #include "core/parameter_validation.hpp"
 #include "core/feature_detection.hpp"
-#include "core/logging.hpp"
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
