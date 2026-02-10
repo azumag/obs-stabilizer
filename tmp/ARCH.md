@@ -1,302 +1,284 @@
-# OBS Stabilizer - Architecture Design
+# OBS Stabilizer Architecture Document
 
-## 1. 機能要件 (Functional Requirements)
+## 機能要件
 
-### 1.1. コア機能
-- **リアルタイム映像スタビライゼーション**: OBSのビデオソースに適用し、カメラの揺れを補正する
-- **パラメータ調整**: スタビライゼーションの強度、スムージング、機能パラメータなどを調整できる
-- **複数ソース対応**: 複数のビデオソースに同時に適用可能
-- **即時反映**: 設定変更がリアルタイムで映像に反映される
+### 1.1 コア機能
+- **リアルタイム映像スタビライゼーション**: OBS Studio の動画ソースにリアルタイムで映像ブレ補正を適用
+- **マルチソース対応**: 複数の動画ソースに同時にフィルターを適用可能
+- **パラメータ調整機能**: ユーザーが補正強度、スムージング範囲などをリアルタイムで調整可能
+- **プリセット保存**: 用途に応じた設定プリセットの保存・読み込み
 
-### 1.2. アルゴリズム機能
-- **特徴点検出**: `goodFeaturesToTrack()` で画像の特徴点を検出
-- **オプティカルフロー**: `calcOpticalFlowPyrLK()` でフレーム間の動きを検出
-- **モーション分類**: 動きのタイプ（揺れ、パン、ズームなど）を分類
-- **適応的補正**: 動きの種類に応じて補正方法を切り替え
-- **スムージング**: ガウシアンフィルタや移動平均で補正値を平滑化
+### 1.2 拡張機能
+- **アダプティブスタビライゼーション**: 動きの激しさに応じて補正強度を自動調整
+- **モーション分類**: 手振れ、パン、ズーム等の動きを分類して適切に処理
+- **パフォーマンスモニタリング**: 処理時間、CPU使用率等のリアルタイム監視
 
-### 1.3. UI機能
-- **プロパティパネル**: OBSの標準UIでパラメータ調整
-- **プリセット**: 用途別のプリセット保存・読み込み
-- **メトリクス表示**: 処理時間、FPS、メモリ使用量などの表示
+## 非機能要件
 
-## 2. 非機能要件 (Non-Functional Requirements)
+### 2.1 パフォーマンス
+- **処理遅延**: フレーム処理時間 < 33ms（30fps対応）
+- **CPU使用率**: フィルター適用時のCPU使用率増加 < 5%
+- **メモリ使用量**: ビルドインメモリ管理、メモリリークなし
+- **リアルタイム性**: 最低30fpsでの処理対応
 
-### 2.1. パフォーマンス (Performance)
-- **処理遅延**: 1フレーム以内（33ms以下、30fps基準）
-- **CPU使用率**: 全体のCPU使用率を5%以下に抑制
-- **メモリ使用量**: 最小限のメモリ使用、メモリリークなし
-- **対応解像度**: HD（1920x1080）、フルHD、4K対応
+### 2.2 セキュリティ
+- **外部ライブラリの脆弱性対応**: OpenCV等の依存ライブラリの脆弱性パッチ適用
+- **入力検証**: 無効な入力値に対する頑健性
+- **バッファオーバーフロー防止**: 適切な境界チェック
 
-### 2.2. セキュリティ (Security)
-- **外部ライブラリ**: OpenCVなどの脆弱性に対処
-- **入力検証**: 不正な入力に対して堅牢性を確保
-- **バッファオーバーフロー**: バッファオーバーフローを防止
+### 2.3 互換性
+- **クロスプラットフォーム**: Windows, macOS, Linux対応
+- **OBSバージョン互換**: 最新版OBS Studioおよびメジャーバージョン対応
+- **アーキテクチャ対応**: x86_64, arm64 (Apple Silicon)対応
 
-### 2.3. 互換性 (Compatibility)
-- **プラットフォーム**: Windows、macOS、Linux対応
-- **OBSバージョン**: 最新版のOBS Studioに対応
-- **OpenCVバージョン**: 4.5以上
+### 2.4 保守性
+- **モジュラ化**: 機能追加・バグ修正が容易なモジュール構造
+- **テストカバレッジ**: 単体テストカバレッジ > 80%
+- **ドキュメント**: インラインコメント、アーキテクチャドキュメント整備
 
-### 2.4. メンテナンス性 (Maintainability)
-- **モジュール化**: 機能追加やバグ修正が容易
-- **ドキュメント**: コードコメント、APIドキュメント、ユーザーガイド
-- **テストカバレッジ**: 80%以上の単体テストカバレッジ
+## 受け入れ基準
 
-### 2.5. 可用性 (Usability)
-- **直感的なUI**: 一般ユーザーが理解しやすいUI
-- **デフォルト設定**: 初期状態で最適なスタビライゼーションを実現
-- **エラーハンドリング**: 明確なエラーメッセージと回復方法
+### 3.1 機能面
+- [ ] 映像ブレが視覚的に低減できること
+- [ ] 設定画面から補正レベルを調整でき、リアルタイムに反映されること
+- [ ] 複数の動画ソースにフィルターを適用してもOBSがクラッシュしないこと
+- [ ] 設定プリセットの保存・読み込みが正しく動作すること
 
-## 3. 受け入れ基準 (Acceptance Criteria)
+### 3.2 パフォーマンス面
+- [ ] HD解像度で処理遅延 < 33msであること
+- [ ] フィルター適用時のCPU使用率増加 < 5%であること
+- [ ] 長時間連続稼動でメモリリークが発生しないこと
 
-### 3.1. 機能的受け入れ基準
-- [ ] 手振れ補正が視覚的に確認できる（明らかな揺れの低減）
-- [ ] 設定画面からスタビライゼーションレベルを調整でき、リアルタイムで反映される
-- [ ] 複数のビデオソースにフィルターを適用してもOBSがクラッシュしない
-- [ ] フィルター適用時のCPU使用率増加が閾値（5%）以下
-- [ ] Windows、macOS、Linuxの最新版OBSで基本動作が確認できる
+### 3.3 テスト面
+- [ ] 全テストケースがパスすること
+- [ ] 単体テストカバレッジ > 80%であること
+- [ ] 統合テストで実際のOBS環境での動作が確認できること
 
-### 3.2. 非機能的受け入れ基準
-- [ ] 1920x1080 @ 30fpsで処理遅延が1フレーム（33ms）以内
-- [ ] 連続24時間動作でメモリリークがない
-- [ ] クラッシュや不正終了が発生しない
-- [ ] テストスイートがすべてパスする（カバレッジ80%以上）
-- [ ] コードが静的解析（cppcheck）でエラーなし
+### 3.4 プラットフォーム面
+- [ ] 最新版OBS on Windowsで基本動作確認できること
+- [ ] 最新版OBS on macOSで基本動作確認できること
+- [ ] 最新版OBS on Linuxで基本動作確認できること
 
-## 4. 設計方針 (Design Principles)
+## 設計方針
 
-### 4.1. アーキテクチャ原則
-- **OBSプラグイン**: OBSのフィルタープラグインとして実装
-- **外部ライブラリ活用**: OpenCVなどの既存ライブラリを活用
-- **標準UI**: OBSの標準UIフレームワークを使用
-- **モジュール化**: 機能を独立したモジュールに分割
+### 4.1 基本方針
+- **YAGNI (You Aren't Gonna Need It)**: 今必要な機能のみを実装
+- **DRY (Don't Repeat Yourself)**: 重複コードを排除、共通化
+- **KISS (Keep It Simple, Stupid)**: シンプルな実装を優先
+- **TDD (Test-Driven Development)**: テスト駆動開発
 
-### 4.2. コーディング規約
-- **YAGNI (You Aren't Gonna Need It)**: 今必要な機能だけ実装する
-- **DRY (Don't Repeat Yourself)**: コードの重複を避ける
-- **KISS (Keep It Simple, Stupid)**: シンプルに保つ
-- **TDD**: テスト駆動開発
+### 4.2 技術選定
+- **言語**: C++17 (Modern C++)
+- **映像処理**: OpenCV 4.5+ (外部ライブラリ利用で開発効率化)
+- **ビルドシステム**: CMake
+- **GUI**: OBS標準UIフレームワーク (Qt依存を最小化)
+- **プラットフォーム**: Windows, macOS, Linux
 
-### 4.3. トレードオフ
-- **精度 vs パフォーマンス**: 精度を上げると計算量が増え、CPU負荷が上がる。ユーザーがパラメータで調整できるようにする
-- **ライブラリ使用 vs 自作実装**: OpenCVを使用すると開発時間が短縮されるが、ライブラリ依存になる。開発速度を優先し、OpenCVを使用する
-- **リアルタイム vs 品質**: リアルタイム処理を優先し、品質を少し犠牲にする
+### 4.3 コーディング規約
+- **絵文字不使用**: コメント・ドキュメントは英語のみ
+- **詳細コメント**: 実装の意図・根拠を記述
+- **RAIIパターン**: リソース管理でRAIIを活用
+- **一時ファイル一元化**: tmp/ディレクトリに集約
 
-## 5. アーキテクチャ決定 (Architecture Decisions)
+## アーキテクチャ決定
 
-### 5.1. 全体構成
+### 5.1 全体構成
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    OBS Studio                        │
-│                                                     │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │         OBS Stabilizer Plugin                  │   │
-│  │                                                 │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │  Plugin Interface (stabilizer_opencv)  │   │   │
-│  │  │  - obs_source_info                   │   │   │
-│  │  │  - Property callbacks                │   │   │
-│  │  │  - Frame callbacks                  │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │           │                                     │   │
-│  │           ▼                                     │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │    StabilizerWrapper (core/wrapper)   │   │   │
-│  │  │  - Thread-safe interface             │   │   │
-│  │  │  - State management                │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │           │                                     │   │
-│  │           ▼                                     │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │  AdaptiveStabilizer (core/adaptive)  │   │   │
-│  │  │  - Motion classification             │   │   │
-│  │  │  - Mode selection                 │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │           │                                     │   │
-│  │           ▼                                     │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │    StabilizerCore (core/core)        │   │   │
-│  │  │  - Frame processing                │   │   │
-│  │  │  - Smoothing algorithms            │   │   │
-│  │  │  - Transform calculation          │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │           │                                     │   │
-│  │           ▼                                     │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │  FeatureDetection (core/features)      │   │   │
-│  │  │  - goodFeaturesToTrack              │   │   │
-│  │  │  - calcOpticalFlowPyrLK            │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │                                                 │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                     │
-└─────────────────────────────────────────────────────────┘
+obs-stabilizer/
+├── src/
+│   ├── core/                    # コア処理レイヤー（OBS非依存）
+│   │   ├── stabilizer_core.hpp/cpp       # スタビライゼーションコア
+│   │   ├── stabilizer_wrapper.hpp/cpp    # RAIIラッパー
+│   │   ├── adaptive_stabilizer.hpp/cpp  # アダプティブ処理
+│   │   ├── motion_classifier.hpp/cpp     # モーション分類
+│   │   ├── feature_detection.hpp/cpp    # 特徴点検出
+│   │   ├── frame_utils.hpp/cpp         # フレーム操作ユーティリティ
+│   │   ├── parameter_validation.hpp/cpp # パラメータ検証
+│   │   ├── logging.hpp                 # ロギング
+│   │   ├── stabilizer_constants.hpp     # 定数定義
+│   │   ├── platform_optimization.hpp    # プラットフォーム最適化
+│   │   └── benchmark.hpp/cpp          # ベンチマーク
+│   └── stabilizer_opencv.cpp     # OBS統合レイヤー
+├── tests/                     # テスト
+│   ├── test_basic.cpp
+│   ├── test_stabilizer_core.cpp
+│   ├── test_adaptive_stabilizer.cpp
+│   ├── test_motion_classifier.cpp
+│   ├── test_feature_detection.cpp
+│   ├── test_edge_cases.cpp
+│   ├── test_integration.cpp
+│   └── test_memory_leaks.cpp
+├── docs/                      # ドキュメント
+│   └── ARCHITECTURE.md
+├── tmp/                       # 一時ファイル（一元化）
+├── CMakeLists.txt
+└── README.md
 ```
 
-### 5.2. コンポーネント説明
+### 5.2 レイヤー設計
 
-#### 5.2.1. Plugin Interface (`stabilizer_opencv.cpp`)
-- 役割: OBSプラグインとしてのインターフェース
-- 責任:
-  - `obs_source_info` 構造体の定義
-  - プロパティコールバック（設定UI）
-  - フレームコールバック（映像処理）
+#### 5.2.1 OBS統合レイヤー (stabilizer_opencv.cpp)
+- **責務**: OBS APIとのやり取り、プラグインエントリーポイント
+- **依存**: OBS API, coreレイヤー
+- **機能**:
+  - `obs_source_info` の実装
+  - プラグイン登録
+  - OBS設定データとパラメータのマッピング
 
-#### 5.2.2. StabilizerWrapper (`stabilizer_wrapper.cpp`)
-- 役割: スレッドセーフなラッパー
-- 責任:
-  - スレッドセーフなインターフェース提供
-  - 状態管理
-  - 初期化・クリーンアップ
+#### 5.2.2 コア処理レイヤー (src/core/)
+- **責務**: 映像スタビライゼーション処理（OBS非依存）
+- **依存**: OpenCVのみ
+- **機能**:
+  - `StabilizerCore`: 基本スタビライゼーション処理
+  - `StabilizerWrapper`: RAIIラッパー、リソース管理
+  - `AdaptiveStabilization`: アダプティブ処理
+  - `MotionClassifier`: モーション分類
+  - `FeatureDetection`: 特徴点検出
 
-#### 5.2.3. AdaptiveStabilizer (`adaptive_stabilizer.cpp`)
-- 役割: 適応的スタビライゼーション
-- 責任:
-  - モーション分類
-  - モード選択（パン、ズーム、揺れ）
+### 5.3 主要コンポーネント
 
-#### 5.2.4. StabilizerCore (`stabilizer_core.cpp`)
-- 役割: コア処理ロジック
-- 責任:
-  - フレーム処理
-  - スムージングアルゴリズム
-  - 変換行列の計算
+#### 5.3.1 StabilizerCore
+```cpp
+class StabilizerCore {
+public:
+    struct StabilizerParams {
+        double smoothing_radius;
+        double correction_strength;
+        double crop_border;
+        int feature_count;
+        double feature_quality;
+        // ...他のパラメータ
+    };
 
-#### 5.2.5. FeatureDetection (`feature_detection.cpp`)
-- 役割: 特徴点検出とオプティカルフロー
-- 責任:
-  - `goodFeaturesToTrack()` での特徴点検出
-  - `calcOpticalFlowPyrLK()` でのオプティカルフロー計算
+    void initialize(const StabilizerParams& params);
+    cv::Mat processFrame(const cv::Mat& input_frame);
+    void reset();
 
-#### 5.2.6. MotionClassifier (`motion_classifier.cpp`)
-- 役割: 動きの分類
-- 責任:
-  - 動きベクトルの分析
-  - パン、ズーム、揺れの分類
-
-### 5.3. データフロー
-
-```
-OBS Frame (obs_source_frame)
-    │
-    ├─► Frame Utils (変換: obs_source_frame → cv::Mat)
-    │
-    ├─► Feature Detection (特徴点検出)
-    │
-    ├─► Optical Flow (オプティカルフロー計算)
-    │
-    ├─► Motion Classification (動き分類)
-    │
-    ├─► Adaptive Stabilizer (モード選択)
-    │
-    ├─► Stabilizer Core (スムージング、変換行列計算)
-    │
-    ├─► Transform Application (warpAffine / warpPerspective)
-    │
-    └─► Frame Utils (変換: cv::Mat → obs_source_frame)
-            │
-            └─► OBS Output
+private:
+    StabilizerParams params_;
+    std::vector<cv::Point2f> prev_features_;
+    cv::Mat prev_frame_;
+    // ...内部状態
+};
 ```
 
-### 5.4. スレッドモデル
+#### 5.3.2 AdaptiveStabilization
+```cpp
+class AdaptiveStabilization {
+public:
+    struct AdaptiveConfig {
+        double motion_sensitivity;
+        double transition_rate;
+        double min_correction;
+        double max_correction;
+    };
 
-- **OBSスレッド**: プラグインのメインスレッド（フレーム処理）
-- **UIスレッド**: OBSのUIスレッド（プロパティ更新）
-- **スレッドセーフ**: `StabilizerWrapper` がスレッドセーフなインターフェースを提供
+    double adaptCorrection(double base_correction, double motion_intensity);
 
-## 6. トレードオフの検討 (Trade-off Analysis)
+private:
+    AdaptiveConfig config_;
+    // ...内部状態
+};
+```
 
-### 6.1. Point Feature Matching vs SURF/ORB
+#### 5.3.3 StabilizerWrapper
+```cpp
+class StabilizerWrapper {
+public:
+    StabilizerWrapper();
+    ~StabilizerWrapper();  // RAII: リソース自動解放
+    void initialize(const StabilizerCore::StabilizerParams& params);
+    cv::Mat process(const cv::Mat& frame);
 
-| 項目 | Point Feature Matching | SURF/ORB |
-|------|---------------------|-----------|
-| 精度 | 中 | 高 |
-| 計算コスト | 低 (1-4ms/frame) | 高 |
-| メモリ使用量 | 低 | 高 |
-| GPU加速 | 可能 | 可能 |
-| **結論** | **採用** | 採用せず |
+private:
+    std::unique_ptr<StabilizerCore> core_;
+    bool initialized_;
+    // ...内部状態
+};
+```
 
-**理由**: リアルタイム性を重視し、Point Feature Matchingを採用
+### 5.4 データフロー
 
-### 6.2. スムージングアルゴリズム
+```
+OBS Source Frame
+    ↓
+[OBS Integration Layer]
+    (stabilizer_opencv.cpp)
+    ↓ obs_source_frame -> cv::Mat
+[Core Processing Layer]
+    ├─ [Feature Detection] → 特徴点抽出
+    ├─ [Motion Calculation] → 動きベクトル計算
+    ├─ [Motion Classification] → 動き分類
+    ├─ [Adaptive Correction] → アダプティブ補正
+    └─ [Frame Transformation] → フレーム変換
+    ↓ cv::Mat
+[Frame Utils]
+    ↓ cv::Mat -> obs_source_frame
+OBS Output Frame
+```
 
-| 項目 | ガウシアン | 移動平均 | カルマン |
-|------|----------|---------|--------|
-| 精度 | 中 | 低 | 高 |
-| 計算コスト | 低 | 低 | 高 |
-| 実装難易度 | 低 | 低 | 高 |
-| **結論** | **採用** | 採用せず | 将来検討 |
+## トレードオフの検討
 
-**理由**: バランスの良さと実装の簡潔さからガウシアンを採用
+### 6.1 性能 vs 精度
+- **課題**: 高精度の振れ検出は計算量増加
+- **選択**: パラメータ調整可能にし、ユーザーが状況に応じて選択
+- **妥協点**: デフォルト設定はリアルタイム性能優先（1-4ms/frame on HD）
 
-### 6.3. クロップ vs パディング
+### 6.2 ライブラリ利用 vs 自作
+- **課題**: OpenCV等ライブラリ使用は開発効率向上だが、柔軟性低下
+- **選択**: 開発速度優先でOpenCV採用
+- **妥協点**: モジュラ化で将来の置き換えを容易に
 
-| 項目 | クロップ | パディング |
-|------|--------|---------|
-| 画質 | 良い | やや劣化 |
-| 画角 | 変化あり | 変化なし |
-| 計算コスト | 低 | 高 |
-| **結論** | **デフォルト採用** | オプションとして提供 |
+### 6.3 クロップ vs パディング
+- **課題**: 映像ブレ補正で黒帯発生（パディング）vs 画角損失（クロップ）
+- **選択**: ユーザー選択可能に
+- **妥協点**: デフォルトは軽微なクロップ推奨
 
-**理由**: パフォーマンスを重視し、クロップをデフォルトに
+### 6.4 複雑性 vs 機能性
+- **課題**: アダプティブ処理等の高度機能は複雑化
+- **選択**: モジュラ化で複雑性を局所化
+- **妥協点**: 基本機能はシンプルに、高度機能は別モジュール
 
-## 7. ビルド・テスト構成
+## 実装計画
 
-### 7.1. ビルドシステム
-- **CMake**: 3.16以上
-- **ビルドツール**: Ninja (推奨)、Make
-- **C++標準**: C++17
-
-### 7.2. 依存ライブラリ
-- **OpenCV**: 4.5以上 (core, imgproc, video, calib3d)
-- **GTest**: 1.14.0以上（テスト用）
-- **OBS**: OBS Studioライブラリ（実行時）
-
-### 7.3. テスト構成
-- **単体テスト**: Google Test (GTest)
-- **統合テスト**: 全体フローのテスト
-- **パフォーマンステスト**: ベンチマークツール
-- **メモリリーク検出**: Valgrind / AddressSanitizer
-
-### 7.4. CI/CD
-- **GitHub Actions**: 自動テスト、静的解析
-- **ワークフロー**:
-  - Build OBS Stabilizer (ビルド)
-  - Quality Assurance (テスト、カバレッジ、静的解析)
-  - Performance Tests (ベンチマーク)
-  - Feature Implementation Flow (事前チェック、単体テスト)
-
-## 8. 開発スケジュール
-
-### Phase 1: 基盤構築 (Week 1-2) ✅ 完了
-- [x] OBSプラグインテンプレート設定
-- [x] OpenCV統合
-- [x] 基本的なVideo Filter実装
-- [x] 性能検証プロトタイプ作成
-- [x] テストフレームワーク設定
-
-### Phase 2: コア機能実装 (Week 3-6) ✅ 完了
-- [x] Point Feature Matching実装
-- [x] スムージングアルゴリズム実装
-- [x] エラーハンドリング標準化
-- [x] 単体テスト実装
-
-### Phase 3: UI/UX・品質保証 (Week 7-8) ✅ 完了
-- [x] 設定パネル作成
-- [x] パフォーマンステスト自動化
-- [x] メモリ管理・リソース最適化
-- [x] 統合テスト環境構築
-
-### Phase 4: 最適化・リリース準備 (Week 9-10) - 現在
-- [ ] パフォーマンス調整
-- [ ] クロスプラットフォーム対応
-- [ ] デバッグ・診断機能実装
-- [ ] ドキュメント整備
+### Phase 4: 最適化・リリース準備 (Week 9-10)
+- [ ] パフォーマンス調整 (#7)
+  - SIMD最適化
+  - マルチスレッド化
+- [ ] クロスプラットフォーム対応 (#8)
+  - Windows検証
+  - macOS (arm64)検証
+  - Linux検証
+- [ ] デバッグ・診断機能実装 (#16)
+  - パフォーマンスモニタリングUI
+  - ログレベル調整
+- [ ] ドキュメント整備 (#9)
+  - ユーザーマニュアル
+  - 開発者ドキュメント
 
 ### Phase 5: 本格運用準備 (Week 11-12)
-- [ ] CI/CD パイプライン構築
-- [ ] プラグイン配布・インストール機能
-- [ ] セキュリティ・脆弱性対応
-- [ ] コミュニティ・コントリビューション体制構築
+- [ ] CI/CD パイプライン構築 (#18)
+  - 自動リリース
+  - バイナリ配布
+- [ ] プラグイン配布・インストール機能 (#19)
+  - OBSプラグインインストーラー
+  - アップデート通知
+- [ ] セキュリティ・脆弱性対応 (#21)
+  - 依存ライブラリスキャン
+  - 脆弱性パッチ
+- [ ] コミュニティ・コントリビューション体制構築 (#20)
+  - コントリビューションガイド
+  - Issue/PRテンプレート
+
+## まとめ
+
+本アーキテクチャは以下の原則に基づいて設計されている：
+
+1. **YAGNI**: 今必要な機能のみ実装、将来拡張はモジュール追加で対応
+2. **DRY**: 共通処理はユーティリティクラスとして抽出
+3. **KISS**: シンプルな実装、明確な責務分離
+4. **モジュラ化**: レイヤー設計で疎結合、高凝集
+5. **テスト駆動開発**: 単体テストカバレッジ > 80%目標
+
+これにより、保守性、拡張性、パフォーマンスのバランスが取れた設計となる。
