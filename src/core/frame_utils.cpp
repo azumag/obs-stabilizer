@@ -9,9 +9,7 @@
 
 namespace FRAME_UTILS {
 
-    // Static member initialization
-    std::mutex FrameBuffer::mutex_;
-    FrameBuffer::BufferStruct FrameBuffer::buffer_ = { {}, {}, false };
+
 
     // ============================================================================
     // Conversion Implementation
@@ -69,15 +67,24 @@ namespace FRAME_UTILS {
                         // Calculate sizes with overflow protection
                         // Note: SIZE_MAX from <climits> used for overflow detection reference
                         // Use size_t for size calculations (unsigned, larger range than int)
-                        const size_t y_size = static_cast<size_t>(frame->width) * 
+                        const size_t y_size = static_cast<size_t>(frame->width) *
                                              static_cast<size_t>(frame->height);
-                        const size_t uv_size = static_cast<size_t>(frame->width / 2) * 
-                                              static_cast<size_t>(frame->height / 2);
+                        const size_t uv_size = static_cast<size_t>(frame->width / 2) *
+                                               static_cast<size_t>(frame->height / 2);
 
-                        // Check for integer overflow in total size
-                        const size_t total_size = y_size + uv_size * 2;
+                        // Check for integer overflow in uv_size * 2 multiplication
+                        // This must be checked before the final addition to prevent overflow
+                        const size_t uv_size_doubled = uv_size * 2;
+                        if (uv_size > 0 && uv_size_doubled / 2 != uv_size) {
+                            obs_log(LOG_ERROR, "Integer overflow in I420 UV size calculation");
+                            Performance::track_conversion_failure();
+                            return cv::Mat();
+                        }
+
+                        // Check for integer overflow in final total size addition
+                        const size_t total_size = y_size + uv_size_doubled;
                         if (y_size > 0 && total_size < y_size) {
-                            obs_log(LOG_ERROR, "Integer overflow in I420 buffer size calculation");
+                            obs_log(LOG_ERROR, "Integer overflow in I420 total size calculation");
                             Performance::track_conversion_failure();
                             return cv::Mat();
                         }
@@ -144,73 +151,94 @@ namespace FRAME_UTILS {
     // FrameBuffer Implementation
     // ============================================================================
 
-    obs_source_frame* FrameBuffer::create(const cv::Mat& mat, 
-                                        const obs_source_frame* reference_frame) {
+    obs_source_frame* FrameBuffer::create(const cv::Mat& mat,
+                                         const obs_source_frame* reference_frame) {
         if (mat.empty() || !reference_frame) {
+            obs_log(LOG_ERROR, "Invalid input in FrameBuffer::create: mat=%s, ref=%s",
+                    mat.empty() ? "empty" : "valid",
+                    reference_frame ? "valid" : "null");
             Performance::track_conversion_failure();
             return nullptr;
         }
 
         try {
-            std::lock_guard<std::mutex> lock(mutex_);
-
-            if (!buffer_.initialized) {
-                buffer_.frame = *reference_frame;
-                buffer_.initialized = true;
+            // Validate reference frame dimensions
+            if (reference_frame->width == 0 || reference_frame->height == 0) {
+                obs_log(LOG_ERROR, "Invalid reference frame dimensions: %ux%u",
+                        reference_frame->width, reference_frame->height);
+                Performance::track_conversion_failure();
+                return nullptr;
             }
 
-            buffer_.frame.width = reference_frame->width;
-            buffer_.frame.height = reference_frame->height;
-            buffer_.frame.format = reference_frame->format;
-            buffer_.frame.timestamp = reference_frame->timestamp;
-
+            // Convert Mat to target format
             cv::Mat converted = convert_mat_format(mat, reference_frame->format);
 
+            if (converted.empty()) {
+                obs_log(LOG_ERROR, "Failed to convert Mat to target format");
+                Performance::track_conversion_failure();
+                return nullptr;
+            }
+
+            // Calculate required buffer size
             size_t required_size = converted.total() * converted.elemSize();
 
-            if (converted.empty()) {
-                obs_log(LOG_ERROR, "Converted matrix is empty in FrameBuffer::create");
-                Performance::track_conversion_failure();
-                return nullptr;
-            }
-
             if (required_size == 0) {
-                obs_log(LOG_ERROR, "Required buffer size is zero in FrameBuffer::create");
+                obs_log(LOG_ERROR, "Converted matrix has zero size");
                 Performance::track_conversion_failure();
                 return nullptr;
             }
 
-            if (!converted.data) {
-                obs_log(LOG_ERROR, "Converted matrix data pointer is null in FrameBuffer::create");
+            // Allocate obs_source_frame and data buffer together
+            // This ensures both are deallocated together
+            uint8_t* data_buffer = new (std::nothrow) uint8_t[required_size];
+            if (!data_buffer) {
+                obs_log(LOG_ERROR, "Failed to allocate data buffer: %zu bytes", required_size);
                 Performance::track_conversion_failure();
                 return nullptr;
             }
 
-            if (buffer_.buffer.size() < required_size) {
-                buffer_.buffer.resize(required_size);
-            } else if (buffer_.buffer.size() > required_size * MEMORY_GROWTH_FACTOR) {
-                buffer_.buffer.shrink_to_fit();
-            }
-
-            if (buffer_.buffer.size() < required_size) {
-                obs_log(LOG_ERROR, "Buffer allocation failed: requested %zu, got %zu",
-                         required_size, buffer_.buffer.size());
+            obs_source_frame* frame = new (std::nothrow) obs_source_frame();
+            if (!frame) {
+                delete[] data_buffer;
+                obs_log(LOG_ERROR, "Failed to allocate obs_source_frame structure");
                 Performance::track_conversion_failure();
                 return nullptr;
             }
 
-            buffer_.frame.data[0] = buffer_.buffer.data();
-            buffer_.frame.linesize[0] = static_cast<uint32_t>(converted.step);
+            // Initialize frame structure with exception safety
+            // Wrap operations that could potentially throw to prevent memory leaks
+            try {
+                memset(frame, 0, sizeof(obs_source_frame));
+                copy_frame_metadata(reference_frame, frame);
 
-            memcpy(buffer_.frame.data[0], converted.data, required_size);
+                // Set data pointers
+                frame->data[0] = data_buffer;
+                frame->linesize[0] = static_cast<uint32_t>(converted.step);
 
-            for (int i = 1; i < DATA_PLANES_COUNT; i++) {
-                buffer_.frame.data[i] = nullptr;
-                buffer_.frame.linesize[i] = 0;
+                // Copy frame data
+                memcpy(frame->data[0], converted.data, required_size);
+
+                // Clear other data planes
+                for (int i = 1; i < DATA_PLANES_COUNT; i++) {
+                    frame->data[i] = nullptr;
+                    frame->linesize[i] = 0;
+                }
+
+                return frame;
+
+            } catch (...) {
+                // Clean up resources if any exception occurs during initialization
+                delete[] data_buffer;
+                delete frame;
+                obs_log(LOG_ERROR, "Exception during frame buffer initialization");
+                Performance::track_conversion_failure();
+                return nullptr;
             }
 
-            return &buffer_.frame;
-
+        } catch (const std::bad_alloc& e) {
+            obs_log(LOG_ERROR, "Memory allocation failed in FrameBuffer::create: %s", e.what());
+            Performance::track_conversion_failure();
+            return nullptr;
         } catch (const std::exception& e) {
             obs_log(LOG_ERROR, "Exception in FrameBuffer::create: %s", e.what());
             Performance::track_conversion_failure();
@@ -218,16 +246,23 @@ namespace FRAME_UTILS {
         }
     }
 
-    void FrameBuffer::cleanup() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        buffer_.buffer.clear();
-        buffer_.buffer.shrink_to_fit();
-        buffer_.initialized = false;
-    }
+    void FrameBuffer::release(obs_source_frame* frame) {
+        if (!frame) {
+            return;
+        }
 
-    size_t FrameBuffer::get_buffer_size() {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return buffer_.buffer.size();
+        try {
+            // Free data buffer
+            if (frame->data[0]) {
+                delete[] frame->data[0];
+            }
+
+            // Free frame structure
+            delete frame;
+
+        } catch (const std::exception& e) {
+            obs_log(LOG_ERROR, "Exception in FrameBuffer::release: %s", e.what());
+        }
     }
 
     cv::Mat FrameBuffer::convert_mat_format(const cv::Mat& mat, uint32_t target_format) {
@@ -256,16 +291,33 @@ namespace FRAME_UTILS {
         return converted;
     }
 
-    void FrameBuffer::copy_frame_metadata(const obs_source_frame* src, 
+    void FrameBuffer::copy_frame_metadata(const obs_source_frame* src,
                                         obs_source_frame* dst) {
         if (!src || !dst) {
             return;
         }
 
+        // Copy all relevant metadata fields from obs_source_frame structure
+        // These fields are essential for proper OBS frame handling
         dst->width = src->width;
         dst->height = src->height;
         dst->format = src->format;
         dst->timestamp = src->timestamp;
+
+        // Copy color range information for accurate color reproduction
+        // full_range: 0 = limited range (16-235), 1 = full range (0-255)
+        dst->full_range = src->full_range;
+
+        // Copy flip flag for vertical flip handling
+        // flip: non-zero value indicates frame is vertically flipped
+        dst->flip = src->flip;
+
+        // Copy flags for additional frame properties
+        // This includes various OBS-specific flags (e.g., keyframe, preroll)
+        dst->flags = src->flags;
+
+        // Note: Other fields like min/max_timestamp may be relevant for some use cases
+        // but are not always set by OBS. We copy only the essential fields here.
     }
 
     // ============================================================================
@@ -297,11 +349,28 @@ namespace FRAME_UTILS {
             return false;
         }
 
+        // Check for invalid dimensions
+        // cv::Mat can have negative dimensions when constructed with invalid parameters
+        // These should be rejected as they indicate corrupted or improperly initialized data
         if (mat.rows <= 0 || mat.cols <= 0) {
             return false;
         }
 
-        if (mat.type() != CV_8UC3 && mat.type() != CV_8UC4) {
+        // Validate pixel depth - only 8-bit unsigned formats are supported
+        // 16-bit (CV_16UC*) and other formats require different processing pipelines
+        // and are not compatible with the current stabilization algorithms
+        int depth = mat.depth();
+        if (depth != CV_8U) {
+            // Unsupported bit depth - only 8-bit unsigned is supported
+            return false;
+        }
+
+        // Validate channel count
+        // 1-channel (grayscale), 3-channel (BGR), and 4-channel (BGRA) formats are supported
+        // 2-channel formats are not supported by the current processing pipeline
+        int channels = mat.channels();
+        if (channels != 1 && channels != 3 && channels != 4) {
+            // Unsupported channel count
             return false;
         }
 

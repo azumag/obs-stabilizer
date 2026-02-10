@@ -10,6 +10,7 @@
 #include <iomanip>
 
 using namespace StabilizerConstants;
+using namespace StabilizerLogging;
 
 #define STAB_LOG_ERROR(...) CORE_LOG_ERROR(__VA_ARGS__)
 #define STAB_LOG_WARNING(...) CORE_LOG_WARNING(__VA_ARGS__)
@@ -20,6 +21,23 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     // Note: Mutex is not used because OBS filters are single-threaded
     // This is intentional for performance (YAGNI principle)
 
+    // Validate dimensions before initialization
+    // Zero or invalid dimensions cannot be processed and indicate configuration errors
+    if (width == 0 || height == 0) {
+        last_error_ = "Invalid dimensions: width and height must be greater than 0";
+        CORE_LOG_ERROR("Cannot initialize with zero dimensions: %dx%d", width, height);
+        return false;
+    }
+
+    // Validate minimum dimensions for feature detection
+    // goodFeaturesToTrack requires sufficient image area to find corners
+    if (width < MIN_IMAGE_SIZE || height < MIN_IMAGE_SIZE) {
+        last_error_ = "Dimensions too small: minimum is " + std::to_string(MIN_IMAGE_SIZE) + "x" + std::to_string(MIN_IMAGE_SIZE);
+        CORE_LOG_ERROR("Dimensions too small: %dx%d (minimum: %dx%d)", 
+                      width, height, MIN_IMAGE_SIZE, MIN_IMAGE_SIZE);
+        return false;
+    }
+
     // Validate and clamp parameters using VALIDATION namespace
     // This ensures all parameters are within safe ranges and prevents DRY violations
     params_ = VALIDATION::validate_parameters(params);
@@ -27,14 +45,16 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     width_ = width;
     height_ = height;
     first_frame_ = true;
-    prev_gray_ = cv::Mat(height, width, CV_8UC1);
+    prev_gray_ = cv::Mat();
     prev_pts_.clear();
     transforms_.clear();
     metrics_ = {};
+    consecutive_tracking_failures_ = 0;
+    frames_since_last_refresh_ = 0;
     return true;
 }
 
-cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
+    cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     auto start_time = std::chrono::high_resolution_clock::now();
     // Note: Mutex is not used because OBS filters are single-threaded
 
@@ -42,17 +62,21 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         // Early return for empty frames (likely common case)
         if (frame.empty()) {
             last_error_ = "Empty frame provided to StabilizerCore::process_frame";
+            CORE_LOG_WARNING("Empty frame provided, skipping processing");
             return frame;
         }
 
         // Frame validation with branch prediction hints
         if (!validate_frame(frame)) {
             last_error_ = "Invalid frame dimensions: " + std::to_string(frame.rows) + "x" + std::to_string(frame.cols) + " in StabilizerCore::process_frame";
+            CORE_LOG_ERROR("Invalid frame dimensions: %dx%d (expected: 32x32 to %dx%d)",
+                          frame.rows, frame.cols, MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
             return cv::Mat();
         }
 
         // Early return for disabled stabilizer (common case)
         if (!params_.enabled) {
+            CORE_LOG_DEBUG("Stabilizer disabled, returning original frame");
             return frame;
         }
 
@@ -61,18 +85,22 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     cv::Mat gray = FRAME_UTILS::ColorConversion::convert_to_grayscale(frame);
     if (gray.empty()) {
         last_error_ = "Unsupported frame format in StabilizerCore::process_frame";
+        CORE_LOG_ERROR("Failed to convert frame to grayscale (channels: %d)", frame.channels());
         return cv::Mat();
     }
 
     if (first_frame_) {
+        CORE_LOG_INFO("Processing first frame, initializing feature tracking");
         detect_features(gray, prev_pts_);
         if (prev_pts_.empty()) {
+            CORE_LOG_WARNING("No features detected in first frame, using original frame");
             update_metrics(start_time);
             return frame;
         }
         prev_gray_ = gray.clone();
         first_frame_ = false;
         transforms_.push_back(cv::Mat::eye(2, 3, CV_64F));
+        CORE_LOG_DEBUG("First frame processed, %zu features detected", prev_pts_.size());
         update_metrics(start_time);
         return frame;
     }
@@ -85,7 +113,10 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     float tracking_success_rate = 0.0f;
     if (!track_features(prev_gray_, gray, prev_pts_, curr_pts, tracking_success_rate)) {
         consecutive_tracking_failures_++;
+        CORE_LOG_WARNING("Feature tracking failed (attempt %d/5), success rate: %.2f",
+                       consecutive_tracking_failures_, tracking_success_rate);
         if (consecutive_tracking_failures_ >= 5) {
+            CORE_LOG_INFO("Tracking failed 5 times consecutively, re-detecting features");
             detect_features(gray, prev_pts_);
             consecutive_tracking_failures_ = 0;
             frames_since_last_refresh_ = 0;
@@ -106,13 +137,16 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
             params_.feature_count,
             params_.adaptive_feature_min
         };
-        
+
         int adaptive_count = params_.feature_count;
         if (tracking_success_rate < success_thresholds[0]) {
             adaptive_count = feature_counts[0];
         } else if (tracking_success_rate > success_thresholds[1]) {
             adaptive_count = feature_counts[2];
         }
+
+        CORE_LOG_DEBUG("Refreshing features: success_rate=%.2f, frames_since_refresh=%d, new_count=%d",
+                      tracking_success_rate, frames_since_last_refresh_, adaptive_count);
 
         std::vector<cv::Point2f> new_features;
         cv::goodFeaturesToTrack(gray, new_features, adaptive_count,
@@ -123,11 +157,13 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         if (!new_features.empty() && new_features.size() >= MIN_FEATURES_FOR_TRACKING) {
             prev_pts_ = new_features;
             frames_since_last_refresh_ = 0;
+            CORE_LOG_DEBUG("Features refreshed: %zu new features", new_features.size());
         }
     }
 
     cv::Mat transform = estimate_transform(prev_pts_, curr_pts);
     if (transform.empty()) {
+        CORE_LOG_WARNING("Transform estimation failed, returning original frame");
         update_metrics(start_time);
         return frame;
     }
@@ -153,15 +189,15 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
 
     } catch (const cv::Exception& e) {
         last_error_ = std::string("OpenCV exception in process_frame: ") + e.what();
-        STAB_LOG_ERROR("OpenCV exception in process_frame: %s", e.what());
+        log_opencv_exception("process_frame", e);
         return frame;
     } catch (const std::exception& e) {
         last_error_ = std::string("Standard exception in process_frame: ") + e.what();
-        STAB_LOG_ERROR("Standard exception in process_frame: %s", e.what());
+        log_exception("process_frame", e);
         return frame;
     } catch (...) {
         last_error_ = "Unknown exception in process_frame";
-        STAB_LOG_ERROR("Unknown exception in process_frame");
+        log_unknown_exception("process_frame");
         return frame;
     }
 }
@@ -695,5 +731,24 @@ bool StabilizerCore::validate_frame(const cv::Mat& frame) {
     if (frame.rows > MAX_IMAGE_HEIGHT || frame.cols > MAX_IMAGE_WIDTH) {
         return false;
     }
+
+    // Validate pixel depth - only 8-bit unsigned formats are supported
+    // 16-bit (CV_16UC*) and other formats require different processing pipelines
+    // and are not compatible with the current stabilization algorithms
+    int depth = frame.depth();
+    if (depth != CV_8U) {
+        // Unsupported bit depth - only 8-bit unsigned is supported
+        return false;
+    }
+
+    // Validate channel count
+    // 1-channel (grayscale), 3-channel (BGR), and 4-channel (BGRA) formats are supported
+    // 2-channel formats are not supported by the current processing pipeline
+    int channels = frame.channels();
+    if (channels != 1 && channels != 3 && channels != 4) {
+        // Unsupported channel count
+        return false;
+    }
+
     return true;
 }
