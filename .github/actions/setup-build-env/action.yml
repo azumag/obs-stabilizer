@@ -102,7 +102,7 @@ runs:
             }
           }
           
-          Write-Host "Installing OpenCV via vcpkg (this may take a while)..."
-          .\vcpkg install opencv:x64-windows
-          Write-Host "OpenCV installed successfully"
+          Write-Host "Installing OpenCV and GTest via vcpkg (this may take a while)..."
+          .\vcpkg install opencv:x64-windows gtest:x64-windows
+          Write-Host "OpenCV and GTest installed successfully"
         }
