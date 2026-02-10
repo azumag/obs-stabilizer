@@ -62,18 +62,6 @@ public:
         float min_point_spread = 10.0f;       // Minimum spread of feature points
         float max_coordinate = 100000.0f;      // Maximum valid coordinate value
 
-        // Algorithm optimization parameters (Phase 2)
-        int optical_flow_pyramid_levels = 3;   // Pyramid levels for optical flow (0-5)
-        int optical_flow_window_size = 21;       // Search window size (must be odd, 5-31)
-        float feature_refresh_threshold = 0.5f;   // Refresh features when tracking success < this (0.0-1.0)
-        int adaptive_feature_min = 100;          // Minimum adaptive feature count
-        int adaptive_feature_max = 500;          // Maximum adaptive feature count
-        
-        // Motion-specific smoothing parameters (Phase 4)
-        bool use_high_pass_filter = false;     // Enable high-pass filter for camera shake
-        double high_pass_attenuation = 0.3;    // High-frequency attenuation factor (0.0-1.0)
-        bool use_directional_smoothing = false; // Enable directional smoothing for pan/zoom
-
         // Edge handling (Issue #226)
         EdgeMode edge_mode = EdgeMode::Padding;  // Edge handling mode: Padding, Crop, Scale
     };
@@ -117,16 +105,10 @@ public:
     PerformanceMetrics get_performance_metrics() const;
     
     /**
-     * Get current transform history
-     * @return Reference to transform deque
-     */
+      * Get current transform history
+      * @return Reference to transform deque
+      */
     const std::deque<cv::Mat>& get_current_transforms() const;
-    
-    /**
-     * Motion-specific smoothing algorithms for adaptive stabilization
-     */
-    cv::Mat smooth_high_pass_filter(const std::deque<cv::Mat>& transforms, double attenuation = 0.3);
-    cv::Mat smooth_directional(const std::deque<cv::Mat>& transforms, const cv::Vec2d& direction);
 
     /**
      * Check if stabilizer is ready for processing
@@ -174,7 +156,6 @@ private:
     // Optimized inline functions for performance-critical paths
     inline cv::Mat smooth_transforms_optimized();
     inline void filter_transforms(std::vector<cv::Mat>& transforms);
-    inline bool should_refresh_features(float success_rate, int frames_since_refresh);
     inline void update_metrics(const std::chrono::high_resolution_clock::time_point& start_time);
 
     // Edge handling (Issue #226)
@@ -199,9 +180,8 @@ private:
     // Error handling
     std::string last_error_;
 
-    // Algorithm optimization state (Phase 2)
+    // Algorithm optimization state
     int consecutive_tracking_failures_ = 0;
-    int frames_since_last_refresh_ = 0;
 
     // Named constants for magic numbers
     static constexpr int MIN_FEATURES_FOR_TRACKING = 4;

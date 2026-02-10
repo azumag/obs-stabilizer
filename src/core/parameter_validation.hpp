@@ -69,43 +69,6 @@ inline StabilizerCore::StabilizerParams validate_parameters(const StabilizerCore
                             Harris::MIN_K,
                             Harris::MAX_K);
 
-    // Validate optical flow pyramid levels
-    validated.optical_flow_pyramid_levels = std::clamp(validated.optical_flow_pyramid_levels,
-                                                       OpticalFlow::MIN_PYRAMID_LEVELS,
-                                                       OpticalFlow::MAX_PYRAMID_LEVELS);
-
-    // Validate optical flow window size (must be odd, within range)
-    validated.optical_flow_window_size = std::clamp(validated.optical_flow_window_size,
-                                                    OpticalFlow::MIN_WINDOW_SIZE,
-                                                    OpticalFlow::MAX_WINDOW_SIZE);
-    // Ensure window_size is odd as required by Lucas-Kanade optical flow
-    if (validated.optical_flow_window_size % 2 == 0) {
-        validated.optical_flow_window_size++;
-    }
-
-    // Validate adaptive feature ranges
-    validated.adaptive_feature_min = std::clamp(validated.adaptive_feature_min,
-                                                AdaptiveFeatures::GAMING_MIN,
-                                                AdaptiveFeatures::MAX_ADAPTIVE_FEATURES);
-    validated.adaptive_feature_max = std::clamp(validated.adaptive_feature_max,
-                                                AdaptiveFeatures::GAMING_MIN,
-                                                AdaptiveFeatures::MAX_ADAPTIVE_FEATURES);
-
-    // Ensure min <= max for adaptive features
-    if (validated.adaptive_feature_min > validated.adaptive_feature_max) {
-        std::swap(validated.adaptive_feature_min, validated.adaptive_feature_max);
-    }
-
-    // Validate feature refresh threshold
-    validated.feature_refresh_threshold = std::clamp(validated.feature_refresh_threshold,
-                                                     0.0f,
-                                                     1.0f);
-
-    // Validate high-pass filter attenuation
-    validated.high_pass_attenuation = std::clamp(validated.high_pass_attenuation,
-                                                0.0,
-                                                1.0);
-
     // Validate tracking error threshold
     validated.tracking_error_threshold = std::clamp(validated.tracking_error_threshold,
                                                     0.0,

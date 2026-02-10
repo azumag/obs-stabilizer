@@ -56,7 +56,6 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     transforms_.clear();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
-    frames_since_last_refresh_ = 0;
     return true;
 }
 
@@ -125,47 +124,12 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
             CORE_LOG_INFO("Tracking failed 5 times consecutively, re-detecting features");
             detect_features(gray, prev_pts_);
             consecutive_tracking_failures_ = 0;
-            frames_since_last_refresh_ = 0;
         }
         update_metrics(start_time);
         return frame;
     }
 
     consecutive_tracking_failures_ = 0;
-    frames_since_last_refresh_++;
-
-    // Use optimized feature refresh logic
-    if (should_refresh_features(tracking_success_rate, frames_since_last_refresh_)) {
-        // Use lookup table for adaptive feature count selection
-        static const float success_thresholds[] = {0.3f, 0.7f};
-        static const int feature_counts[] = {
-            params_.adaptive_feature_max,
-            params_.feature_count,
-            params_.adaptive_feature_min
-        };
-
-        int adaptive_count = params_.feature_count;
-        if (tracking_success_rate < success_thresholds[0]) {
-            adaptive_count = feature_counts[0];
-        } else if (tracking_success_rate > success_thresholds[1]) {
-            adaptive_count = feature_counts[2];
-        }
-
-        CORE_LOG_DEBUG("Refreshing features: success_rate=%.2f, frames_since_refresh=%d, new_count=%d",
-                      tracking_success_rate, frames_since_last_refresh_, adaptive_count);
-
-        std::vector<cv::Point2f> new_features;
-        cv::goodFeaturesToTrack(gray, new_features, adaptive_count,
-                              params_.quality_level, params_.min_distance,
-                              cv::Mat(), params_.block_size,
-                              params_.use_harris, params_.k);
-
-        if (!new_features.empty() && new_features.size() >= MIN_FEATURES_FOR_TRACKING) {
-            prev_pts_ = new_features;
-            frames_since_last_refresh_ = 0;
-            CORE_LOG_DEBUG("Features refreshed: %zu new features", new_features.size());
-        }
-    }
 
     cv::Mat transform = estimate_transform(prev_pts_, curr_pts);
     if (transform.empty()) {
@@ -259,7 +223,8 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
     err.reserve(prev_pts.size());
 
     try {
-        cv::Size winSize(params_.optical_flow_window_size, params_.optical_flow_window_size);
+        // Fixed window size for Lucas-Kanade optical flow (must be odd)
+        const cv::Size winSize(21, 21);
         cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, OpticalFlow::MAX_ITERATIONS, OpticalFlow::EPSILON);
 
         // Pre-resize curr_pts to match prev_pts size - required by cv::calcOpticalFlowPyrLK()
@@ -268,7 +233,7 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
         curr_pts.resize(prev_pts.size());
 
         cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err,
-                                   winSize, params_.optical_flow_pyramid_levels, termcrit,
+                                   winSize, 3, termcrit,  // Fixed pyramid levels: 3
                                    cv::OPTFLOW_USE_INITIAL_FLOW);
 
         // Optimized filtering with branch prediction hints
@@ -351,15 +316,6 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
 }
 
 cv::Mat StabilizerCore::smooth_transforms() {
-    if (params_.use_high_pass_filter) {
-        return smooth_high_pass_filter(transforms_, params_.high_pass_attenuation);
-    }
-    
-    if (params_.use_directional_smoothing) {
-        cv::Vec2d direction = cv::Vec2d(1.0, 0.3);
-        return smooth_directional(transforms_, direction);
-    }
-    
     return smooth_transforms_optimized();
 }
 
@@ -387,32 +343,6 @@ cv::Mat StabilizerCore::smooth_transforms_optimized() {
     ptr[3] *= inv_size; ptr[4] *= inv_size; ptr[5] *= inv_size;
 
     return smoothed;
-}
-
-bool StabilizerCore::should_refresh_features(float success_rate, int frames_since_refresh) {
-    // Adaptive feature refresh based on tracking success rate and time since last refresh
-    // Uses graduated thresholds: more aggressive refresh for better performance, more conservative for stability
-    // This approach balances responsiveness (refreshing features quickly when needed) with stability (avoiding unnecessary refreshes)
-    static const float refresh_thresholds[] = {0.3f, 0.5f, 0.7f};  // Success rate thresholds
-    static const int refresh_intervals[] = {10, 30, 50};            // Frame count thresholds
-
-    // After 50 frames, refresh if success rate drops below 70%
-    // This is a long-term check to ensure features are still good quality
-    if (frames_since_refresh >= refresh_intervals[2]) {
-        return success_rate < refresh_thresholds[2];
-    }
-    // After 30 frames, refresh if success rate drops below 50%
-    // This is a medium-term check to catch gradual degradation
-    else if (frames_since_refresh >= refresh_intervals[1]) {
-        return success_rate < refresh_thresholds[1];
-    }
-    // After 10 frames, refresh if success rate drops below 30%
-    // This is a short-term check only triggered by very poor performance
-    else if (frames_since_refresh >= refresh_intervals[0]) {
-        return success_rate < refresh_thresholds[0];
-    }
-    // Less than 10 frames: don't refresh yet (allow tracking to stabilize)
-    return false;
 }
 
 inline void StabilizerCore::update_metrics(const std::chrono::high_resolution_clock::time_point& start_time) {
@@ -556,7 +486,6 @@ void StabilizerCore::reset() {
     transforms_.clear();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
-    frames_since_last_refresh_ = 0;
 }
 
 StabilizerCore::PerformanceMetrics StabilizerCore::get_performance_metrics() const {
@@ -567,90 +496,6 @@ StabilizerCore::PerformanceMetrics StabilizerCore::get_performance_metrics() con
 const std::deque<cv::Mat>& StabilizerCore::get_current_transforms() const {
     // Note: Mutex is not used because OBS filters are single-threaded
     return transforms_;
-}
-
-cv::Mat StabilizerCore::smooth_high_pass_filter(const std::deque<cv::Mat>& transforms, 
-                                              double attenuation) {
-    if (transforms.empty()) {
-        return cv::Mat::eye(2, 3, CV_64F);
-    }
-    
-    cv::Mat smoothed = smooth_transforms_optimized();
-    cv::Mat high_freq = transforms.back() - smoothed;
-    
-    cv::Mat result = smoothed + high_freq * attenuation;
-    return result;
-}
-
-/**
- * Directional smoothing for pan/zoom motion stabilization
- *
- * This function implements specialized smoothing for systematic directional motion
- * (e.g., pans, zooms) where the camera intentionally moves in a consistent direction.
- * Unlike regular smoothing which treats all motion equally, directional smoothing
- * preserves intentional camera movement while reducing unwanted jitter.
- *
- * Algorithm:
- * 1. Decompose motion into parallel (intentional) and perpendicular (jitter) components
- * 2. Apply stronger smoothing (0.8 weight) to perpendicular motion to suppress shake
- * 3. Apply moderate smoothing (0.9 weight) to parallel motion to preserve camera movement
- * 4. Add small reinforcement (0.1 weight) for consistent directional components
- *
- * Coefficients explanation:
- * - 0.9: Standard smoothing factor for most transformation elements
- * - 0.8: Reduced smoothing for translation components to preserve camera motion
- * - 0.1: Small reinforcement weight for consistent directional motion
- *
- * Parameters:
- * - transforms: Queue of affine transformation matrices from recent frames
- * - direction: Normalized 2D vector indicating dominant motion direction
- *
- * Returns:
- * - Smoothed affine transformation matrix (2x3)
- *
- * Use cases:
- * - Camera pans (horizontal camera movement)
- * - Camera tilts (vertical camera movement)
- * - Zoom operations (simulated by directional scaling)
- *
- * Limitations:
- * - Assumes consistent direction across the transform window
- * - Less effective for erratic or multi-directional motion
- * - Should be used in conjunction with motion classification
- */
-cv::Mat StabilizerCore::smooth_directional(const std::deque<cv::Mat>& transforms,
-                                       const cv::Vec2d& direction) {
-    if (transforms.empty()) {
-        return cv::Mat::eye(2, 3, CV_64F);
-    }
-    
-    cv::Mat result = cv::Mat::zeros(2, 3, CV_64F);
-    double* ptr = result.ptr<double>(0);
-    
-    for (const auto& t : transforms) {
-        if (t.empty() || t.rows < 2 || t.cols < 3) {
-            continue;
-        }
-        
-        const double* t_ptr = t.ptr<double>(0);
-        
-        double parallel_mag = t_ptr[2] * direction[0] + t_ptr[5] * direction[1];
-        double perp_mag = t_ptr[2] * direction[1] - t_ptr[5] * direction[0];
-        
-        ptr[0] += t_ptr[0] * 0.9;
-        ptr[1] += t_ptr[1] * 0.9;
-        ptr[2] += t_ptr[2] * 0.8 + parallel_mag * 0.1;
-        ptr[3] += t_ptr[3] * 0.9;
-        ptr[4] += t_ptr[4] * 0.9;
-        ptr[5] += t_ptr[5] * 0.8 + perp_mag * 0.1;
-    }
-    
-    double inv_count = 1.0 / static_cast<double>(transforms.size());
-    for (int i = 0; i < 6; ++i) {
-        ptr[i] *= inv_count;
-    }
-    
-    return result;
 }
 
 bool StabilizerCore::is_ready() const {
@@ -679,11 +524,6 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() {
     params.use_harris = false;
     params.k = Harris::DEFAULT_K;
     params.enabled = true;
-    params.optical_flow_pyramid_levels = OpticalFlow::DEFAULT_PYRAMID_LEVELS;
-    params.optical_flow_window_size = OpticalFlow::DEFAULT_WINDOW_SIZE;
-    params.feature_refresh_threshold = AdaptiveFeatures::GAMING_REFRESH;
-    params.adaptive_feature_min = AdaptiveFeatures::GAMING_MIN;
-    params.adaptive_feature_max = AdaptiveFeatures::GAMING_MAX;
     params.edge_mode = EdgeMode::Padding; // Performance
     return params;
 }
@@ -699,11 +539,6 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_streaming() {
     params.use_harris = false;
     params.k = Harris::DEFAULT_K;
     params.enabled = true;
-    params.optical_flow_pyramid_levels = OpticalFlow::DEFAULT_PYRAMID_LEVELS;
-    params.optical_flow_window_size = OpticalFlow::DEFAULT_WINDOW_SIZE;
-    params.feature_refresh_threshold = AdaptiveFeatures::STREAMING_REFRESH;
-    params.adaptive_feature_min = AdaptiveFeatures::STREAMING_MIN;
-    params.adaptive_feature_max = AdaptiveFeatures::STREAMING_MAX;
     params.edge_mode = EdgeMode::Crop; // Quality
     return params;
 }
@@ -719,11 +554,6 @@ StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() {
     params.use_harris = false;
     params.k = Harris::DEFAULT_K;
     params.enabled = true;
-    params.optical_flow_pyramid_levels = OpticalFlow::RECORDING_PYRAMID_LEVELS;
-    params.optical_flow_window_size = OpticalFlow::RECORDING_WINDOW_SIZE;
-    params.feature_refresh_threshold = AdaptiveFeatures::RECORDING_REFRESH;
-    params.adaptive_feature_min = AdaptiveFeatures::RECORDING_MIN;
-    params.adaptive_feature_max = AdaptiveFeatures::RECORDING_MAX;
     params.edge_mode = EdgeMode::Scale; // Full frame coverage
     return params;
 }

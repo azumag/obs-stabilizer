@@ -9,7 +9,7 @@ set(CMAKE_OSX_ARCHITECTURES "arm64")
 option(OPENCV_STATIC_LINKING "Link OpenCV statically (for deployment)" OFF)
 
 # --- OpenCV Dependencies ---
-find_package(OpenCV REQUIRED COMPONENTS core imgproc video calib3d)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc video calib3d features2d flann)
 include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
 
 # --- OBS Dependencies ---
@@ -73,8 +73,6 @@ set(SOURCES
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
     src/core/feature_detection.cpp
-    src/core/motion_classifier.cpp
-    src/core/adaptive_stabilizer.cpp
     src/plugin-support.c
 )
 
@@ -100,12 +98,39 @@ if(APPLE)
         $<INSTALL_INTERFACE:include>
     )
 
+    # Get OpenCV library directory for rpath
+    # Use OpenCVConfig.cmake variables directly
+    set(OPENCV_LIB_REALDIR "${OpenCV_DIR}/../lib")
+    get_filename_component(OPENCV_LIB_REALDIR "${OPENCV_LIB_REALDIR}" REALPATH)
+
+    # Additional fallback search
+    if(NOT EXISTS "${OPENCV_LIB_REALDIR}")
+        if(EXISTS "/opt/homebrew/opt/opencv/lib")
+            set(OPENCV_LIB_REALDIR "/opt/homebrew/opt/opencv/lib")
+        elseif(EXISTS "/usr/local/opt/opencv/lib")
+            set(OPENCV_LIB_REALDIR "/usr/local/opt/opencv/lib")
+        endif()
+    endif()
+
+    message(STATUS "OpenCV library directory for rpath: ${OPENCV_LIB_REALDIR}")
+
+    # Set rpath to include OpenCV library directory
+    # This ensures OBS can find the OpenCV libraries at runtime
     set_target_properties(obs-stabilizer-opencv PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup"
-        INSTALL_RPATH "@loader_path/../Frameworks"
+        INSTALL_RPATH "${OPENCV_LIB_REALDIR}"
         BUILD_WITH_INSTALL_RPATH TRUE
         MACOSX_RPATH TRUE
     )
+
+    # For static linking (if enabled in future)
+    if(OPENCV_STATIC_LINKING)
+        set_target_properties(obs-stabilizer-opencv PROPERTIES
+            INSTALL_RPATH ""
+            BUILD_WITH_INSTALL_RPATH FALSE
+            MACOSX_RPATH FALSE
+        )
+    endif()
 endif()
 
 # Set platform-specific suffix for the library
@@ -148,8 +173,6 @@ install(TARGETS obs-stabilizer-opencv
      set(TEST_SOURCES
         tests/test_basic.cpp
         tests/test_stabilizer_core.cpp
-        tests/test_adaptive_stabilizer.cpp
-        tests/test_motion_classifier.cpp
         tests/test_data_generator.cpp
         tests/test_feature_detection.cpp
         tests/test_edge_cases.cpp
@@ -164,8 +187,6 @@ install(TARGETS obs-stabilizer-opencv
         set(TEST_CORE_SOURCES
             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/feature_detection.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/motion_classifier.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/adaptive_stabilizer.cpp
         )
       
       add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
