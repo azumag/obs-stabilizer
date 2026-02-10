@@ -144,29 +144,29 @@ install(TARGETS obs-stabilizer-opencv
  # Google Test
  find_package(GTest REQUIRED)
 
-   # Test Sources
-   set(TEST_SOURCES
-      tests/test_basic.cpp
-      tests/test_stabilizer_core.cpp
-      tests/test_adaptive_stabilizer.cpp
-      tests/test_motion_classifier.cpp
-      tests/test_data_generator.cpp
-      tests/test_feature_detection.cpp
-      tests/test_edge_cases.cpp
-      tests/test_integration.cpp
-      tests/test_memory_leaks.cpp
-  )
+    # Test Sources
+     set(TEST_SOURCES
+        tests/test_basic.cpp
+        tests/test_stabilizer_core.cpp
+        tests/test_adaptive_stabilizer.cpp
+        tests/test_motion_classifier.cpp
+        tests/test_data_generator.cpp
+        tests/test_feature_detection.cpp
+        tests/test_edge_cases.cpp
+        tests/test_integration.cpp
+        tests/test_memory_leaks.cpp
+    )
 
   if(TEST_SOURCES)
       message(STATUS "Found test sources, enabling test suite")
       
-       # Add test source files and core source files for testing
-       set(TEST_CORE_SOURCES
-           src/core/stabilizer_core.cpp
-           src/core/feature_detection.cpp
-           src/core/motion_classifier.cpp
-           src/core/adaptive_stabilizer.cpp
-       )
+        # Add test source files and core source files for testing
+        set(TEST_CORE_SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/feature_detection.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/motion_classifier.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/adaptive_stabilizer.cpp
+        )
       
       add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
 
@@ -199,11 +199,11 @@ install(TARGETS obs-stabilizer-opencv
       
         # Performance benchmark executable
         set(PERF_SOURCES
-            src/core/benchmark.cpp
-            src/core/stabilizer_core.cpp
-            src/core/feature_detection.cpp
-            tests/test_data_generator.cpp
-            tools/performance_benchmark.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/benchmark.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/feature_detection.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data_generator.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/tools/performance_benchmark.cpp
         )
 
         add_executable(performance_benchmark ${PERF_SOURCES})

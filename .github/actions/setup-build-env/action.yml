@@ -39,7 +39,8 @@ runs:
           libgtest-dev \
           pkg-config \
           qtbase5-dev \
-          qtbase5-dev-tools
+          qtbase5-dev-tools \
+          cppcheck
 
     - name: Cache Homebrew packages
       if: inputs.platform == 'macos'

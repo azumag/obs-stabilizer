@@ -610,8 +610,6 @@ MODULE_EXPORT bool obs_module_load(void)
 MODULE_EXPORT void obs_module_unload(void)
 {
     obs_log(LOG_INFO, "OBS Stabilizer Plugin unloaded");
-    
-    FRAME_UTILS::FrameBuffer::cleanup();
 }
 
 }
