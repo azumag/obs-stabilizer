@@ -18,28 +18,28 @@ namespace PERF {
 // Performance metrics for a single benchmark run
 struct BenchmarkMetrics {
     // Test scenario information
-    std::string scenario_name;
-    int resolution_width;
-    int resolution_height;
-    int frame_rate;
-    
+    std::string scenario_name = "";
+    int resolution_width = 0;
+    int resolution_height = 0;
+    int frame_rate = 0;
+
     // Timing metrics (milliseconds)
-    double avg_processing_time_ms;
-    double min_processing_time_ms;
-    double max_processing_time_ms;
-    double std_deviation_ms;
-    
+    double avg_processing_time_ms = 0.0;
+    double min_processing_time_ms = 0.0;
+    double max_processing_time_ms = 0.0;
+    double std_deviation_ms = 0.0;
+
     // Memory metrics (bytes)
-    size_t peak_memory_bytes;
-    size_t avg_memory_bytes;
-    
+    size_t peak_memory_bytes = 0;
+    size_t avg_memory_bytes = 0;
+
     // Status
-    bool passed;
-    std::string failure_reason;
-    
+    bool passed = false;
+    std::string failure_reason = "";
+
     // Performance target
-    double target_processing_time_ms;  // e.g., 33.3ms for 30fps
-    bool meets_realtime_requirement;
+    double target_processing_time_ms = 0.0;  // e.g., 33.3ms for 30fps
+    bool meets_realtime_requirement = false;
 };
 
 // Benchmark configuration

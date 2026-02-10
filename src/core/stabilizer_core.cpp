@@ -287,9 +287,10 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
         prev_pts.resize(i);
         curr_pts.resize(i);
 
-        // Use multiplication instead of division for better performance
-        const float inv_size = 1.0f / static_cast<float>(prev_pts.size());
-        success_rate = static_cast<float>(tracked) * inv_size;
+        // Calculate success rate using original size (status_size) before resize
+        // This is critical for correct feature refresh and adaptive stabilization
+        // Using prev_pts.size() after resize would incorrectly show ~100% success even when tracking fails
+        success_rate = status_size > 0 ? static_cast<float>(tracked) / static_cast<float>(status_size) : 0.0f;
         return i >= MIN_FEATURES_FOR_TRACKING;
 
     } catch (const cv::Exception& e) {
