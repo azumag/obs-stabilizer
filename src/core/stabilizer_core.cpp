@@ -24,6 +24,11 @@ using namespace StabilizerLogging;
 
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
+    // Set OpenCV to single-threaded mode to prevent internal threading issues
+    // This is important for OBS filter compatibility and prevents potential crashes
+    // when multiple StabilizerCore instances are created/destroyed rapidly
+    cv::setNumThreads(1);
+
     // Note: Mutex is not used because OBS filters are single-threaded
     // This is intentional for performance (YAGNI principle)
 
@@ -340,7 +345,7 @@ cv::Mat StabilizerCore::smooth_transforms_optimized() {
     }
 
     ptr[0] *= inv_size; ptr[1] *= inv_size; ptr[2] *= inv_size;
-    ptr[3] *= inv_size; ptr[4] *= inv_size; ptr[5] *= inv_size;
+    ptr[3] *= inv_size; ptr[4] *= inv_size;
 
     return smoothed;
 }

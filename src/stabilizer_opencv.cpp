@@ -95,13 +95,8 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
         context->avg_processing_time = 0.0;
 
         // Get initial parameters
+        // Note: Parameters are already validated via VALIDATION::validate_parameters in settings_to_params()
         context->params = settings_to_params(settings);
-
-        // Validate parameters
-        if (!StabilizerCore::validate_parameters(context->params)) {
-            obs_log(LOG_ERROR, "Invalid parameters provided during filter creation");
-            return nullptr;
-        }
 
         obs_log(LOG_INFO, "Stabilizer filter created successfully");
         return context.release();
@@ -136,20 +131,19 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
             return;
         }
 
+        // Note: settings_to_params() already calls VALIDATION::validate_parameters() at line 346
         StabilizerCore::StabilizerParams new_params = settings_to_params(settings);
 
-        if (StabilizerCore::validate_parameters(new_params)) {
-            context->params = new_params;
-            if (context->initialized) {
-                // Re-initialize with new parameters
-                uint32_t width = obs_source_get_width(context->source);
-                uint32_t height = obs_source_get_height(context->source);
-                if (width > 0 && height > 0) {
-                    context->stabilizer.initialize(width, height, new_params);
-                }
+        // Direct assignment - validation already done in settings_to_params()
+        context->params = new_params;
+
+        if (context->initialized) {
+            // Re-initialize with new parameters
+            uint32_t width = obs_source_get_width(context->source);
+            uint32_t height = obs_source_get_height(context->source);
+            if (width > 0 && height > 0) {
+                context->stabilizer.initialize(width, height, new_params);
             }
-        } else {
-            obs_log(LOG_ERROR, "Invalid parameters in filter update");
         }
 
     } catch (const std::exception& e) {

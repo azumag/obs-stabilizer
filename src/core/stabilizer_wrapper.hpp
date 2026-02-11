@@ -56,11 +56,6 @@ public:
     bool is_initialized();
 
     /**
-     * @brief Clear all state and reset stabilizer
-     */
-    void clear_state();
-
-    /**
      * @brief Get last error message
      * @return Error string, or "Not initialized" if no error
      */

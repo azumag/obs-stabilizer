@@ -3,7 +3,12 @@ project(obs-stabilizer-opencv)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_OSX_ARCHITECTURES "arm64")
+# Allow user to specify architecture via -DCMAKE_OSX_ARCHITECTURES
+# Default to arm64 only for Apple Silicon, user can override with -DCMAKE_OSX_ARCHITECTURES="x86_64"
+if(APPLE AND NOT CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures" FORCE)
+    message(STATUS "Setting default CMAKE_OSX_ARCHITECTURES to arm64 (Apple Silicon)")
+endif()
 
 # --- OpenCV Static Linking Option ---
 option(OPENCV_STATIC_LINKING "Link OpenCV statically (for deployment)" OFF)
@@ -73,7 +78,6 @@ set(SOURCES
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
     src/core/feature_detection.cpp
-    src/plugin-support.c
 )
 
 # Frame utils is only needed when OBS headers are available
@@ -164,13 +168,16 @@ install(TARGETS obs-stabilizer-opencv
 )
 
  # --- Tests ---
- enable_testing()
+  enable_testing()
 
- # Google Test
- find_package(GTest REQUIRED)
+  # Test Coverage Option
+  option(ENABLE_TEST_COVERAGE "Enable test coverage with gcov/lcov" OFF)
 
-    # Test Sources
-     set(TEST_SOURCES
+  # Google Test
+  find_package(GTest REQUIRED)
+
+     # Test Sources
+      set(TEST_SOURCES
         tests/test_basic.cpp
         tests/test_stabilizer_core.cpp
         tests/test_data_generator.cpp
@@ -178,18 +185,27 @@ install(TARGETS obs-stabilizer-opencv
         tests/test_edge_cases.cpp
         tests/test_integration.cpp
         tests/test_memory_leaks.cpp
+        tests/test_performance_thresholds.cpp
+        tests/test_multi_source.cpp
     )
 
-  if(TEST_SOURCES)
-      message(STATUS "Found test sources, enabling test suite")
-      
-        # Add test source files and core source files for testing
-        set(TEST_CORE_SOURCES
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/feature_detection.cpp
-        )
-      
-      add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
+   if(TEST_SOURCES)
+       message(STATUS "Found test sources, enabling test suite")
+
+       # Add test source files and core source files for testing
+       set(TEST_CORE_SOURCES
+           ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+           ${CMAKE_CURRENT_SOURCE_DIR}/src/core/feature_detection.cpp
+       )
+
+       add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
+
+       # Enable coverage flags if requested
+       if(ENABLE_TEST_COVERAGE)
+           message(STATUS "Enabling test coverage with gcov/lcov")
+           target_compile_options(stabilizer_tests PRIVATE --coverage)
+           target_link_options(stabilizer_tests PRIVATE --coverage)
+       endif()
 
       target_include_directories(stabilizer_tests PRIVATE
           ${CMAKE_CURRENT_SOURCE_DIR}

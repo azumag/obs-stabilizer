@@ -40,15 +40,6 @@ bool StabilizerWrapper::is_initialized() {
     return stabilizer != nullptr;
 }
 
-void StabilizerWrapper::clear_state() {
-    try {
-        if (stabilizer) {
-            stabilizer->reset();
-        }
-    } catch (const std::exception&) {
-    }
-}
-
 std::string StabilizerWrapper::get_last_error() {
     if (stabilizer) {
         return stabilizer->get_last_error();

@@ -219,17 +219,7 @@ TEST_F(StabilizerCoreTest, ResetState) {
     EXPECT_TRUE(stabilizer->get_current_transforms().empty());
 }
 
-TEST_F(StabilizerCoreTest, ClearState) {
-    StabilizerCore::StabilizerParams params = getDefaultParams();
-    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
 
-    cv::Mat frame = TestDataGenerator::generate_test_frame(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
-    stabilizer->process_frame(frame);
-
-    // clear_state() was removed as it was a simple wrapper around reset()
-    // Use reset() directly instead
-    stabilizer->reset();
-}
 
 TEST_F(StabilizerCoreTest, PerformanceMetrics) {
     StabilizerCore::StabilizerParams params = getDefaultParams();
