@@ -6,7 +6,12 @@
 #pragma once
 
 #ifdef HAVE_OBS_HEADERS
-#include <obs-module.h>
+#include "obs_minimal.h"
+#include <memory>
+#else
+// Stubs for standalone testing
+#include "obs_minimal.h"
+#include <memory>
 #endif
 
 #include <opencv2/opencv.hpp>
@@ -97,10 +102,21 @@ namespace FRAME_UTILS {
     }
 #else
     // Minimal validation utilities for standalone mode (no OBS dependencies)
+    //
+    // NOTE: This implementation is intentionally duplicated in frame_utils.cpp (Lines 347-378)
+    // to ensure consistent behavior between standalone and OBS-linked builds.
+    //
+    // RATIONALE for duplication:
+    // - The standalone mode (#ifndef HAVE_OBS_HEADERS) is used for unit tests that don't link OBS
+    // - The OBS-linked mode uses the implementation in frame_utils.cpp for production builds
+    // - Both implementations must remain identical and updated together
+    // - Trade-off: DRY principle violation (acceptable) vs. build modularity (preferred)
+    //
+    // MAINTENANCE: If you modify validation logic in either location, update both immediately.
     namespace Validation {
         // Validate OpenCV Mat only
-        // This implementation mirrors the full version in frame_utils.cpp
-        // to ensure consistent behavior between standalone and OBS-linked builds
+        // This implementation mirrors the full version in frame_utils.cpp (Lines 347-378)
+        // to ensure consistent behavior between standalone and OBS-linked builds.
         inline bool validate_cv_mat(const cv::Mat& mat) {
             if (mat.empty()) {
                 return false;
@@ -138,19 +154,16 @@ namespace FRAME_UTILS {
 
     // Performance monitoring (available in both modes)
     namespace Performance {
-        // Track conversion performance
-        void track_conversion_time(const std::string& operation, double duration_ms);
-        
         // Track conversion failures
         void track_conversion_failure();
-        
+
         // Get performance statistics
         struct ConversionStats {
             size_t total_conversions;
             double avg_conversion_time;
             size_t failed_conversions;
         };
-        
+
         static ConversionStats get_stats();
     }
 

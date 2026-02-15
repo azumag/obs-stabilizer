@@ -10,6 +10,10 @@
 // CMake find_package(OpenCV) ensures OpenCV headers are available for the build
 #include <opencv2/core.hpp>
 
+#ifdef HAVE_OBS_HEADERS
+#include "obs_minimal.h"
+#endif
+
 #ifdef BUILD_STANDALONE
 
 // Log level enumeration for dynamic log filtering
@@ -91,7 +95,20 @@ static inline void core_log_debug(const char* fmt, ...) {
 
 #else
 
-#include <obs-module.h>
+// OBS logging macros
+#ifdef HAVE_OBS_HEADERS
+#include "obs_minimal.h"
+#define LOG_DEBUG(format, ...) obs_log(LOG_DEBUG, format, ##__VA_ARGS__)
+#define LOG_INFO(format, ...) obs_log(LOG_INFO, format, ##__VA_ARGS__)
+#define LOG_WARNING(format, ...) obs_log(LOG_WARNING, format, ##__VA_ARGS__)
+#define LOG_ERROR(format, ...) obs_log(LOG_ERROR, format, ##__VA_ARGS__)
+#else
+// Fallback for non-OBS builds
+#define LOG_DEBUG(format, ...) std::printf("[DEBUG] " format "\n", ##__VA_ARGS__)
+#define LOG_INFO(format, ...) std::printf("[INFO] " format "\n", ##__VA_ARGS__)
+#define LOG_WARNING(format, ...) std::printf("[WARNING] " format "\n", ##__VA_ARGS__)
+#define LOG_ERROR(format, ...) std::printf("[ERROR] " format "\n", ##__VA_ARGS__)
+#endif
 
 // Log level enumeration for dynamic log filtering (OBS mode)
 enum class LogLevel {

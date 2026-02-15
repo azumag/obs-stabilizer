@@ -5,7 +5,7 @@
  */
 
 #ifdef HAVE_OBS_HEADERS
-#include <obs-module.h>
+#include "obs_minimal.h"
 #include "core/frame_utils.hpp"
 #endif
 
@@ -33,6 +33,7 @@ struct stabilizer_filter {
 };
 
 // Forward declarations
+static const char *stabilizer_filter_name(void *unused);
 static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source);
 static void stabilizer_filter_destroy(void *data);
 static void stabilizer_filter_update(void *data, obs_data_t *settings);

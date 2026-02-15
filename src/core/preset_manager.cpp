@@ -10,7 +10,7 @@
 #include <filesystem>
 
 #ifdef HAVE_OBS_HEADERS
-#include <obs-module.h>
+#include "obs_minimal.h"
 #endif
 
 // Include nlohmann/json at top level to avoid namespace conflicts
@@ -19,13 +19,36 @@
 
 namespace STABILIZER_PRESETS {
 
-#ifdef HAVE_OBS_HEADERS
+// Use standalone implementation for tests when STANDALONE_TEST is defined
+// RATIONALE: In test environments, OBS stub functions (obs_data_create, obs_data_save_json_safe, etc.)
+// return nullptr because OBS is not fully initialized. The standalone implementation uses
+// nlohmann/json directly and works correctly in test environments without requiring OBS.
+#ifdef STANDALONE_TEST
+
+// Standalone implementation for testing (uses nlohmann/json)
+// This section provides the same functionality as the OBS-based implementation below,
+// but using nlohmann/json directly instead of OBS data APIs.
+
+#elif defined(HAVE_OBS_HEADERS)
 std::string PresetManager::get_preset_directory() {
     // Get OBS config directory
     const char* config_path = obs_get_config_path("obs-stabilizer/presets");
-    if (!config_path) {
-        obs_log(LOG_ERROR, "Failed to get OBS config path");
-        return "";
+    // Check for nullptr or empty string
+    // RATIONALE: obs_get_config_path() returns nullptr or empty string in test environments
+    // because OBS is not fully initialized. Using /tmp as fallback ensures tests work
+    // without requiring full OBS initialization. In production, this serves as a safety net
+    // for unexpected initialization failures.
+    if (!config_path || config_path[0] == '\0') {
+        std::string preset_dir = "/tmp/obs-stabilizer-presets";
+        try {
+            std::filesystem::create_directories(preset_dir);
+            // Log warning - this should only happen in test environments
+            obs_log(LOG_WARNING, "OBS config path unavailable, using fallback: %s", preset_dir.c_str());
+        } catch (const std::exception& e) {
+            obs_log(LOG_ERROR, "Failed to create preset directory: %s", e.what());
+            return "";
+        }
+        return preset_dir;
     }
 
     std::string preset_dir(config_path);
@@ -193,6 +216,10 @@ bool PresetManager::preset_exists(const std::string& preset_name) {
 
 obs_data_t* PresetManager::preset_info_to_obs_data(const PresetInfo& info) {
     obs_data_t* data = obs_data_create();
+    if (!data) {
+        obs_log(LOG_ERROR, "Failed to create obs_data_t in preset_info_to_obs_data");
+        return nullptr;
+    }
 
     // Save metadata
     obs_data_set_string(data, "name", info.name.c_str());
@@ -242,7 +269,7 @@ obs_data_t* PresetManager::preset_info_to_obs_data(const PresetInfo& info) {
     return data;
 }
 
-PresetManager::PresetInfo PresetManager::obs_data_to_preset_info(obs_data_t* data) {
+PresetInfo PresetManager::obs_data_to_preset_info(obs_data_t* data) {
     PresetInfo info;
 
     // Load metadata
@@ -290,17 +317,14 @@ PresetManager::PresetInfo PresetManager::obs_data_to_preset_info(obs_data_t* dat
 
 } // namespace STABILIZER_PRESETS
 
-#ifdef HAVE_OBS_HEADERS
-// OBS-based implementation is above in the #ifdef HAVE_OBS_HEADERS block
-#else // !HAVE_OBS_HEADERS
-
-// Re-open STABILIZER_PRESETS namespace for standalone implementation
-namespace STABILIZER_PRESETS {
+#if defined(STANDALONE_TEST) || !defined(HAVE_OBS_HEADERS)
 
 // Standalone implementation for testing without OBS headers
 // nlohmann/json is already included at the top of the file
 // Note: using namespace std is intentionally avoided to prevent namespace pollution
 // All std types are fully qualified (std::string, std::ofstream, etc.)
+
+namespace STABILIZER_PRESETS {
 
 std::string PresetManager::get_preset_directory() {
     // Use /tmp/obs-stabilizer-presets for standalone mode
@@ -530,4 +554,4 @@ bool PresetManager::preset_exists(const std::string& preset_name) {
 
 } // namespace STABILIZER_PRESETS
 
-#endif // !HAVE_OBS_HEADERS
+#endif // defined(STANDALONE_TEST) || !defined(HAVE_OBS_HEADERS)

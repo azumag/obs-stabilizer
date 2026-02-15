@@ -6,7 +6,6 @@
 #include "frame_utils.hpp"
 #include <cstring>
 #include <algorithm>
-#include <atomic>
 
 namespace FRAME_UTILS {
 
@@ -346,6 +345,9 @@ namespace FRAME_UTILS {
     }
 
     bool Validation::validate_cv_mat(const cv::Mat& mat) {
+        // NOTE: This implementation is intentionally duplicated in frame_utils.hpp (Lines 113-143)
+        // for standalone mode builds. Both implementations must be identical and updated together.
+        // See frame_utils.hpp for rationale and maintenance guidelines.
         if (mat.empty()) {
             return false;
         }
@@ -402,62 +404,42 @@ namespace FRAME_UTILS {
     // Performance Implementation
     // ============================================================================
 
-    // NOTE: Mutex is not used because OBS filters are single-threaded by design.
-    // This Performance namespace is used in test environments only, where no
-    // multi-threading occurs. Using atomic operations would add unnecessary complexity.
-    // See stabilizer_core.hpp for architectural rationale.
+    // NOTE: Mutex and atomic operations are not used because OBS filters are
+    // single-threaded by design. This Performance namespace is used in test
+    // environments only, where no multi-threading occurs. See stabilizer_core.hpp
+    // for architectural rationale.
 
     namespace {
         struct PerformanceData {
-            std::atomic<size_t> total_conversions{0};
-            std::atomic<double> total_time{0.0};
-            std::atomic<size_t> failed_conversions{0};
+            size_t total_conversions{0};
+            double total_time{0.0};
+            size_t failed_conversions{0};
         };
 
-        // Use pointer to avoid static destruction order issues
-        // Allocate on first use, never deallocated (intentional leak)
-        PerformanceData* g_perf_data = nullptr;
-
         PerformanceData* get_perf_data() {
-            if (!g_perf_data) {
-                // Allocate on first use and never deallocate
-                // This prevents static destruction order crashes
-                static PerformanceData instance;
-                g_perf_data = &instance;
-            }
-            return g_perf_data;
+            // Static local variable is properly destroyed at shutdown by C++ runtime
+            static PerformanceData instance;
+            return &instance;
         }
-    }
-
-    void Performance::track_conversion_time(const std::string& operation, double duration_ms) {
-        // No mutex needed - single-threaded design
-        // operation parameter is logged but not used in stats tracking
-        (void)operation;  // Suppress unused parameter warning
-
-        PerformanceData* data = get_perf_data();
-        data->total_conversions.fetch_add(1, std::memory_order_relaxed);
-        data->total_time.fetch_add(duration_ms, std::memory_order_relaxed);
     }
 
     void Performance::track_conversion_failure() {
         // No mutex needed - single-threaded design
         PerformanceData* data = get_perf_data();
-        data->failed_conversions.fetch_add(1, std::memory_order_relaxed);
+        data->failed_conversions++;
     }
 
     Performance::ConversionStats Performance::get_stats() {
         // No mutex needed - single-threaded design
-        // Load all values atomically to ensure consistency
 
         PerformanceData* data = get_perf_data();
 
         ConversionStats stats;
-        stats.total_conversions = data->total_conversions.load(std::memory_order_relaxed);
-        stats.failed_conversions = data->failed_conversions.load(std::memory_order_relaxed);
+        stats.total_conversions = data->total_conversions;
+        stats.failed_conversions = data->failed_conversions;
 
-        double total_time = data->total_time.load(std::memory_order_relaxed);
-        stats.avg_conversion_time = stats.total_conversions > 0
-            ? total_time / static_cast<double>(stats.total_conversions)
+        stats.avg_conversion_time = data->total_conversions > 0
+            ? data->total_time / static_cast<double>(data->total_conversions)
             : 0.0;
 
         return stats;

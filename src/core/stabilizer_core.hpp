@@ -17,11 +17,6 @@
 #include <chrono>
 #include "stabilizer_constants.hpp"
 
-// Platform-specific optimizations (disabled in standalone build)
-#ifndef BUILD_STANDALONE
-#include "platform_optimization.hpp"
-#endif
-
 /**
  * Core stabilization engine that processes video frames
  * Implements Lucas-Kanade optical flow for real-time stabilization
@@ -184,11 +179,4 @@ private:
 
     // Named constants for magic numbers
     static constexpr int MIN_FEATURES_FOR_TRACKING = 4;
-    static constexpr int MAX_POINTS_TO_PROCESS = 1000;
-    static constexpr int MIN_IMAGE_SIZE = 32;
-    static constexpr int MAX_IMAGE_WIDTH = 7680;
-    static constexpr int MAX_IMAGE_HEIGHT = 4320;
-    static constexpr double MAX_TRANSFORM_SCALE = 100.0;
-    static constexpr double MAX_TRANSLATION = 2000.0;
-    static constexpr double TRACKING_ERROR_THRESHOLD = 50.0;
 };

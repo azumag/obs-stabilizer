@@ -2,6 +2,8 @@
 #include <opencv2/opencv.hpp>
 #include "test_constants.hpp"
 #include "test_data_generator.hpp"
+#include "obs_minimal.h"
+#include "core/frame_utils.hpp"
 
 using namespace TestConstants;
 
