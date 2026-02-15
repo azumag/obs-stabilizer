@@ -123,6 +123,7 @@ endif()
 # --- Include Directories ---
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${OBS_INCLUDE_DIR}
     ${OBS_FRONTEND_INCLUDE_DIR}
 )
@@ -320,6 +321,7 @@ install(TARGETS obs-stabilizer-opencv
       target_include_directories(stabilizer_tests PRIVATE
           ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}/src
+          ${CMAKE_CURRENT_SOURCE_DIR}/include
           ${OBS_INCLUDE_DIR}
       )
 

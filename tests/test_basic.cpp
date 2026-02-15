@@ -2,8 +2,11 @@
 #include <opencv2/opencv.hpp>
 #include "test_constants.hpp"
 #include "test_data_generator.hpp"
+
+#ifdef HAVE_OBS_HEADERS
 #include "obs_minimal.h"
 #include "core/frame_utils.hpp"
+#endif
 
 using namespace TestConstants;
 
