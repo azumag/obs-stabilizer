@@ -8,7 +8,6 @@
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
 #include "core/parameter_validation.hpp"
-#include "core/feature_detection.hpp"
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
@@ -128,6 +127,10 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
         if (consecutive_tracking_failures_ >= 5) {
             CORE_LOG_INFO("Tracking failed 5 times consecutively, re-detecting features");
             detect_features(gray, prev_pts_);
+            // CRITICAL FIX: Update prev_gray_ to match the new features
+            // Without this, there's a mismatch between feature points (from current frame)
+            // and the previous grayscale image (from old frame), causing OpenCV pyramid errors
+            prev_gray_ = gray.clone();
             consecutive_tracking_failures_ = 0;
         }
         update_metrics(start_time);
@@ -423,11 +426,18 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
                     return frame;
                 }
 
-                // Crop the frame
-                if (bounds.x >= 0 && bounds.y >= 0 &&
-                    bounds.x + bounds.width <= frame.cols &&
-                    bounds.y + bounds.height <= frame.rows) {
-                    return frame(bounds).clone();
+                // Crop the frame with comprehensive bounds checking
+                // Clamping ensures ROI coordinates are always within valid range
+                // This prevents OpenCV exceptions when creating cv::Mat from ROI
+                int roi_x = std::max(0, bounds.x);
+                int roi_y = std::max(0, bounds.y);
+                int roi_width = std::min(bounds.width, frame.cols - roi_x);
+                int roi_height = std::min(bounds.height, frame.rows - roi_y);
+
+                // Only crop if we have a valid ROI (positive dimensions)
+                if (roi_width > 0 && roi_height > 0) {
+                    cv::Rect clamped_bounds(roi_x, roi_y, roi_width, roi_height);
+                    return frame(clamped_bounds).clone();
                 }
                 return frame;
             }
@@ -450,12 +460,30 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
                 cv::Mat scaled;
                 cv::resize(frame, scaled, cv::Size(), scale, scale, cv::INTER_LINEAR);
 
-                // Center the scaled frame
+                // Center the scaled frame with bounds checking
                 cv::Mat result(frame.size(), frame.type(), cv::Scalar(0, 0, 0, 255));
                 int offset_x = (frame.cols - scaled.cols) / 2;
                 int offset_y = (frame.rows - scaled.rows) / 2;
-                cv::Rect roi(offset_x, offset_y, scaled.cols, scaled.rows);
-                scaled.copyTo(result(roi));
+
+                // Ensure ROI coordinates are within bounds
+                // This prevents OpenCV exceptions when scaled.cols > frame.cols or scaled.rows > frame.rows
+                int roi_x = std::max(0, offset_x);
+                int roi_y = std::max(0, offset_y);
+                int roi_width = std::min(scaled.cols, frame.cols - roi_x);
+                int roi_height = std::min(scaled.rows, frame.rows - roi_y);
+
+                // Only copy if we have a valid ROI
+                if (roi_width > 0 && roi_height > 0) {
+                    cv::Rect roi(roi_x, roi_y, roi_width, roi_height);
+
+                    // Calculate corresponding ROI in the scaled frame
+                    int src_x = roi_x - offset_x;
+                    int src_y = roi_y - offset_y;
+                    cv::Rect src_roi(src_x, src_y, roi_width, roi_height);
+
+                    // Copy the valid region
+                    scaled(src_roi).copyTo(result(roi));
+                }
 
                 return result;
             }
