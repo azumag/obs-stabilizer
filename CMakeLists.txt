@@ -192,7 +192,7 @@ install(TARGETS obs-stabilizer-opencv
   # Google Test
   find_package(GTest REQUIRED)
 
-       # Test Sources
+        # Test Sources
         set(TEST_SOURCES
         tests/test_basic.cpp
         tests/test_stabilizer_core.cpp
@@ -203,15 +203,17 @@ install(TARGETS obs-stabilizer-opencv
         tests/test_visual_quality.cpp
         tests/test_performance_thresholds.cpp
         tests/test_multi_source.cpp
+        tests/test_preset_manager.cpp
     )
 
    if(TEST_SOURCES)
        message(STATUS "Found test sources, enabling test suite")
 
-        # Add test source files and core source files for testing
-        set(TEST_CORE_SOURCES
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
-        )
+         # Add test source files and core source files for testing
+         set(TEST_CORE_SOURCES
+             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/preset_manager.cpp
+         )
 
        add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
 

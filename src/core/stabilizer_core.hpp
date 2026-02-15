@@ -155,7 +155,6 @@ private:
 
     // Optimized inline functions for performance-critical paths
     inline cv::Mat smooth_transforms_optimized();
-    inline void filter_transforms(std::vector<cv::Mat>& transforms);
     inline void update_metrics(const std::chrono::high_resolution_clock::time_point& start_time);
 
     // Edge handling (Issue #226)

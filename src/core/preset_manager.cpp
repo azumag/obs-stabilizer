@@ -17,7 +17,7 @@
 // This must be outside any namespace to prevent std namespace pollution
 #include <nlohmann/json.hpp>
 
-namespace PRESET {
+namespace STABILIZER_PRESETS {
 
 #ifdef HAVE_OBS_HEADERS
 std::string PresetManager::get_preset_directory() {
@@ -288,14 +288,14 @@ PresetManager::PresetInfo PresetManager::obs_data_to_preset_info(obs_data_t* dat
 }
 #endif // HAVE_OBS_HEADERS
 
-} // namespace PRESET
+} // namespace STABILIZER_PRESETS
 
 #ifdef HAVE_OBS_HEADERS
 // OBS-based implementation is above in the #ifdef HAVE_OBS_HEADERS block
 #else // !HAVE_OBS_HEADERS
 
-// Re-open PRESET namespace for standalone implementation
-namespace PRESET {
+// Re-open STABILIZER_PRESETS namespace for standalone implementation
+namespace STABILIZER_PRESETS {
 
 // Standalone implementation for testing without OBS headers
 // nlohmann/json is already included at the top of the file
@@ -528,6 +528,6 @@ bool PresetManager::preset_exists(const std::string& preset_name) {
     return std::filesystem::exists(file_path);
 }
 
-} // namespace PRESET
+} // namespace STABILIZER_PRESETS
 
 #endif // !HAVE_OBS_HEADERS

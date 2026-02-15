@@ -14,15 +14,13 @@
  * These tests can be re-enabled once the namespace issue is resolved.
  */
 
-// #include <gtest/gtest.h>
-// #include "../src/core/stabilizer_core.hpp"
-// #include "../src/core/preset_manager.hpp"
-// #include <fstream>
-// #include <cstdio>
+#include <gtest/gtest.h>
+#include "../src/core/stabilizer_core.hpp"
+#include "../src/core/preset_manager.hpp"
+#include <fstream>
+#include <cstdio>
 
-// Placeholder for future test implementation
-
-using namespace PRESET;
+using namespace STABILIZER_PRESETS;
 
 // ============================================================================
 // Test Fixture
@@ -37,13 +35,13 @@ protected:
 
     void TearDown() override {
         // Clean up test presets
-        PRESET::PresetManager::delete_preset(test_preset_name);
+        STABILIZER_PRESETS::PresetManager::delete_preset(test_preset_name);
 
         // Also clean up any preset with suffix "_cleanup_test"
-        auto presets = PRESET::PresetManager::list_presets();
+        auto presets = STABILIZER_PRESETS::PresetManager::list_presets();
         for (const auto& name : presets) {
             if (name.find("cleanup_test") != std::string::npos) {
-                PRESET::PresetManager::delete_preset(name);
+                STABILIZER_PRESETS::PresetManager::delete_preset(name);
             }
         }
     }
@@ -89,10 +87,10 @@ protected:
  */
 TEST_F(PresetManagerTest, SaveBasicPreset) {
     auto params = create_test_params();
-    bool success = PRESET::PresetManager::save_preset(test_preset_name, params, "Test preset description");
+    bool success = STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, params, "Test preset description");
 
     ASSERT_TRUE(success) << "Preset save should succeed";
-    EXPECT_TRUE(PRESET::PresetManager::preset_exists(test_preset_name))
+    EXPECT_TRUE(STABILIZER_PRESETS::PresetManager::preset_exists(test_preset_name))
         << "Preset should exist after saving";
 }
 
@@ -102,7 +100,7 @@ TEST_F(PresetManagerTest, SaveBasicPreset) {
  */
 TEST_F(PresetManagerTest, SavePresetWithEmptyName) {
     auto params = create_test_params();
-    bool success = PRESET::PresetManager::save_preset("", params);
+    bool success = STABILIZER_PRESETS::PresetManager::save_preset("", params);
 
     EXPECT_FALSE(success) << "Preset save with empty name should fail";
 }
@@ -114,12 +112,12 @@ TEST_F(PresetManagerTest, SavePresetWithEmptyName) {
 TEST_F(PresetManagerTest, SavePresetWithSpecialCharacters) {
     std::string special_name = "test_preset_special_123-!@#$_cleanup_test";
     auto params = create_test_params();
-    bool success = PRESET::PresetManager::save_preset(special_name, params);
+    bool success = STABILIZER_PRESETS::PresetManager::save_preset(special_name, params);
 
     EXPECT_TRUE(success) << "Preset save with special characters should succeed";
 
     // Clean up
-    PRESET::PresetManager::delete_preset(special_name);
+    STABILIZER_PRESETS::PresetManager::delete_preset(special_name);
 }
 
 // ============================================================================
@@ -132,10 +130,10 @@ TEST_F(PresetManagerTest, SavePresetWithSpecialCharacters) {
  */
 TEST_F(PresetManagerTest, LoadSavedPreset) {
     auto original_params = create_test_params();
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(test_preset_name, original_params));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, original_params));
 
     StabilizerCore::StabilizerParams loaded_params;
-    bool success = PRESET::PresetManager::load_preset(test_preset_name, loaded_params);
+    bool success = STABILIZER_PRESETS::PresetManager::load_preset(test_preset_name, loaded_params);
 
     ASSERT_TRUE(success) << "Preset load should succeed";
 
@@ -156,7 +154,7 @@ TEST_F(PresetManagerTest, LoadSavedPreset) {
  */
 TEST_F(PresetManagerTest, LoadNonExistentPreset) {
     StabilizerCore::StabilizerParams params;
-    bool success = PRESET::PresetManager::load_preset("nonexistent_preset_test_cleanup_test", params);
+    bool success = STABILIZER_PRESETS::PresetManager::load_preset("nonexistent_preset_test_cleanup_test", params);
 
     EXPECT_FALSE(success) << "Loading non-existent preset should fail";
 }
@@ -171,13 +169,13 @@ TEST_F(PresetManagerTest, LoadNonExistentPreset) {
  */
 TEST_F(PresetManagerTest, DeleteExistingPreset) {
     auto params = create_test_params();
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(test_preset_name, params));
-    ASSERT_TRUE(PRESET::PresetManager::preset_exists(test_preset_name));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, params));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::preset_exists(test_preset_name));
 
-    bool success = PRESET::PresetManager::delete_preset(test_preset_name);
+    bool success = STABILIZER_PRESETS::PresetManager::delete_preset(test_preset_name);
 
     EXPECT_TRUE(success) << "Preset deletion should succeed";
-    EXPECT_FALSE(PRESET::PresetManager::preset_exists(test_preset_name))
+    EXPECT_FALSE(STABILIZER_PRESETS::PresetManager::preset_exists(test_preset_name))
         << "Preset should not exist after deletion";
 }
 
@@ -186,7 +184,7 @@ TEST_F(PresetManagerTest, DeleteExistingPreset) {
  * Verify that deleting a non-existent preset fails gracefully
  */
 TEST_F(PresetManagerTest, DeleteNonExistentPreset) {
-    bool success = PRESET::PresetManager::delete_preset("nonexistent_preset_test_cleanup_test");
+    bool success = STABILIZER_PRESETS::PresetManager::delete_preset("nonexistent_preset_test_cleanup_test");
 
     EXPECT_FALSE(success) << "Deleting non-existent preset should fail";
 }
@@ -200,7 +198,7 @@ TEST_F(PresetManagerTest, DeleteNonExistentPreset) {
  * Verify that listing returns empty vector
  */
 TEST_F(PresetManagerTest, ListPresetsWhenEmpty) {
-    auto presets = PRESET::PresetManager::list_presets();
+    auto presets = STABILIZER_PRESETS::PresetManager::list_presets();
 
     // Note: This test may fail if there are existing presets from other tests
     // We just verify that it doesn't crash and returns a valid vector
@@ -219,10 +217,10 @@ TEST_F(PresetManagerTest, ListMultiplePresets) {
     std::string preset_name_1 = test_preset_name + "_1_cleanup_test";
     std::string preset_name_2 = test_preset_name + "_2_cleanup_test";
 
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(preset_name_1, params1));
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(preset_name_2, params2));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(preset_name_1, params1));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(preset_name_2, params2));
 
-    auto presets = PRESET::PresetManager::list_presets();
+    auto presets = STABILIZER_PRESETS::PresetManager::list_presets();
 
     // Check if our presets are in the list
     bool found_preset_1 = false;
@@ -246,9 +244,9 @@ TEST_F(PresetManagerTest, ListMultiplePresets) {
  */
 TEST_F(PresetManagerTest, PresetExistsForExistingPreset) {
     auto params = create_test_params();
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(test_preset_name, params));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, params));
 
-    bool exists = PRESET::PresetManager::preset_exists(test_preset_name);
+    bool exists = STABILIZER_PRESETS::PresetManager::preset_exists(test_preset_name);
 
     EXPECT_TRUE(exists) << "preset_exists should return true for existing preset";
 }
@@ -258,7 +256,7 @@ TEST_F(PresetManagerTest, PresetExistsForExistingPreset) {
  * Verify that preset_exists returns false for non-existent preset
  */
 TEST_F(PresetManagerTest, PresetExistsForNonExistentPreset) {
-    bool exists = PRESET::PresetManager::preset_exists("nonexistent_preset_test_cleanup_test");
+    bool exists = STABILIZER_PRESETS::PresetManager::preset_exists("nonexistent_preset_test_cleanup_test");
 
     EXPECT_FALSE(exists) << "preset_exists should return false for non-existent preset";
 }
@@ -273,7 +271,7 @@ TEST_F(PresetManagerTest, PresetExistsForNonExistentPreset) {
  */
 TEST_F(PresetManagerTest, SaveModifyReloadPreset) {
     auto original_params = create_test_params();
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(test_preset_name, original_params));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, original_params));
 
     // Modify parameters
     auto modified_params = original_params;
@@ -281,11 +279,11 @@ TEST_F(PresetManagerTest, SaveModifyReloadPreset) {
     modified_params.max_correction = 90.0f;
 
     // Save modified version
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(test_preset_name, modified_params));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, modified_params));
 
     // Reload and verify
     StabilizerCore::StabilizerParams loaded_params;
-    ASSERT_TRUE(PRESET::PresetManager::load_preset(test_preset_name, loaded_params));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::load_preset(test_preset_name, loaded_params));
 
     EXPECT_EQ(loaded_params.smoothing_radius, modified_params.smoothing_radius);
     EXPECT_FLOAT_EQ(loaded_params.max_correction, modified_params.max_correction);
@@ -297,13 +295,13 @@ TEST_F(PresetManagerTest, SaveModifyReloadPreset) {
  */
 TEST_F(PresetManagerTest, OverwriteExistingPreset) {
     auto params1 = create_test_params();
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(test_preset_name, params1));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, params1));
 
     auto params2 = create_different_test_params();
-    ASSERT_TRUE(PRESET::PresetManager::save_preset(test_preset_name, params2));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::save_preset(test_preset_name, params2));
 
     StabilizerCore::StabilizerParams loaded_params;
-    ASSERT_TRUE(PRESET::PresetManager::load_preset(test_preset_name, loaded_params));
+    ASSERT_TRUE(STABILIZER_PRESETS::PresetManager::load_preset(test_preset_name, loaded_params));
 
     // Should have the parameters from params2 (the overwritten version)
     EXPECT_EQ(loaded_params.smoothing_radius, params2.smoothing_radius);

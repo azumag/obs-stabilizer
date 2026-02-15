@@ -19,7 +19,7 @@
 #include <obs-data.h>
 #endif
 
-namespace PRESET {
+namespace STABILIZER_PRESETS {
 
 /**
  * Preset information structure
@@ -120,6 +120,6 @@ private:
     PresetManager() = default;
 };
 
-} // namespace PRESET
+} // namespace STABILIZER_PRESETS
 
 #endif // PRESET_MANAGER_HPP
