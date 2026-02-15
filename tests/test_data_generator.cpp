@@ -53,6 +53,10 @@ cv::Mat generate_test_frame(int width, int height, int frame_type) {
 
 std::vector<cv::Mat> generate_test_sequence(int num_frames, int width, int height,
                                            const std::string& motion_pattern) {
+    // Use fixed seed for deterministic test data generation
+    // This ensures tests are repeatable and not flaky due to random data
+    srand(42);
+
     std::vector<cv::Mat> frames;
     cv::Mat base_frame = generate_test_frame(width, height, 0);
 
