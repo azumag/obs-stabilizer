@@ -48,6 +48,12 @@ cv::Mat generate_zoom_frame(const cv::Mat& base_frame, int frame_index, int tota
 // Generate frame with programmable black borders for testing edge handling modes
 cv::Mat generate_test_frame_with_borders(int width, int height, int border_pixels);
 
+// Generate a realistic scene with multiple objects, textures, and features
+cv::Mat generate_realistic_frame(int width, int height, int scene_variant = 0);
+
+// Generate frames with strong corner features for feature detection testing
+cv::Mat generate_frame_with_corners(int width, int height, int complexity = 1);
+
 } // namespace TestDataGenerator
 
 #endif // TEST_DATA_GENERATOR_HPP

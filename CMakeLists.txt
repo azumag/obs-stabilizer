@@ -17,6 +17,22 @@ option(OPENCV_STATIC_LINKING "Link OpenCV statically (for deployment)" OFF)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc video calib3d features2d flann)
 include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
 
+# --- nlohmann/json Dependency (for PresetManager) ---
+find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp
+    PATHS
+        /opt/homebrew/include  # macOS Homebrew (Apple Silicon)
+        /usr/local/include      # macOS Homebrew (Intel)
+        /usr/include           # Linux system
+        ${CMAKE_SOURCE_DIR}/include
+)
+
+if(NLOHMANN_JSON_INCLUDE_DIR)
+    include_directories(SYSTEM ${NLOHMANN_JSON_INCLUDE_DIR})
+    message(STATUS "Found nlohmann/json: ${NLOHMANN_JSON_INCLUDE_DIR}")
+else()
+    message(WARNING "nlohmann/json not found, PresetManager will not work in standalone mode")
+endif()
+
 # --- OBS Dependencies ---
 # Allow user to specify custom OBS paths
 set(OBS_INCLUDE_PATH "" CACHE PATH "Path to OBS include directory")
@@ -77,7 +93,7 @@ set(SOURCES
     src/stabilizer_opencv.cpp
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
-    src/core/feature_detection.cpp
+    src/core/preset_manager.cpp
 )
 
 # Frame utils is only needed when OBS headers are available
@@ -176,15 +192,15 @@ install(TARGETS obs-stabilizer-opencv
   # Google Test
   find_package(GTest REQUIRED)
 
-     # Test Sources
-      set(TEST_SOURCES
+       # Test Sources
+        set(TEST_SOURCES
         tests/test_basic.cpp
         tests/test_stabilizer_core.cpp
         tests/test_data_generator.cpp
-        tests/test_feature_detection.cpp
         tests/test_edge_cases.cpp
         tests/test_integration.cpp
         tests/test_memory_leaks.cpp
+        tests/test_visual_quality.cpp
         tests/test_performance_thresholds.cpp
         tests/test_multi_source.cpp
     )
@@ -192,11 +208,10 @@ install(TARGETS obs-stabilizer-opencv
    if(TEST_SOURCES)
        message(STATUS "Found test sources, enabling test suite")
 
-       # Add test source files and core source files for testing
-       set(TEST_CORE_SOURCES
-           ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
-           ${CMAKE_CURRENT_SOURCE_DIR}/src/core/feature_detection.cpp
-       )
+        # Add test source files and core source files for testing
+        set(TEST_CORE_SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+        )
 
        add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
 
@@ -238,7 +253,6 @@ install(TARGETS obs-stabilizer-opencv
         set(PERF_SOURCES
             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/benchmark.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/feature_detection.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data_generator.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tools/performance_benchmark.cpp
         )
@@ -250,7 +264,6 @@ install(TARGETS obs-stabilizer-opencv
             tools/singlerun.cpp
             src/core/benchmark.cpp
             src/core/stabilizer_core.cpp
-            src/core/feature_detection.cpp
             tests/test_data_generator.cpp
         )
 

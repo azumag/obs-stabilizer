@@ -9,9 +9,10 @@
 - **プリセット保存**: 用途に応じた設定プリセットの保存・読み込み
 
 ### 1.2 拡張機能
-- **アダプティブスタビライゼーション**: 動きの激しさに応じて補正強度を自動調整
-- **モーション分類**: 手振れ、パン、ズーム等の動きを分類して適切に処理
-- **パフォーマンスモニタリング**: 処理時間、CPU使用率等のリアルタイム監視
+注: アダプティブスタビライゼーションとモーション分類はYAGNI原則によりPhase 5に延期されました。
+- **アダプティブスタビライゼーション** (Phase 5延期): 動きの激しさに応じて補正強度を自動調整
+- **モーション分類** (Phase 5延期): 手振れ、パン、ズーム等の動きを分類して適切に処理
+- **パフォーマンスモニタリング**: 処理時間、CPU使用率等のリアルタイム監視 ✅ 実装済み
 
 ## 非機能要件
 
@@ -90,9 +91,9 @@ obs-stabilizer/
 │   ├── core/                    # コア処理レイヤー（OBS非依存）
 │   │   ├── stabilizer_core.hpp/cpp       # スタビライゼーションコア
 │   │   ├── stabilizer_wrapper.hpp/cpp    # RAIIラッパー
-│   │   ├── adaptive_stabilizer.hpp/cpp  # アダプティブ処理
-│   │   ├── motion_classifier.hpp/cpp     # モーション分類
-│   │   ├── feature_detection.hpp/cpp    # 特徴点検出
+│   │   ├── adaptive_stabilizer.hpp/cpp  # アダプティブ処理 (Phase 5延期)
+│   │   ├── motion_classifier.hpp/cpp     # モーション分類 (Phase 5延期)
+│   │   ├── feature_detection.hpp/cpp    # 特徴点検出 (YAGNIにより削除 - StabilizerCoreに統合)
 │   │   ├── frame_utils.hpp/cpp         # フレーム操作ユーティリティ
 │   │   ├── parameter_validation.hpp/cpp # パラメータ検証
 │   │   ├── logging.hpp                 # ロギング
@@ -103,12 +104,12 @@ obs-stabilizer/
 ├── tests/                     # テスト
 │   ├── test_basic.cpp
 │   ├── test_stabilizer_core.cpp
-│   ├── test_adaptive_stabilizer.cpp
-│   ├── test_motion_classifier.cpp
-│   ├── test_feature_detection.cpp
+│   ├── test_adaptive_stabilizer.cpp (Phase 5延期)
+│   ├── test_motion_classifier.cpp (Phase 5延期)
+│   ├── test_feature_detection.cpp (YAGNIにより削除)
 │   ├── test_edge_cases.cpp
 │   ├── test_integration.cpp
-│   └── test_memory_leaks.cpp
+│   ├── test_memory_leaks.cpp
 ├── docs/                      # ドキュメント
 │   └── ARCHITECTURE.md
 ├── tmp/                       # 一時ファイル（一元化）
@@ -163,7 +164,9 @@ private:
 };
 ```
 
-#### 5.3.2 AdaptiveStabilization
+#### 5.3.2 AdaptiveStabilization (Phase 5延期)
+Note: AdaptiveStabilizationはYAGNI原則によりPhase 5に延期されました。
+
 ```cpp
 class AdaptiveStabilization {
 public:
