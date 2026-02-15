@@ -74,9 +74,9 @@ jobs:
       - name: Configure CMake
         run: |
           if [ "${{ matrix.platform }}" == "windows" ]; then
-            cmake -B build -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake
+            cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-windows
           else
-            cmake -B build
+            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
           fi
       
       - name: Build performance benchmarks
@@ -87,7 +87,7 @@ jobs:
         if: github.event.inputs.run_full_benchmark != 'true'
         run: |
           if [ "${{ matrix.platform }}" == "windows" ]; then
-            ./build/Release/performance_benchmark.exe --scenario 1080p --frames 100 --warmup 5 --output perf_quick.csv
+            ./build/RelWithDebInfo/performance_benchmark.exe --scenario 1080p --frames 100 --warmup 5 --output perf_quick.csv
           else
             ./build/performance_benchmark --scenario 1080p --frames 100 --warmup 5 --output perf_quick.csv
           fi
@@ -96,7 +96,7 @@ jobs:
         if: github.event.inputs.run_full_benchmark == 'true'
         run: |
           if [ "${{ matrix.platform }}" == "windows" ]; then
-            ./build/Release/performance_benchmark.exe --output perf_full.csv
+            ./build/RelWithDebInfo/performance_benchmark.exe --output perf_full.csv
           else
             ./build/performance_benchmark --output perf_full.csv
           fi
@@ -113,7 +113,7 @@ jobs:
           if [ -f baseline.json ] && [ -s baseline.json ]; then
             echo "Baseline found, comparing..."
             if [ "${{ matrix.platform }}" == "windows" ]; then
-              ./build/Release/performance_benchmark.exe --baseline baseline.json --output perf_current.csv || exit 1
+              ./build/RelWithDebInfo/performance_benchmark.exe --baseline baseline.json --output perf_current.csv || exit 1
             else
               ./build/performance_benchmark --baseline baseline.json --output perf_current.csv || exit 1
             fi

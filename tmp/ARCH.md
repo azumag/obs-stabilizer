@@ -9,10 +9,8 @@
 - **プリセット保存**: 用途に応じた設定プリセットの保存・読み込み
 
 ### 1.2 拡張機能
-注: アダプティブスタビライゼーションとモーション分類はYAGNI原則によりPhase 5に延期されました。
-- **アダプティブスタビライゼーション** (Phase 5延期): 動きの激しさに応じて補正強度を自動調整
-- **モーション分類** (Phase 5延期): 手振れ、パン、ズーム等の動きを分類して適切に処理
-- **パフォーマンスモニタリング**: 処理時間、CPU使用率等のリアルタイム監視 ✅ 実装済み
+- **エッジハンドリング**: パディング、クロップ、スケーリングの3つのモードをサポート
+- **パフォーマンスモニタリング**: 処理時間、フレーム数等のリアルタイム監視
 
 ## 非機能要件
 
@@ -40,10 +38,10 @@
 ## 受け入れ基準
 
 ### 3.1 機能面
-- [ ] 映像ブレが視覚的に低減できること
-- [ ] 設定画面から補正レベルを調整でき、リアルタイムに反映されること
-- [ ] 複数の動画ソースにフィルターを適用してもOBSがクラッシュしないこと
-- [ ] 設定プリセットの保存・読み込みが正しく動作すること
+- [x] 映像ブレが視覚的に低減できること
+- [x] 設定画面から補正レベルを調整でき、リアルタイムに反映されること
+- [x] 複数の動画ソースにフィルターを適用してもOBSがクラッシュしないこと
+- [x] 設定プリセットの保存・読み込みが正しく動作すること
 
 ### 3.2 パフォーマンス面
 - [ ] HD解像度で処理遅延 < 33msであること
@@ -91,9 +89,7 @@ obs-stabilizer/
 │   ├── core/                    # コア処理レイヤー（OBS非依存）
 │   │   ├── stabilizer_core.hpp/cpp       # スタビライゼーションコア
 │   │   ├── stabilizer_wrapper.hpp/cpp    # RAIIラッパー
-│   │   ├── adaptive_stabilizer.hpp/cpp  # アダプティブ処理 (Phase 5延期)
-│   │   ├── motion_classifier.hpp/cpp     # モーション分類 (Phase 5延期)
-│   │   ├── feature_detection.hpp/cpp    # 特徴点検出 (YAGNIにより削除 - StabilizerCoreに統合)
+│   │   ├── preset_manager.hpp/cpp       # プリセット管理
 │   │   ├── frame_utils.hpp/cpp         # フレーム操作ユーティリティ
 │   │   ├── parameter_validation.hpp/cpp # パラメータ検証
 │   │   ├── logging.hpp                 # ロギング
@@ -104,12 +100,12 @@ obs-stabilizer/
 ├── tests/                     # テスト
 │   ├── test_basic.cpp
 │   ├── test_stabilizer_core.cpp
-│   ├── test_adaptive_stabilizer.cpp (Phase 5延期)
-│   ├── test_motion_classifier.cpp (Phase 5延期)
-│   ├── test_feature_detection.cpp (YAGNIにより削除)
 │   ├── test_edge_cases.cpp
 │   ├── test_integration.cpp
 │   ├── test_memory_leaks.cpp
+│   ├── test_visual_quality.cpp
+│   ├── test_performance_thresholds.cpp
+│   └── test_multi_source.cpp
 ├── docs/                      # ドキュメント
 │   └── ARCHITECTURE.md
 ├── tmp/                       # 一時ファイル（一元化）
@@ -133,9 +129,7 @@ obs-stabilizer/
 - **機能**:
   - `StabilizerCore`: 基本スタビライゼーション処理
   - `StabilizerWrapper`: RAIIラッパー、リソース管理
-  - `AdaptiveStabilization`: アダプティブ処理
-  - `MotionClassifier`: モーション分類
-  - `FeatureDetection`: 特徴点検出
+  - `PresetManager`: プリセット管理
 
 ### 5.3 主要コンポーネント
 
@@ -143,17 +137,43 @@ obs-stabilizer/
 ```cpp
 class StabilizerCore {
 public:
+    enum class EdgeMode {
+        Padding,    // Keep black borders (current behavior)
+        Crop,       // Crop borders to remove black areas
+        Scale       // Scale to fit original frame
+    };
+
     struct StabilizerParams {
-        double smoothing_radius;
-        double correction_strength;
-        double crop_border;
-        int feature_count;
-        double feature_quality;
-        // ...他のパラメータ
+        bool enabled = true;
+        int smoothing_radius = 30;         // Number of frames to average for smoothing
+        float max_correction = 30.0f;      // Maximum correction percentage
+        int feature_count = 500;            // Number of feature points to track
+        float quality_level = 0.01f;       // Minimal accepted quality of corners
+        float min_distance = 30.0f;        // Minimum distance between corners
+        int block_size = 3;                // Block size for derivative covariation matrix
+        bool use_harris = false;           // Use Harris detector
+        float k = 0.04f;                   // Harris detector parameter
+        bool debug_mode = false;           // Enable debug output
+
+        // Motion thresholds and limits
+        float frame_motion_threshold = 0.25f; // Motion threshold to trigger stabilization
+        float max_displacement = 1000.0f;     // Maximum allowed feature displacement
+        double tracking_error_threshold = 50.0; // LK tracking error threshold
+
+        // RANSAC parameters
+        float ransac_threshold_min = 1.0f;
+        float ransac_threshold_max = 10.0f;
+
+        // Point validation
+        float min_point_spread = 10.0f;       // Minimum spread of feature points
+        float max_coordinate = 100000.0f;      // Maximum valid coordinate value
+
+        // Edge handling (Issue #226)
+        EdgeMode edge_mode = EdgeMode::Padding;  // Edge handling mode: Padding, Crop, Scale
     };
 
     void initialize(const StabilizerParams& params);
-    cv::Mat processFrame(const cv::Mat& input_frame);
+    cv::Mat process_frame(const cv::Mat& input_frame);
     void reset();
 
 private:
@@ -164,38 +184,17 @@ private:
 };
 ```
 
-#### 5.3.2 AdaptiveStabilization (Phase 5延期)
-Note: AdaptiveStabilizationはYAGNI原則によりPhase 5に延期されました。
-
-```cpp
-class AdaptiveStabilization {
-public:
-    struct AdaptiveConfig {
-        double motion_sensitivity;
-        double transition_rate;
-        double min_correction;
-        double max_correction;
-    };
-
-    double adaptCorrection(double base_correction, double motion_intensity);
-
-private:
-    AdaptiveConfig config_;
-    // ...内部状態
-};
-```
-
-#### 5.3.3 StabilizerWrapper
+#### 5.3.2 StabilizerWrapper
 ```cpp
 class StabilizerWrapper {
 public:
     StabilizerWrapper();
     ~StabilizerWrapper();  // RAII: リソース自動解放
-    void initialize(const StabilizerCore::StabilizerParams& params);
-    cv::Mat process(const cv::Mat& frame);
+    void initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params);
+    cv::Mat process_frame(const cv::Mat& frame);
 
 private:
-    std::unique_ptr<StabilizerCore> core_;
+    std::unique_ptr<StabilizerCore> stabilizer;
     bool initialized_;
     // ...内部状態
 };
@@ -212,11 +211,14 @@ OBS Source Frame
 [Core Processing Layer]
     ├─ [Feature Detection] → 特徴点抽出
     ├─ [Motion Calculation] → 動きベクトル計算
-    ├─ [Motion Classification] → 動き分類
-    ├─ [Adaptive Correction] → アダプティブ補正
+    ├─ [Transform Estimation] → 変換行列推定
+    ├─ [Transform Smoothing] → 変換スムージング
     └─ [Frame Transformation] → フレーム変換
     ↓ cv::Mat
-[Frame Utils]
+[Edge Handling]
+    ├─ [Padding] → 黒い境界を保持
+    ├─ [Crop] → 境界をクロップ
+    └─ [Scale] → スケール調整
     ↓ cv::Mat -> obs_source_frame
 OBS Output Frame
 ```
@@ -235,11 +237,11 @@ OBS Output Frame
 
 ### 6.3 クロップ vs パディング
 - **課題**: 映像ブレ補正で黒帯発生（パディング）vs 画角損失（クロップ）
-- **選択**: ユーザー選択可能に
-- **妥協点**: デフォルトは軽微なクロップ推奨
+- **選択**: ユーザー選択可能に（Padding/Crop/Scaleの3モード）
+- **妥協点**: デフォルトは軽微なパディング推奨
 
 ### 6.4 複雑性 vs 機能性
-- **課題**: アダプティブ処理等の高度機能は複雑化
+- **課題**: 高度機能は複雑化
 - **選択**: モジュラ化で複雑性を局所化
 - **妥協点**: 基本機能はシンプルに、高度機能は別モジュール
 

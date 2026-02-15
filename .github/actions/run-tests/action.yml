@@ -14,15 +14,18 @@ runs:
         echo "Running unit tests"
         if [ -f "build/stabilizer_tests" ]; then
           echo "Unit test executable found - running tests"
-          if ./build/stabilizer_tests; then
+          ./build/stabilizer_tests
+          TEST_EXIT_CODE=$?
+          if [ $TEST_EXIT_CODE -eq 0 ]; then
             echo "Unit tests passed"
           else
-            EXIT_CODE=$?
-            echo "::error::Unit tests failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
+            echo "::error::Unit tests failed with exit code $TEST_EXIT_CODE"
+            exit $TEST_EXIT_CODE
           fi
         else
-          echo "No unit test executable found - skipping unit tests"
+          echo "::error::No unit test executable found at build/stabilizer_tests"
+          ls -la build/
+          exit 1
         fi
 
         echo "Running standalone build validation"
@@ -46,7 +49,7 @@ runs:
         Write-Host "Running unit tests"
         if (Test-Path "build\RelWithDebInfo\stabilizer_tests.exe") {
           Write-Host "Unit test executable found - running tests"
-          $result = & "build\RelWithDebInfo\stabilizer_tests.exe"
+          & "build\RelWithDebInfo\stabilizer_tests.exe"
           if ($LASTEXITCODE -eq 0) {
             Write-Host "Unit tests passed"
           } else {
@@ -54,7 +57,9 @@ runs:
             exit $LASTEXITCODE
           }
         } else {
-          Write-Host "No unit test executable found - skipping unit tests"
+          Write-Host "::error::No unit test executable found at build\RelWithDebInfo\stabilizer_tests.exe"
+          Get-ChildItem build\ -Recurse | Select-Object FullName
+          exit 1
         }
 
         Write-Host "Running standalone build validation"
