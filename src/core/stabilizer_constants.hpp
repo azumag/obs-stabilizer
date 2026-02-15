@@ -85,4 +85,16 @@ namespace ContentDetection {
     constexpr int BORDER_SEARCH_MAX = 100;
 }
 
+// Performance Monitoring Parameters
+namespace Performance {
+    // Frame budget for 30fps real-time processing (33.33ms per frame)
+    constexpr double FRAME_BUDGET_30FPS_MS = 33.33;
+    // Frame budget for 60fps real-time processing (16.67ms per frame)
+    constexpr double FRAME_BUDGET_60FPS_MS = 16.67;
+    // Threshold for logging slow frames (frames exceeding this time are logged as warnings)
+    constexpr double SLOW_FRAME_THRESHOLD_MS = 10.0;
+    // Maximum acceptable standard deviation for processing time consistency
+    constexpr double MAX_STD_DEV_MS = 5.0;
+}
+
 } // namespace StabilizerConstants

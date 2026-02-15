@@ -94,6 +94,7 @@ set(SOURCES
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
     src/core/preset_manager.cpp
+    src/core/platform_optimization.cpp
 )
 
 # Frame utils is only needed when OBS headers are available
@@ -209,11 +210,12 @@ install(TARGETS obs-stabilizer-opencv
    if(TEST_SOURCES)
        message(STATUS "Found test sources, enabling test suite")
 
-         # Add test source files and core source files for testing
-         set(TEST_CORE_SOURCES
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/preset_manager.cpp
-         )
+          # Add test source files and core source files for testing
+          set(TEST_CORE_SOURCES
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/core/preset_manager.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/core/platform_optimization.cpp
+          )
 
        add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
 
@@ -255,6 +257,7 @@ install(TARGETS obs-stabilizer-opencv
         set(PERF_SOURCES
             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/benchmark.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/core/platform_optimization.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data_generator.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tools/performance_benchmark.cpp
         )
@@ -266,6 +269,7 @@ install(TARGETS obs-stabilizer-opencv
             tools/singlerun.cpp
             src/core/benchmark.cpp
             src/core/stabilizer_core.cpp
+            src/core/platform_optimization.cpp
             tests/test_data_generator.cpp
         )
 

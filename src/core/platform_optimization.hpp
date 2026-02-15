@@ -1,15 +1,8 @@
 #pragma once
 
-/**
- * @brief Platform-specific optimizations header
- *
- * This header provides platform-specific optimization declarations and
- * configuration for the stabilizer. On unsupported platforms, it provides
- * stub implementations that fall back to generic OpenCV functions.
- */
-
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 
 #if defined(__APPLE__) && defined(__arm64__)
 // Apple Silicon optimizations
@@ -121,37 +114,48 @@ inline int get_simd_alignment() {
 }
 
 /**
- * @brief Align a pointer to SIMD boundary
+ * @brief Get the number of CPU cores available
+ * Helps users understand hardware capabilities for performance tuning
  */
-inline void* align_simd(void* ptr) {
-    uintptr_t aligned = reinterpret_cast<uintptr_t>(ptr);
-    int alignment = get_simd_alignment();
-    aligned = (aligned + alignment - 1) & ~(alignment - 1);
-    return reinterpret_cast<void*>(aligned);
-}
+int get_cpu_core_count();
 
 /**
- * @brief Allocate SIMD-aligned memory
+ * @brief Get system memory information in bytes
+ * Useful for estimating available memory and adjusting buffer sizes
  */
-inline void* allocate_simd_aligned(size_t size) {
-#if defined(_WIN32)
-    return _aligned_malloc(size, get_simd_alignment());
-#else
-    void* ptr = nullptr;
-    posix_memalign(&ptr, get_simd_alignment(), size);
-    return ptr;
-#endif
-}
+size_t get_system_memory_size();
 
 /**
- * @brief Free SIMD-aligned memory
+ * @brief Get platform name as human-readable string
+ * Useful for diagnostics and user feedback
  */
-inline void free_simd_aligned(void* ptr) {
-#if defined(_WIN32)
-    _aligned_free(ptr);
-#else
-    free(ptr);
-#endif
-}
+std::string get_platform_name();
+
+/**
+ * @brief Get SIMD capabilities as human-readable string
+ * Lists all available SIMD instruction sets for the current platform
+ */
+std::string get_simd_capabilities();
+
+/**
+ * @brief Print platform information to log
+ * Provides diagnostic information about current platform and optimizations
+ */
+void print_platform_info();
+
+/**
+ * @brief Check if running on Apple Silicon
+ */
+bool is_apple_silicon();
+
+/**
+ * @brief Check if running on Windows
+ */
+bool is_windows();
+
+/**
+ * @brief Check if running on Linux
+ */
+bool is_linux();
 
 } // namespace PlatformOptimization

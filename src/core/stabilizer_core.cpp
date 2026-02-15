@@ -23,6 +23,11 @@ using namespace StabilizerLogging;
 
 // (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
+    // Enable OpenCV SIMD optimizations for better performance
+    // This enables platform-specific optimizations (SSE, AVX, NEON) without changing thread behavior
+    // Note: This is separate from threading and is safe for OBS filter compatibility
+    cv::setUseOptimized(true);
+
     // Set OpenCV to single-threaded mode to prevent internal threading issues
     // This is important for OBS filter compatibility and prevents potential crashes
     // when multiple StabilizerCore instances are created/destroyed rapidly
@@ -111,6 +116,14 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
         transforms_.push_back(cv::Mat::eye(2, 3, CV_64F));
         CORE_LOG_DEBUG("First frame processed, %zu features detected", prev_pts_.size());
         update_metrics(start_time);
+
+        // Log first frame processing time separately (expected to be longer due to initialization)
+        // The threshold is set to 2x the slow frame threshold since initialization overhead is expected
+        double first_frame_time = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() * 1000.0;
+        if (first_frame_time > Performance::SLOW_FRAME_THRESHOLD_MS * 2.0) {
+            CORE_LOG_WARNING("First frame processing took %.2fms (expected overhead due to initialization)", first_frame_time);
+        }
+
         return frame;
     }
 
@@ -162,6 +175,15 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     result = apply_edge_handling(result, params_.edge_mode);
 
     update_metrics(start_time);
+
+    // Performance monitoring: Log slow frames to help identify performance bottlenecks
+    // This threshold is set to 10ms (1/3 of 30fps requirement) to catch problematic frames
+    // without overwhelming the log with normal processing times
+    double processing_time = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_time).count() * 1000.0;
+    if (processing_time > Performance::SLOW_FRAME_THRESHOLD_MS) {
+        CORE_LOG_WARNING("Slow frame detected: %.2fms (features: %zu, resolution: %dx%d)",
+                        processing_time, prev_pts_.size(), width_, height_);
+    }
 
     return result;
 

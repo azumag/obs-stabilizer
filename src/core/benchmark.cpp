@@ -138,17 +138,34 @@ void BenchmarkRunner::run_scenario(TestScenario scenario) {
 
     // Run benchmark with actual stabilizer processing
     Utils::Timer timer;
+
+    // Process warmup frames first to ensure stabilizer is fully initialized
+    // Warmup frames are excluded from statistics to avoid bias from initialization overhead
+    for (int i = 0; i < config_.warmup_frames; i++) {
+        const cv::Mat& input_frame = test_frames[i];
+        cv::Mat output_frame = stabilizer.process_frame(input_frame);
+        if (output_frame.empty()) {
+            metrics.passed = false;
+            metrics.failure_reason = "Stabilizer returned empty frame during warmup";
+            results_.push_back(metrics);
+            std::cerr << "Error: Stabilizer returned empty frame during warmup at index " << i << std::endl;
+            return;
+        }
+    }
+
+    // Process measured frames and collect performance metrics
+    // These frames are used for statistical analysis
     for (int i = 0; i < config_.num_frames; i++) {
         const cv::Mat& input_frame = test_frames[i + config_.warmup_frames];
-        
+
         timer.start();
-        
+
         cv::Mat output_frame = stabilizer.process_frame(input_frame);
-        
+
         timer.stop();
-        
+
         double elapsed = timer.elapsed_ms();
-        
+
         if (output_frame.empty()) {
             metrics.passed = false;
             metrics.failure_reason = "Stabilizer returned empty frame";
@@ -156,16 +173,17 @@ void BenchmarkRunner::run_scenario(TestScenario scenario) {
             std::cerr << "Error: Stabilizer returned empty frame at index " << i << std::endl;
             return;
         }
-        
-        // Track timing for all frames (including warmup for accurate reporting)
+
+        // Track timing only for measured frames (excluding warmup)
+        // This ensures accurate statistics without initialization overhead bias
         processing_times.push_back(elapsed);
-        
-        // Skip warmup frames from statistics (first config_.warmup_frames frames)
+
+        // Track memory usage if enabled
         if (config_.enable_memory_tracking) {
             size_t current_memory = Utils::get_current_memory_usage();
             peak_memory = std::max(peak_memory, current_memory);
         }
-        
+
         // Progress indicator
         if ((i + 1) % 100 == 0) {
             std::cout << "." << std::flush;
