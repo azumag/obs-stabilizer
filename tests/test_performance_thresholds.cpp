@@ -27,6 +27,8 @@
 #include "test_constants.hpp"
 #include "test_data_generator.hpp"
 #include <chrono>
+#include <fstream>
+#include <sstream>
 #include <thread>
 #include <vector>
 
@@ -95,6 +97,7 @@ private:
 #if defined(__linux__)
     std::ifstream cpu_stat_file;
     unsigned long long prev_idle = 0, prev_total = 0;
+    std::chrono::high_resolution_clock::time_point reset_start_time;
 
     double get_cpu_usage_linux() {
         std::ifstream cpu_stat("/proc/stat");
