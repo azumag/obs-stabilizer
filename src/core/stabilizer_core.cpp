@@ -327,11 +327,20 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
         double* ptr = transform.ptr<double>(0);
 
         // Limit rotation and translation components
-        ptr[0] = std::clamp(ptr[0], 1.0 - max_correction, 1.0 + max_correction);
-        ptr[1] = std::clamp(ptr[1], -max_correction, max_correction);
-        ptr[2] = std::clamp(ptr[2], -max_correction, max_correction);
-        ptr[3] = std::clamp(ptr[3], -max_correction, max_correction);
-        ptr[4] = std::clamp(ptr[4], 1.0 - max_correction, 1.0 + max_correction);
+        // 2x3 transform matrix indices are defined in smooth_transforms_optimized
+        // Using named constants to avoid magic numbers and improve readability
+        constexpr int TX_00 = 0; // a00: scale x
+        constexpr int TX_01 = 1; // a01: shear x
+        constexpr int TX_02 = 2; // a02: translation x
+        constexpr int TX_10 = 3; // a10: shear y
+        constexpr int TX_11 = 4; // a11: scale y
+        constexpr int TX_12 = 5; // a12: translation y
+        ptr[TX_00] = std::clamp(ptr[TX_00], 1.0 - max_correction, 1.0 + max_correction);
+        ptr[TX_01] = std::clamp(ptr[TX_01], -max_correction, max_correction);
+        ptr[TX_02] = std::clamp(ptr[TX_02], -max_correction, max_correction);
+        ptr[TX_10] = std::clamp(ptr[TX_10], -max_correction, max_correction);
+        ptr[TX_11] = std::clamp(ptr[TX_11], 1.0 - max_correction, 1.0 + max_correction);
+        ptr[TX_12] = std::clamp(ptr[TX_12], -max_correction, max_correction);
 
         return transform;
 
@@ -365,17 +374,26 @@ cv::Mat StabilizerCore::smooth_transforms_optimized() {
     // Standard transform averaging without NEON-specific optimizations
     // This implementation provides good performance for real-time video stabilization
     // and avoids complexity from platform-specific code that isn't currently needed
+    //
+    // 2x3 transform matrix indices (named constants for readability)
+    constexpr int TX_00 = 0;  // a00: scale x
+    constexpr int TX_01 = 1;  // a01: shear x
+    constexpr int TX_02 = 2;  // a02: translation x
+    constexpr int TX_10 = 3;  // a10: shear y
+    constexpr int TX_11 = 4;  // a11: scale y
+    constexpr int TX_12 = 5;  // a12: translation y
+
     auto* ptr = smoothed.ptr<double>(0);
     const double inv_size = 1.0 / static_cast<double>(size);
 
     for (const auto& t : transforms_) {
         const double* t_ptr = t.ptr<double>(0);
-        ptr[0] += t_ptr[0]; ptr[1] += t_ptr[1]; ptr[2] += t_ptr[2];
-        ptr[3] += t_ptr[3]; ptr[4] += t_ptr[4]; ptr[5] += t_ptr[5];
+        ptr[TX_00] += t_ptr[TX_00]; ptr[TX_01] += t_ptr[TX_01]; ptr[TX_02] += t_ptr[TX_02];
+        ptr[TX_10] += t_ptr[TX_10]; ptr[TX_11] += t_ptr[TX_11]; ptr[TX_12] += t_ptr[TX_12];
     }
 
-    ptr[0] *= inv_size; ptr[1] *= inv_size; ptr[2] *= inv_size;
-    ptr[3] *= inv_size; ptr[4] *= inv_size; ptr[5] *= inv_size;
+    ptr[TX_00] *= inv_size; ptr[TX_01] *= inv_size; ptr[TX_02] *= inv_size;
+    ptr[TX_10] *= inv_size; ptr[TX_11] *= inv_size; ptr[TX_12] *= inv_size;
 
     return smoothed;
 }
@@ -479,9 +497,10 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
                 }
 
                 // Calculate scale factor to fill original frame
+                // Ensure scale is >= 1.0 to prevent upscaling content beyond original frame size
                 double scale_x = static_cast<double>(frame.cols) / bounds.width;
                 double scale_y = static_cast<double>(frame.rows) / bounds.height;
-                double scale = std::min(scale_x, scale_y);
+                double scale = std::max(1.0, std::min(scale_x, scale_y));
 
                 // Scale the frame
                 cv::Mat scaled;
@@ -492,24 +511,31 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
                 int offset_x = (frame.cols - scaled.cols) / 2;
                 int offset_y = (frame.rows - scaled.rows) / 2;
 
-                // Ensure ROI coordinates are within bounds
-                // This prevents OpenCV exceptions when scaled.cols > frame.cols or scaled.rows > frame.rows
-                int roi_x = std::max(0, offset_x);
-                int roi_y = std::max(0, offset_y);
-                int roi_width = std::min(scaled.cols, frame.cols - roi_x);
-                int roi_height = std::min(scaled.rows, frame.rows - roi_y);
+                // Ensure offset is always non-negative to simplify ROI calculations
+                // This prevents the issue where src_x = roi_x - offset_x could be negative
+                offset_x = std::max(0, offset_x);
+                offset_y = std::max(0, offset_y);
+
+                // Calculate ROI in destination (result) with bounds checking
+                int dst_x = offset_x;
+                int dst_y = offset_y;
+                int dst_width = std::min(scaled.cols, frame.cols - dst_x);
+                int dst_height = std::min(scaled.rows, frame.rows - dst_y);
 
                 // Only copy if we have a valid ROI
-                if (roi_width > 0 && roi_height > 0) {
-                    cv::Rect roi(roi_x, roi_y, roi_width, roi_height);
+                if (dst_width > 0 && dst_height > 0) {
+                    cv::Rect dst_roi(dst_x, dst_y, dst_width, dst_height);
 
-                    // Calculate corresponding ROI in the scaled frame
-                    int src_x = roi_x - offset_x;
-                    int src_y = roi_y - offset_y;
-                    cv::Rect src_roi(src_x, src_y, roi_width, roi_height);
+                    // Calculate corresponding ROI in source (scaled)
+                    // With non-negative offset, source ROI always starts at (0, 0)
+                    cv::Rect src_roi(0, 0, dst_width, dst_height);
 
-                    // Copy the valid region
-                    scaled(src_roi).copyTo(result(roi));
+                    // Validate source ROI bounds before copying
+                    if (src_roi.x >= 0 && src_roi.y >= 0 &&
+                        src_roi.x + src_roi.width <= scaled.cols &&
+                        src_roi.y + src_roi.height <= scaled.rows) {
+                        scaled(src_roi).copyTo(result(dst_roi));
+                    }
                 }
 
                 return result;
@@ -581,47 +607,58 @@ StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_gaming() {
-    StabilizerParams params;
-    params.smoothing_radius = Smoothing::GAMING_RADIUS;
-    params.max_correction = Correction::GAMING_MAX;
-    params.feature_count = Features::GAMING_COUNT;
-    params.quality_level = Quality::GAMING_LEVEL;
-    params.min_distance = Distance::GAMING;
-    params.block_size = Block::DEFAULT_SIZE;
-    params.use_harris = false;
-    params.k = Harris::DEFAULT_K;
-    params.enabled = true;
-    params.edge_mode = EdgeMode::Padding; // Performance
-    return params;
+    return create_preset(
+        Smoothing::GAMING_RADIUS,
+        Correction::GAMING_MAX,
+        Features::GAMING_COUNT,
+        Quality::GAMING_LEVEL,
+        Distance::GAMING,
+        EdgeMode::Padding  // Performance
+    );
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_streaming() {
-    StabilizerParams params;
-    params.smoothing_radius = Smoothing::STREAMING_RADIUS;
-    params.max_correction = Correction::STREAMING_MAX;
-    params.feature_count = Features::DEFAULT_COUNT;
-    params.quality_level = Quality::DEFAULT_LEVEL;
-    params.min_distance = Distance::DEFAULT;
-    params.block_size = Block::DEFAULT_SIZE;
-    params.use_harris = false;
-    params.k = Harris::DEFAULT_K;
-    params.enabled = true;
-    params.edge_mode = EdgeMode::Crop; // Quality
-    return params;
+    return create_preset(
+        Smoothing::STREAMING_RADIUS,
+        Correction::STREAMING_MAX,
+        Features::DEFAULT_COUNT,
+        Quality::DEFAULT_LEVEL,
+        Distance::DEFAULT,
+        EdgeMode::Crop  // Quality
+    );
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_preset_recording() {
+    return create_preset(
+        Smoothing::RECORDING_RADIUS,
+        Correction::RECORDING_MAX,
+        Features::RECORDING_COUNT,
+        Quality::RECORDING_LEVEL,
+        Distance::RECORDING,
+        EdgeMode::Scale  // Full frame coverage
+    );
+}
+
+// Helper function to reduce code duplication in preset functions (DRY principle)
+StabilizerCore::StabilizerParams StabilizerCore::create_preset(
+    int smoothing_radius,
+    float max_correction,
+    int feature_count,
+    float quality_level,
+    float min_distance,
+    EdgeMode edge_mode
+) {
     StabilizerParams params;
-    params.smoothing_radius = Smoothing::RECORDING_RADIUS;
-    params.max_correction = Correction::RECORDING_MAX;
-    params.feature_count = Features::RECORDING_COUNT;
-    params.quality_level = Quality::RECORDING_LEVEL;
-    params.min_distance = Distance::RECORDING;
+    params.smoothing_radius = smoothing_radius;
+    params.max_correction = max_correction;
+    params.feature_count = feature_count;
+    params.quality_level = quality_level;
+    params.min_distance = min_distance;
     params.block_size = Block::DEFAULT_SIZE;
     params.use_harris = false;
     params.k = Harris::DEFAULT_K;
     params.enabled = true;
-    params.edge_mode = EdgeMode::Scale; // Full frame coverage
+    params.edge_mode = edge_mode;
     return params;
 }
 

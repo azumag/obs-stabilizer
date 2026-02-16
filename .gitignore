@@ -70,6 +70,7 @@ performance_results.*
 # Test output files
 test_output.csv
 test_output.json
+test_results_*.xml
 
 # Visual Studio
 .vs/

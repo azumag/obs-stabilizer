@@ -310,30 +310,48 @@ static void apply_preset(obs_data_t *settings, const char *preset_name)
 }
 
 // Parameter conversion functions
+// OBS wrapper namespace to hide const_cast usage (code style improvement)
+// NOTE: const_cast is required because OBS API functions expect non-const obs_data_t* parameters.
+// This is safe because we are only reading values from the settings object, not modifying it.
+// The OBS API is designed to work with const pointers that can be cast to non-const for reading.
+// This is a known pattern in OBS plugin development.
+namespace OBS_WRAPPER {
+    inline bool get_bool(const obs_data_t* settings, const char* name) {
+        return obs_data_get_bool(const_cast<obs_data_t*>(settings), name);
+    }
+
+    inline int64_t get_int(const obs_data_t* settings, const char* name) {
+        return obs_data_get_int(const_cast<obs_data_t*>(settings), name);
+    }
+
+    inline double get_double(const obs_data_t* settings, const char* name) {
+        return obs_data_get_double(const_cast<obs_data_t*>(settings), name);
+    }
+
+    inline const char* get_string(const obs_data_t* settings, const char* name) {
+        return obs_data_get_string(const_cast<obs_data_t*>(settings), name);
+    }
+}
+
 static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *settings)
 {
     StabilizerCore::StabilizerParams params;
-    
-    // NOTE: const_cast is required because OBS API functions expect non-const obs_data_t* parameters.
-    // This is safe because we are only reading values from the settings object, not modifying it.
-    // The OBS API is designed to work with const pointers that can be cast to non-const for reading.
-    // This is a known pattern in OBS plugin development.
-    
+
     // Direct parameter access with defaults - OBS API functions don't throw exceptions
     // Use safe defaults if keys don't exist
-    params.enabled = obs_data_get_bool(const_cast<obs_data_t*>(settings), "enabled");
-    params.smoothing_radius = (int)obs_data_get_int(const_cast<obs_data_t*>(settings), "smoothing_radius");
-    params.max_correction = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "max_correction");
-    params.feature_count = (int)obs_data_get_int(const_cast<obs_data_t*>(settings), "feature_count");
-    params.quality_level = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "quality_level");
-    params.min_distance = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "min_distance");
-    params.block_size = (int)obs_data_get_int(const_cast<obs_data_t*>(settings), "block_size");
-    params.use_harris = obs_data_get_bool(const_cast<obs_data_t*>(settings), "use_harris");
-    params.k = (float)obs_data_get_double(const_cast<obs_data_t*>(settings), "k");
-    params.debug_mode = obs_data_get_bool(const_cast<obs_data_t*>(settings), "debug_mode");
+    params.enabled = OBS_WRAPPER::get_bool(settings, "enabled");
+    params.smoothing_radius = static_cast<int>(OBS_WRAPPER::get_int(settings, "smoothing_radius"));
+    params.max_correction = static_cast<float>(OBS_WRAPPER::get_double(settings, "max_correction"));
+    params.feature_count = static_cast<int>(OBS_WRAPPER::get_int(settings, "feature_count"));
+    params.quality_level = static_cast<float>(OBS_WRAPPER::get_double(settings, "quality_level"));
+    params.min_distance = static_cast<float>(OBS_WRAPPER::get_double(settings, "min_distance"));
+    params.block_size = static_cast<int>(OBS_WRAPPER::get_int(settings, "block_size"));
+    params.use_harris = OBS_WRAPPER::get_bool(settings, "use_harris");
+    params.k = static_cast<float>(OBS_WRAPPER::get_double(settings, "k"));
+    params.debug_mode = OBS_WRAPPER::get_bool(settings, "debug_mode");
 
     // Edge handling (Issue #226)
-    const char* edge_str = obs_data_get_string(const_cast<obs_data_t*>(settings), "edge_handling");
+    const char* edge_str = OBS_WRAPPER::get_string(settings, "edge_handling");
     if (strcmp(edge_str, "crop") == 0) {
         params.edge_mode = StabilizerCore::EdgeMode::Crop;
     } else if (strcmp(edge_str, "scale") == 0) {
@@ -344,7 +362,7 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
 
     // Use centralized parameter validation for consistency
     params = VALIDATION::validate_parameters(params);
-    
+
     return params;
 }
 

@@ -164,6 +164,16 @@ private:
     // Edge handling
     cv::Mat apply_edge_handling(const cv::Mat& frame, EdgeMode mode);
 
+    // Helper function to reduce code duplication in preset functions (DRY principle)
+    static StabilizerParams create_preset(
+        int smoothing_radius,
+        float max_correction,
+        int feature_count,
+        float quality_level,
+        float min_distance,
+        EdgeMode edge_mode
+    );
+
     // Internal state
     // DESIGN NOTE: No mutex used - StabilizerCore is single-threaded by design
     // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
