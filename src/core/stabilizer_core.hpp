@@ -54,8 +54,7 @@ public:
         bool debug_mode = false;           // Enable debug output
 
         // Motion thresholds and limits
-        float frame_motion_threshold = 0.25f; // Motion threshold to trigger stabilization
-        float max_displacement = 1000.0f;     // Maximum allowed feature displacement
+        // Note: tracking_error_threshold is reserved for future use in adaptive stabilization
         double tracking_error_threshold = 50.0; // LK tracking error threshold
         
         // RANSAC parameters

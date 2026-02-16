@@ -272,13 +272,17 @@ static void stabilizer_filter_get_defaults(obs_data_t *settings)
 }
 
 // Preset callback function
-static bool preset_changed_callback(void *priv, obs_properties_t *props, obs_property_t *property, 
+static bool preset_changed_callback(void *priv, obs_properties_t *props, obs_property_t *property,
                                    obs_data_t *settings)
 {
     UNUSED_PARAMETER(priv);
     UNUSED_PARAMETER(props);
     UNUSED_PARAMETER(property);
-    
+
+    // EXCEPTION HANDLING NOTE:
+    // obs_data_get_string is an OBS API C function that does not throw exceptions.
+    // It returns NULL if the key doesn't exist, which is handled by the null check below.
+    //
     const char* preset = obs_data_get_string(settings, "preset");
     if (!preset || strlen(preset) == 0) {
         return true;
@@ -337,8 +341,23 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
 {
     StabilizerCore::StabilizerParams params;
 
-    // Direct parameter access with defaults - OBS API functions don't throw exceptions
-    // Use safe defaults if keys don't exist
+    // Direct parameter access with defaults
+    //
+    // EXCEPTION HANDLING NOTE:
+    // OBS API functions (obs_data_get_bool, obs_data_get_int, etc.) are C functions
+    // that do not throw exceptions. They are designed to be safe and handle errors
+    // gracefully by returning default values (e.g., 0, false, NULL) when keys
+    // don't exist or when input is invalid.
+    //
+    // This is consistent with OBS plugin development best practices:
+    // - OBS core functions are exception-free (C API)
+    // - All error handling is done through return codes and logging
+    // - Plugin code should not wrap OBS API calls in try-catch for exception safety
+    //
+    // Therefore, no explicit try-catch is added here. If an exception does occur
+    // (e.g., from std::string operations in OBS_WRAPPER), it will be caught by
+    // the calling function (stabilizer_filter_update at line 150).
+    //
     params.enabled = OBS_WRAPPER::get_bool(settings, "enabled");
     params.smoothing_radius = static_cast<int>(OBS_WRAPPER::get_int(settings, "smoothing_radius"));
     params.max_correction = static_cast<float>(OBS_WRAPPER::get_double(settings, "max_correction"));
@@ -368,6 +387,15 @@ static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *set
 
 static void params_to_settings(const StabilizerCore::StabilizerParams& params, obs_data_t *settings)
 {
+    // EXCEPTION HANDLING NOTE:
+    // OBS API functions (obs_data_set_bool, obs_data_set_int, etc.) are C functions
+    // that do not throw exceptions. They handle errors gracefully internally.
+    //
+    // Therefore, no explicit try-catch is added here. If an exception does occur
+    // (e.g., from std::string operations), it will be caught by the calling
+    // function (e.g., stabilizer_filter_get_defaults at line 269).
+    //
+
     obs_data_set_bool(settings, "enabled", params.enabled);
     obs_data_set_int(settings, "smoothing_radius", params.smoothing_radius);
     obs_data_set_double(settings, "max_correction", params.max_correction);

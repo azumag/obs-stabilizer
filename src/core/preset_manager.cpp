@@ -58,8 +58,7 @@ namespace {
     constexpr const char* EDGE_MODE_SCALE = "scale";
 
     // Motion thresholds
-    constexpr const char* FIELD_FRAME_MOTION_THRESHOLD = "frame_motion_threshold";
-    constexpr const char* FIELD_MAX_DISPLACEMENT = "max_displacement";
+    // Note: tracking_error_threshold is reserved for future use in adaptive stabilization
     constexpr const char* FIELD_TRACKING_ERROR_THRESHOLD = "tracking_error_threshold";
 
     // RANSAC parameters
@@ -82,8 +81,7 @@ namespace {
     constexpr bool DEFAULT_DEBUG_MODE = false;
 
     // Default motion thresholds
-    constexpr double DEFAULT_FRAME_MOTION_THRESHOLD = 0.25;
-    constexpr double DEFAULT_MAX_DISPLACEMENT = 1000.0;
+    // Note: tracking_error_threshold is reserved for future use in adaptive stabilization
     constexpr double DEFAULT_TRACKING_ERROR_THRESHOLD = 50.0;
 
     // Default RANSAC parameters
@@ -152,8 +150,7 @@ namespace {
         j[FIELD_EDGE_HANDLING] = edge_mode_to_string(params.edge_mode);
 
         // Motion thresholds
-        j[FIELD_FRAME_MOTION_THRESHOLD] = params.frame_motion_threshold;
-        j[FIELD_MAX_DISPLACEMENT] = params.max_displacement;
+        // Note: tracking_error_threshold is reserved for future use in adaptive stabilization
         j[FIELD_TRACKING_ERROR_THRESHOLD] = params.tracking_error_threshold;
 
         // RANSAC parameters
@@ -190,10 +187,7 @@ namespace {
         params.edge_mode = string_to_edge_mode(edge_str);
 
         // Load motion thresholds
-        params.frame_motion_threshold = static_cast<float>(
-            j.value(FIELD_FRAME_MOTION_THRESHOLD, DEFAULT_FRAME_MOTION_THRESHOLD));
-        params.max_displacement = static_cast<float>(
-            j.value(FIELD_MAX_DISPLACEMENT, DEFAULT_MAX_DISPLACEMENT));
+        // Note: tracking_error_threshold is reserved for future use in adaptive stabilization
         params.tracking_error_threshold = j.value(FIELD_TRACKING_ERROR_THRESHOLD, DEFAULT_TRACKING_ERROR_THRESHOLD);
 
         // Load RANSAC parameters
@@ -240,8 +234,7 @@ static nlohmann::json obs_data_to_json(obs_data_t* data) {
     j[FIELD_K] = obs_data_get_double(data, FIELD_K);
     j[FIELD_DEBUG_MODE] = obs_data_get_bool(data, FIELD_DEBUG_MODE);
     j[FIELD_EDGE_HANDLING] = obs_data_get_string(data, FIELD_EDGE_HANDLING);
-    j[FIELD_FRAME_MOTION_THRESHOLD] = obs_data_get_double(data, FIELD_FRAME_MOTION_THRESHOLD);
-    j[FIELD_MAX_DISPLACEMENT] = obs_data_get_double(data, FIELD_MAX_DISPLACEMENT);
+    // Note: tracking_error_threshold is reserved for future use in adaptive stabilization
     j[FIELD_TRACKING_ERROR_THRESHOLD] = obs_data_get_double(data, FIELD_TRACKING_ERROR_THRESHOLD);
     j[FIELD_RANSAC_THRESHOLD_MIN] = obs_data_get_double(data, FIELD_RANSAC_THRESHOLD_MIN);
     j[FIELD_RANSAC_THRESHOLD_MAX] = obs_data_get_double(data, FIELD_RANSAC_THRESHOLD_MAX);

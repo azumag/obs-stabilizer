@@ -58,8 +58,7 @@ protected:
         params.k = 0.04f;
         params.ransac_threshold_min = 3.0f;
         params.ransac_threshold_max = 10.0f;
-        params.frame_motion_threshold = 0.25f;
-        params.max_displacement = 1000.0f;
+        // Note: tracking_error_threshold is reserved for future use in adaptive stabilization
         params.tracking_error_threshold = 50.0;
         params.min_point_spread = 10.0f;
         params.max_coordinate = 100000.0f;

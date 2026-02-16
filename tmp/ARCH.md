@@ -84,9 +84,14 @@
 - **モジュール化**: 機能を独立したモジュールに分割
 
 ### 4.2. スレッドモデル
-- **OBSスレッド**: プラグインのメインスレッド（フレーム処理）
-- **UIスレッド**: OBSのUIスレッド（プロパティ更新）
-- **スレッドセーフ**: OBSフィルターはシングルスレッド設計、ミューテックス不要
+- **OBS UIスレッド**: プラグイン設定のプロパティ更新（stabilizer_filter_update, stabilizer_filter_properties）
+- **OBSビデオスレッド**: プラグインのメインスレッド（フレーム処理、stabilizer_filter_video）
+- **スレッドセーフ**: UIスレッドとビデオスレッドが同時に実行される可能性があるため、StabilizerWrapperでミューテックスを使用してスレッドセーフを確保
+
+**実装詳細**:
+- StabilizerCoreはシングルスレッド設計（ビデオスレッドでのみ使用）
+- StabilizerWrapperがスレッドセーフなインターフェースを提供（ミューテックス使用）
+- OBS APIコールバックは異なるスレッドから呼び出される可能性があるため、適切な同期が必要
 
 ### 4.3. トレードオフ
 - **精度 vs パフォーマンス**: 精度を上げると計算量が増え、CPU負荷が上がる。ユーザーがパラメータで調整できるようにする
@@ -169,12 +174,13 @@
   - OBS APIとの統合
 
 #### 5.2.2. StabilizerWrapper (`stabilizer_wrapper.cpp`)
-- **役割**: RAIIラッパーによる例外安全な境界
+- **役割**: RAIIラッパーによる例外安全な境界、スレッドセーフなインターフェース
 - **責任**:
   - 例外安全なインターフェース提供
+  - スレッドセーフなラッパー（ミューテックス使用）
   - メモリ管理
   - 初期化・クリーンアップ
-- **設計**: OBSフィルターはシングルスレッドのため、ミューテックス不要
+- **設計**: UIスレッドとビデオスレッドからの同時アクセスを防ぐためミューテックスを使用。StabilizerCoreはシングルスレッド設計（KISS原則）
 
 #### 5.2.3. StabilizerCore (`stabilizer_core.cpp`)
 - **役割**: コア処理ロジック
@@ -220,7 +226,7 @@
 ### 5.3. データフロー
 
 ```
-OBS Frame (obs_source_frame)
+OBS Frame (obs_source_frame) [ビデオスレッド]
     │
     ├─► FrameUtils::Validation::validate_obs_frame()
     │
@@ -228,9 +234,9 @@ OBS Frame (obs_source_frame)
     │
     ├─► VALIDATION::validate_parameters()
     │
-    ├─► StabilizerWrapper::process_frame()
+    ├─► StabilizerWrapper::process_frame() [ミューテックスでスレッドセーフ]
     │
-    ├─► StabilizerCore::process_frame()
+    ├─► StabilizerCore::process_frame() [シングルスレッド設計]
     │       │
     │       ├─► FrameUtils::ColorConversion::convert_to_grayscale()
     │       │
@@ -249,6 +255,8 @@ OBS Frame (obs_source_frame)
     ├─► FrameUtils::Conversion::cv_to_obs()
     │
     └─► OBS Output
+
+[UIスレッド] stabilizer_filter_update() ──► StabilizerWrapper::update_parameters() [ミューテックスでスレッドセーフ]
 ```
 
 ### 5.4. 設計パターン
@@ -256,6 +264,7 @@ OBS Frame (obs_source_frame)
 #### 5.4.1. RAII (Resource Acquisition Is Initialization)
 - **StabilizerWrapper**: `std::unique_ptr<StabilizerCore>` による自動メモリ管理
 - **例外安全**: 例外が発生してもリソースが正しく解放される
+- **スレッドセーフ**: ミューテックスを使用してUIスレッドとビデオスレッドからの同時アクセスを防止
 
 #### 5.4.2. モジュラーアーキテクチャ
 - **疎結合**: 各コンポーネントが独立してテスト可能
@@ -308,15 +317,19 @@ OBS Frame (obs_source_frame)
 
 ### 6.4. スレッドモデル
 
-| 項目 | シングルスレッド | マルチスレッド |
-|------|-------------|------------|
-| 実装複雑度 | 低 | 高 |
-| デッドロックリスク | なし | あり |
+| 項目 | マルチスレッド（UI + ビデオ） | 完全マルチスレッド |
+|------|------------|------------|
+| 実装複雑度 | 中 | 高 |
+| デッドロックリスク | 低（ミューテックス使用） | あり |
 | パフォーマンス | 十分 | 向上可能 |
 | OBS互換性 | 完全 | 問題あり |
 | **結論** | **採用** | 採用せず |
 
-**理由**: OBSフィルターはシングルスレッド設計、ミューテックス不要（YAGNI原則）
+**理由**:
+- OBSフィルターはUIスレッド（プロパティ更新）とビデオスレッド（フレーム処理）の2スレッドで動作
+- StabilizerWrapperでミューテックスを使用してスレッドセーフを確保
+- StabilizerCoreはシングルスレッド設計（KISS原則）で性能を維持
+- YAGNI原則に従い、必要最小限のスレッド同期のみ実装
 
 ---
 
