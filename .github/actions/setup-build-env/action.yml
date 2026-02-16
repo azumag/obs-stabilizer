@@ -52,7 +52,7 @@ runs:
       if: inputs.platform == 'macos'
       shell: bash
       run: |
-        brew upgrade cmake ninja opencv pkg-config googletest nlohmann-json
+        brew install cmake ninja opencv pkg-config googletest nlohmann-json || brew upgrade cmake ninja opencv pkg-config googletest nlohmann-json
 
     - name: Setup MSVC (Windows)
       if: inputs.platform == 'windows'
