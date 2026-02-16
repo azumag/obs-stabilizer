@@ -525,6 +525,41 @@ TEST_F(PerformanceThresholdTest, ProcessingDelayWithinThreshold_VGA_30fps) {
 }
 
 /**
+ * Test: Processing delay within threshold for HD 720p @ 60fps
+ * Acceptance criteria: Processing delay at 1280x720 @ 60fps should be within one frame (16.67ms)
+ */
+TEST_F(PerformanceThresholdTest, ProcessingDelayWithinThreshold_HD_720p_60fps) {
+    auto params = getDefaultParams();
+    // HD 720p resolution: 1280x720
+    ASSERT_TRUE(stabilizer->initialize(1280, 720, params));
+
+    // Generate HD 720p frames
+    auto frames = TestDataGenerator::generate_test_sequence(
+        100, 1280, 720, "shake"
+    );
+
+    // Measure processing times
+    auto processing_times = measure_processing_times(stabilizer.get(), frames);
+    ASSERT_FALSE(processing_times.empty());
+
+    // Calculate statistics
+    auto stats = calculate_stats(processing_times);
+
+    // Verify average processing time meets design target for HD 720p @ 60fps
+    // Design target: <16.67ms for 60fps
+    EXPECT_LT(stats.avg_ms, 16.67)
+        << "Average processing time should be <16.67ms for HD 720p @ 60fps, got: "
+        << stats.avg_ms << "ms";
+
+    // Verify max processing time is reasonable (allows some spikes)
+    EXPECT_LT(stats.max_ms, 32.0)
+        << "Max processing time should be <32ms, got: " << stats.max_ms << "ms";
+
+    // Verify min processing time is reasonable
+    // Note: For frames that don't require stabilization (first frame), processing can be very fast
+}
+
+/**
  * Test: Processing delay with different motion types
  * Different motion types may have different performance characteristics
  */
