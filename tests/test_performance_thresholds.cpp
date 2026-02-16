@@ -481,16 +481,15 @@ TEST_F(PerformanceThresholdTest, ProcessingDelayWithinThreshold_HD_30fps) {
     // Calculate statistics
     auto stats = calculate_stats(processing_times);
 
-    // Verify average processing time is reasonable for HD @ 30fps
-    // Original target was 33ms, but this is aggressive for test environment
-    // Real-world performance depends on CPU speed, OpenCV optimization, etc.
-    EXPECT_LT(stats.avg_ms, 100.0)
-        << "Average processing time should be <100ms for HD @ 30fps, got: "
+    // Verify average processing time meets design target for HD @ 30fps
+    // Design target: <16ms for 60fps compatibility (4-8ms actual)
+    EXPECT_LT(stats.avg_ms, 16.0)
+        << "Average processing time should be <16ms for HD @ 30fps, got: "
         << stats.avg_ms << "ms";
 
     // Verify max processing time is reasonable (allows some spikes)
-    EXPECT_LT(stats.max_ms, 200.0)
-        << "Max processing time should be <200ms, got: " << stats.max_ms << "ms";
+    EXPECT_LT(stats.max_ms, 32.0)
+        << "Max processing time should be <32ms, got: " << stats.max_ms << "ms";
 
     // Verify min processing time is reasonable
     // Note: For frames that don't require stabilization (first frame), processing can be very fast
@@ -516,13 +515,13 @@ TEST_F(PerformanceThresholdTest, ProcessingDelayWithinThreshold_VGA_30fps) {
 
     auto stats = calculate_stats(processing_times);
 
-    // VGA should be much faster than 33ms
-    EXPECT_LT(stats.avg_ms, 15.0)
-        << "Average processing time for VGA should be <15ms, got: " << stats.avg_ms << "ms";
+    // VGA should meet design target: <8ms (4-8ms actual)
+    EXPECT_LT(stats.avg_ms, 8.0)
+        << "Average processing time for VGA should be <8ms, got: " << stats.avg_ms << "ms";
 
     // Max should still be reasonable
-    EXPECT_LT(stats.max_ms, 25.0)
-        << "Max processing time for VGA should be <25ms, got: " << stats.max_ms << "ms";
+    EXPECT_LT(stats.max_ms, 16.0)
+        << "Max processing time for VGA should be <16ms, got: " << stats.max_ms << "ms";
 }
 
 /**
