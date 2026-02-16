@@ -204,29 +204,37 @@ if(APPLE)
     # RATIONALE: OpenCV libraries are embedded with absolute paths during linking,
     # which prevents OBS from finding them at runtime. Converting to @rpath
     # allows the dynamic loader to use the RPATH_DIRS we configured above.
+    #
+    # REFACTORED: Use glob pattern to find all opencv libraries instead of hardcoding version numbers.
+    # This makes the build system future-proof and compatible with different OpenCV versions.
+    # Previously hardcoded version 4.12, now works with any OpenCV 4.x version.
     if(EXISTS "${OPENCV_LIB_REALDIR}")
-        # List of OpenCV libraries used by this plugin
-        set(OPENCV_LIBS_TO_FIX
-            libopencv_video.412.dylib
-            libopencv_calib3d.412.dylib
-            libopencv_features2d.412.dylib
-            libopencv_flann.412.dylib
-            libopencv_dnn.412.dylib
-            libopencv_imgproc.412.dylib
-            libopencv_core.412.dylib
+        # Use glob to find all opencv libraries dynamically
+        # RATIONALE: Eliminates version hardcoding, making build system maintainable across OpenCV versions
+        file(GLOB OPENCV_LIBS_TO_FIX
+            "${OPENCV_LIB_REALDIR}/libopencv_*.dylib"
         )
 
-        # Use install_name_tool to convert each library path
-        foreach(opencv_lib ${OPENCV_LIBS_TO_FIX})
-            add_custom_command(TARGET obs-stabilizer-opencv POST_BUILD
-                COMMAND ${CMAKE_INSTALL_NAME_TOOL}
-                    -change "${OPENCV_LIB_REALDIR}/${opencv_lib}"
-                            "@rpath/${opencv_lib}"
-                    $<TARGET_FILE:obs-stabilizer-opencv>
-                COMMENT "Converting ${opencv_lib} to use @rpath"
-            )
-        endforeach()
-        message(STATUS "Configured post-build step to convert OpenCV libs to @rpath")
+        # Verify we found some libraries
+        list(LENGTH OPENCV_LIBS_TO_FIX NUM_LIBS)
+        if(NUM_LIBS GREATER 0)
+            message(STATUS "Found ${NUM_LIBS} OpenCV libraries to convert to @rpath")
+
+            # Use install_name_tool to convert each library path
+            foreach(opencv_lib ${OPENCV_LIBS_TO_FIX})
+                get_filename_component(opencv_lib_name "${opencv_lib}" NAME)
+                add_custom_command(TARGET obs-stabilizer-opencv POST_BUILD
+                    COMMAND ${CMAKE_INSTALL_NAME_TOOL}
+                        -change "${opencv_lib}"
+                                "@rpath/${opencv_lib_name}"
+                        $<TARGET_FILE:obs-stabilizer-opencv>
+                    COMMENT "Converting ${opencv_lib_name} to use @rpath"
+                )
+            endforeach()
+            message(STATUS "Configured post-build step to convert OpenCV libs to @rpath")
+        else()
+            message(WARNING "No OpenCV libraries found in ${OPENCV_LIB_REALDIR}")
+        endif()
     endif()
 
     # For static linking (if enabled in future)

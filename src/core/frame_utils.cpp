@@ -344,41 +344,9 @@ namespace FRAME_UTILS {
         return true;
     }
 
-    bool Validation::validate_cv_mat(const cv::Mat& mat) {
-        // NOTE: This implementation is intentionally duplicated in frame_utils.hpp (Lines 113-143)
-        // for standalone mode builds. Both implementations must be identical and updated together.
-        // See frame_utils.hpp for rationale and maintenance guidelines.
-        if (mat.empty()) {
-            return false;
-        }
-
-        // Check for invalid dimensions
-        // cv::Mat can have negative dimensions when constructed with invalid parameters
-        // These should be rejected as they indicate corrupted or improperly initialized data
-        if (mat.rows <= 0 || mat.cols <= 0) {
-            return false;
-        }
-
-        // Validate pixel depth - only 8-bit unsigned formats are supported
-        // 16-bit (CV_16UC*) and other formats require different processing pipelines
-        // and are not compatible with the current stabilization algorithms
-        int depth = mat.depth();
-        if (depth != CV_8U) {
-            // Unsupported bit depth - only 8-bit unsigned is supported
-            return false;
-        }
-
-        // Validate channel count
-        // 1-channel (grayscale), 3-channel (BGR), and 4-channel (BGRA) formats are supported
-        // 2-channel formats are not supported by the current processing pipeline
-        int channels = mat.channels();
-        if (channels != 1 && channels != 3 && channels != 4) {
-            // Unsupported channel count
-            return false;
-        }
-
-        return true;
-    }
+    // NOTE: validate_cv_mat() is implemented inline in frame_utils.hpp to eliminate code duplication
+    // The single inline implementation works in both OBS mode and standalone mode (testing).
+    // This follows DRY principle - only one implementation to maintain.
 
     std::string Validation::get_frame_error_message(const obs_source_frame* frame) {
         if (!frame) {
@@ -408,11 +376,13 @@ namespace FRAME_UTILS {
     // single-threaded by design. This Performance namespace is used in test
     // environments only, where no multi-threading occurs. See stabilizer_core.hpp
     // for architectural rationale.
+    //
+    // REFACTORED: Removed unused total_time and total_conversions tracking to eliminate misleading metrics.
+    // Detailed timing metrics are provided by StabilizerCore::PerformanceMetrics.
+    // This namespace now focuses only on conversion failure tracking for diagnostics.
 
     namespace {
         struct PerformanceData {
-            size_t total_conversions{0};
-            double total_time{0.0};
             size_t failed_conversions{0};
         };
 
@@ -435,12 +405,7 @@ namespace FRAME_UTILS {
         PerformanceData* data = get_perf_data();
 
         ConversionStats stats;
-        stats.total_conversions = data->total_conversions;
         stats.failed_conversions = data->failed_conversions;
-
-        stats.avg_conversion_time = data->total_conversions > 0
-            ? data->total_time / static_cast<double>(data->total_conversions)
-            : 0.0;
 
         return stats;
     }

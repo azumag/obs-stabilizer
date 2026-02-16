@@ -75,34 +75,33 @@ namespace FRAME_UTILS {
     namespace Validation {
         // Validate OBS frame structure
         bool validate_obs_frame(const obs_source_frame* frame);
-        
-        // Validate OpenCV Mat
-        bool validate_cv_mat(const cv::Mat& mat);
-        
-        // Get error message for invalid frame
-        std::string get_frame_error_message(const obs_source_frame* frame);
-    }
-#else
-    // Minimal validation utilities for standalone mode (no OBS dependencies)
-    namespace Validation {
-        // Validate OpenCV Mat only
+
+        // Validate OpenCV Mat (inline for both OBS and standalone modes)
+        // RATIONALE: This is implemented inline to eliminate code duplication.
+        // The single implementation serves both OBS mode and standalone mode (testing).
         inline bool validate_cv_mat(const cv::Mat& mat) {
             if (mat.empty()) {
                 return false;
             }
 
             // Check for invalid dimensions
+            // cv::Mat can have negative dimensions when constructed with invalid parameters
+            // These should be rejected as they indicate corrupted or improperly initialized data
             if (mat.rows <= 0 || mat.cols <= 0) {
                 return false;
             }
 
             // Validate pixel depth - only 8-bit unsigned formats are supported
+            // 16-bit (CV_16UC*) and other formats require different processing pipelines
+            // and are not compatible with the current stabilization algorithms
             int depth = mat.depth();
             if (depth != CV_8U) {
                 return false;
             }
 
             // Validate channel count
+            // 1-channel (grayscale), 3-channel (BGR), and 4-channel (BGRA) formats are supported
+            // 2-channel formats are not supported by the current processing pipeline
             int channels = mat.channels();
             if (channels != 1 && channels != 3 && channels != 4) {
                 return false;
@@ -110,18 +109,25 @@ namespace FRAME_UTILS {
 
             return true;
         }
+
+        // Get error message for invalid frame
+        std::string get_frame_error_message(const obs_source_frame* frame);
     }
+#else
+    // Standalone mode: OBS frame validation is not available, but cv::Mat validation is
+    // The validate_cv_mat() function is defined above and works in both modes
 #endif
 
     // Performance monitoring (available in both modes)
+    // RATIONALE: Tracks conversion failures to help diagnose issues.
+    // Detailed timing metrics are provided by StabilizerCore::PerformanceMetrics,
+    // so this namespace focuses only on conversion failure tracking.
     namespace Performance {
         // Track conversion failures
         void track_conversion_failure();
 
         // Get performance statistics
         struct ConversionStats {
-            size_t total_conversions;
-            double avg_conversion_time;
             size_t failed_conversions;
         };
 

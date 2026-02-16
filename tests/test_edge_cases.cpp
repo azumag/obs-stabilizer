@@ -708,7 +708,7 @@ TEST_F(EdgeCaseTest, PerformanceMetricsAfterProcessing) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_GT(metrics.frame_count, 0);
+    EXPECT_GT(metrics.total_frames, 0);
     EXPECT_GT(metrics.avg_processing_time, 0.0);
 }
 

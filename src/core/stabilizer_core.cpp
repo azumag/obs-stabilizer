@@ -116,6 +116,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         first_frame_ = false;
         transforms_.push_back(cv::Mat::eye(2, 3, CV_64F));
         CORE_LOG_DEBUG("First frame processed, %zu features detected", prev_pts_.size());
+        metrics_.successful_frames++;  // First frame is considered successful
         update_metrics(start_time);
 
         // Log first frame processing time separately (expected to be longer due to initialization)
@@ -136,8 +137,9 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     float tracking_success_rate = 0.0f;
     if (!track_features(prev_gray_, gray, prev_pts_, curr_pts, tracking_success_rate)) {
         consecutive_tracking_failures_++;
+        metrics_.tracking_failures++;  // Track tracking failures for metrics
         CORE_LOG_WARNING("Feature tracking failed (attempt %d/5), success rate: %.2f",
-                       consecutive_tracking_failures_, tracking_success_rate);
+                        consecutive_tracking_failures_, tracking_success_rate);
         if (consecutive_tracking_failures_ >= 5) {
             CORE_LOG_INFO("Tracking failed 5 times consecutively, re-detecting features");
             detect_features(gray, prev_pts_);
@@ -175,6 +177,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     // Apply edge handling
     result = apply_edge_handling(result, params_.edge_mode);
 
+    metrics_.successful_frames++;  // Track successful frame stabilization
     update_metrics(start_time);
 
     // Performance monitoring: Log slow frames to help identify performance bottlenecks
@@ -403,8 +406,8 @@ cv::Mat StabilizerCore::smooth_transforms_optimized() {
 inline void StabilizerCore::update_metrics(const std::chrono::high_resolution_clock::time_point& start_time) {
     auto end_time = std::chrono::high_resolution_clock::now();
     double processing_time = std::chrono::duration<double>(end_time - start_time).count();
-    metrics_.frame_count++;
-    metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.frame_count - 1) + processing_time) / metrics_.frame_count;
+    metrics_.total_frames++;
+    metrics_.avg_processing_time = (metrics_.avg_processing_time * (metrics_.total_frames - 1) + processing_time) / metrics_.total_frames;
 }
 
 cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& transform) {
@@ -665,31 +668,18 @@ StabilizerCore::StabilizerParams StabilizerCore::create_preset(
 }
 
 bool StabilizerCore::validate_frame(const cv::Mat& frame) {
-    if (frame.empty()) {
+    // Use common validation from FRAME_UTILS to eliminate code duplication (DRY principle)
+    // The common validation checks: empty, dimensions (rows/cols > 0), depth (CV_8U), channels (1, 3, 4)
+    if (!FRAME_UTILS::Validation::validate_cv_mat(frame)) {
         return false;
     }
+
+    // Add MIN/MAX size checks specific to StabilizerCore
+    // These checks are specific to the stabilization algorithm's requirements
     if (frame.rows < MIN_IMAGE_SIZE || frame.cols < MIN_IMAGE_SIZE) {
         return false;
     }
     if (frame.rows > MAX_IMAGE_HEIGHT || frame.cols > MAX_IMAGE_WIDTH) {
-        return false;
-    }
-
-    // Validate pixel depth - only 8-bit unsigned formats are supported
-    // 16-bit (CV_16UC*) and other formats require different processing pipelines
-    // and are not compatible with the current stabilization algorithms
-    int depth = frame.depth();
-    if (depth != CV_8U) {
-        // Unsupported bit depth - only 8-bit unsigned is supported
-        return false;
-    }
-
-    // Validate channel count
-    // 1-channel (grayscale), 3-channel (BGR), and 4-channel (BGRA) formats are supported
-    // 2-channel formats are not supported by the current processing pipeline
-    int channels = frame.channels();
-    if (channels != 1 && channels != 3 && channels != 4) {
-        // Unsupported channel count
         return false;
     }
 

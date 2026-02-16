@@ -171,8 +171,8 @@ TEST_F(MultiSourceTest, TwoSources) {
     // Verify both processed all frames
     auto metrics1 = stabilizer1->get_performance_metrics();
     auto metrics2 = stabilizer2->get_performance_metrics();
-    EXPECT_EQ(metrics1.frame_count, 50);
-    EXPECT_EQ(metrics2.frame_count, 50);
+    EXPECT_EQ(metrics1.total_frames, 50);
+    EXPECT_EQ(metrics2.total_frames, 50);
 }
 
 /**
@@ -211,7 +211,7 @@ TEST_F(MultiSourceTest, FiveSources) {
     // Verify all processed correctly
     for (const auto& stab : stabilizers) {
         auto metrics = stab->get_performance_metrics();
-        EXPECT_EQ(metrics.frame_count, 50);
+        EXPECT_EQ(metrics.total_frames, 50);
     }
 }
 
@@ -252,7 +252,7 @@ TEST_F(MultiSourceTest, TenSources) {
     // Verify all processed correctly
     for (const auto& stab : stabilizers) {
         auto metrics = stab->get_performance_metrics();
-        EXPECT_EQ(metrics.frame_count, 30);
+        EXPECT_EQ(metrics.total_frames, 30);
     }
 }
 
@@ -301,7 +301,7 @@ TEST_F(MultiSourceTest, MixedResolutionSources) {
     // Verify all processed correctly
     for (const auto& stab : stabilizers) {
         auto metrics = stab->get_performance_metrics();
-        EXPECT_EQ(metrics.frame_count, 30);
+        EXPECT_EQ(metrics.total_frames, 30);
     }
 }
 
@@ -548,7 +548,7 @@ TEST_F(MultiSourceTest, LongRunningMultipleSources) {
     // Verify all processed correctly
     for (const auto& stab : stabilizers) {
         auto metrics = stab->get_performance_metrics();
-        EXPECT_EQ(metrics.frame_count, 200);
+        EXPECT_EQ(metrics.total_frames, 200);
     }
 }
 
@@ -615,6 +615,6 @@ TEST_F(MultiSourceTest, IsolatedSourceFailure) {
     // Sources 1 and 2 should have processed all frames
     auto metrics1 = stabilizer1->get_performance_metrics();
     auto metrics2 = stabilizer2->get_performance_metrics();
-    EXPECT_EQ(metrics1.frame_count, 40);  // 2 batches of 20
-    EXPECT_EQ(metrics2.frame_count, 40);
+    EXPECT_EQ(metrics1.total_frames, 40);  // 2 batches of 20
+    EXPECT_EQ(metrics2.total_frames, 40);
 }

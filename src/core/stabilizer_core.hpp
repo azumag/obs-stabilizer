@@ -72,7 +72,9 @@ public:
 
     struct PerformanceMetrics {
         double avg_processing_time = 0.0;
-        uint64_t frame_count = 0;
+        uint64_t total_frames = 0;
+        uint64_t successful_frames = 0;
+        uint64_t tracking_failures = 0;
     };
 
     /**

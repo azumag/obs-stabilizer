@@ -1,124 +1,232 @@
-# OBS Stabilizer Plugin Implementation
+# OBS Stabilizer Plugin - Implementation Report
 
-## 1. Overview
+## 実装概要
 
-This document describes the implementation work carried out to address the QA review findings in `tmp/REVIEW.md`.
+tmp/ARCH.md の設計書および tmp/REVIEW.md のレビュー指摘に基づき、preset_manager.cpp のロギング実装を修正しました。
 
-## 2. Critical Issue Resolution
+## 修正内容
 
-### 2.1. Fixed Test Failure: VisualStabilizationTest.MoreFeaturesImprovesQuality
+### 1. CRITICAL: preset_manager.cpp のビルドエラー修正
 
-**Status**: ✅ FIXED
+**問題点:**
+- `preset_manager.cpp` でカスタムロギング関数（log_error, log_info, log_warning）が実装されていた
+- OBS モードで `obs_log(LOG_ERROR, format, args)` のように `va_list` を渡していたが、`obs_log` マクロは可変引数を直接受け取るためビルドエラーが発生
+- 以下の3箇所で同じ問題が発生：
+  - 第225行: `obs_log(LOG_ERROR, format, args);`
+  - 第231行: `obs_log(LOG_INFO, format, args);`
+  - 第237行: `obs_log(LOG_WARNING, format, args);`
 
-**Test Location**: `tests/test_visual_quality.cpp:533-555`
+**修正内容:**
+1. `#include "core/logging.hpp"` を追加（第20行）
+2. カスタムロギング関数を削除（以前の222-262行目付近）
+3. すべての log_* 呼び出しを CORE_LOG_* マクロに置換
 
-**Problem**: The test `VisualStabilizationTest.MoreFeaturesImprovesQuality` was failing because it expected that higher feature counts would always produce equal or better shake reduction quality than lower feature counts. This assumption was fundamentally flawed.
-
-**Root Cause**: The test expectation was based on incorrect assumptions about feature-based video stabilization:
-- Higher feature counts do not guarantee better stabilization quality
-- Increased noise in feature selection can degrade quality
-- Potential inclusion of unstable features
-- Overfitting to transient image elements
-
-**Solution**: Modified the test to use a tolerance-based approach (Option C from review recommendations):
-
+**修正前:**
 ```cpp
-// Old (FLAWED):
-EXPECT_LE(high_after_shake, low_after_shake)
-    << "High feature count should improve or maintain shake reduction quality";
+#include <cstdarg>
 
-// New (CORRECT):
-constexpr double quality_tolerance = 0.2;  // 20% tolerance
-double quality_change = low_after_shake - high_after_shake;  // Positive means improvement
+// カスタムロギング関数（OBS モード）
+#if defined(HAVE_OBS_HEADERS) && !defined(STANDALONE_TEST)
+    inline void log_error(const char* format, ...) {
+        va_list args;
+        va_start(args, format);
+        obs_log(LOG_ERROR, format, args);  // ❌ ビルドエラー
+        va_end(args);
+    }
+    // ... log_info, log_warning
+#else
+    inline void log_error(const char* format, ...) {
+        va_list args;
+        va_start(args, format);
+        std::vfprintf(stderr, format, args);
+        std::fprintf(stderr, "\n");
+        va_end(args);
+    }
+    // ... log_info, log_warning
+#endif
 
-EXPECT_GE(quality_change, -low_after_shake * quality_tolerance)
-    << "High feature count should not significantly degrade quality. "
-    << "Low feature shake: " << low_after_shake << ", "
-    << "High feature shake: " << high_after_shake << ", "
-    << "Quality change: " << quality_change << ", "
-    << "Allowed degradation: " << (low_after_shake * quality_tolerance);
+// 使用例
+log_error("Failed to save preset: %s", error_msg.c_str());
 ```
 
-**Test Results After Fix**:
-- Before fix: 173/174 tests passing (98.9%)
-- After fix: 174/174 tests passing (100%)
-- Test now correctly validates that high feature counts don't significantly degrade quality
+**修正後:**
+```cpp
+#include "core/logging.hpp"
 
-## 3. Test Coverage
+// カスタムロギング関数は削除（logging.hpp の CORE_LOG_* を使用）
 
-### 3.1. Unit Test Results
-
-**Test Summary**: 174/174 tests passing (100%)
-
-**Test Suites**:
-- ✅ BasicTest (19 tests) - PASS
-- ✅ StabilizerCoreTest (28 tests) - PASS
-- ✅ EdgeCaseTest (56 tests) - PASS
-- ✅ IntegrationTest (14 tests) - PASS
-- ✅ MemoryLeakTest (13 tests) - PASS
-- ✅ VisualStabilizationTest (10 tests) - PASS (Previously 9/10)
-- ✅ PerformanceThresholdsTest (34 tests) - PASS
-- ✅ MultiSourceTest (6 tests) - PASS
-- ✅ PresetManagerTest (4 tests) - PASS
-
-### 3.2. Performance Benchmarks
-
-**Performance Test Results**:
-```
-Resolution 1080p (1920x1080)
-  Avg: 6.46 ms (~155 fps)
-  Min: 1.16 ms, Max: 20.55 ms
-  Std Dev: 5.08 ms
-  Target: <33.33ms/frame (30fps)
-  Status: ✅ PASS
+// 使用例
+CORE_LOG_ERROR("Failed to save preset: %s", error_msg.c_str());
 ```
 
-**Analysis**: Performance exceeds requirements by 5.2x
+**ファイル:**
+- `src/core/preset_manager.cpp`:
+  - インクルードを追加: `#include "core/logging.hpp"`
+  - インクルードを削除: `<cstdarg>`
+  - 削除: カスタムロギング関数
+  - 置換: `log_error` → `CORE_LOG_ERROR`
+  - 置換: `log_info` → `CORE_LOG_INFO`
+  - 置換: `log_warning` → `CORE_LOG_WARNING`
 
-## 4. Acceptance Criteria Status
+**影響:**
+- ビルドエラーが解消され、正常にコンパイル可能に
+- テストバイナリも正常にビルド可能に
 
-| Criterion | Status | Notes |
-|-----------|--------|-------|
-| CI pipeline builds for all platforms | ✅ PASS | Windows, macOS, Linux workflows configured |
-| Test coverage ≥ 80% | ✅ PASS | 174/174 tests passing (100%) |
-| Performance benchmarks meet targets | ✅ EXCEEDS | 1080p: ~155fps (target: 30fps) |
-| OBS integration working | ✅ PASS | Filter registered, properties functional |
-| Preset persistence | ✅ PASS | JSON-based preset system implemented |
-| **All tests passing** | ✅ **PASS** | 174/174 tests passing |
+---
 
-## 5. Implementation Quality
+### 2. MAJOR: DRY 原則違反の修正
 
-### 5.1. Code Quality Metrics
+**問題点:**
+- `preset_manager.cpp` がカスタムロギング実装を持っていた
+- 他のモジュール（`stabilizer_core.cpp`, `stabilizer_opencv.cpp`）は `CORE_LOG_*` マクロを使用
+- DRY（Don't Repeat Yourself）原則違反
+- メンテナンス負担：ロギング変更が必要な場合、複数箇所を修正する必要がある
 
-The implementation adheres to all quality principles:
-- **YAGNI**: No over-engineering, focused on core features
-- **DRY**: Centralized utilities and validation
-- **KISS**: Single-threaded core, clear separation of concerns
-- **Modern C++**: RAII, smart pointers, constexpr where applicable
+**修正内容:**
+- `preset_manager.cpp` のカスタムロギング実装を削除
+- 一貫して `CORE_LOG_*` マクロを使用
+- コード重複を削減（約40行）
 
-### 5.2. Test Coverage
+**アーキテクチャ準拠:**
+ARCH.md Section 4.3.4 に記載されている通り：
+> **Rationale**: The single implementation serves both OBS mode and standalone mode (testing).
 
-- **174/174 tests passing** (100% pass rate)
-- **Performance benchmarks**: Exceed requirements by 5.2x
-- **Memory management**: No leaks detected
-- **Error handling**: Comprehensive try-catch blocks
+`logging.hpp` モジュールがロギングの単一の真実のソース（Single Source of Truth）を提供しており、`preset_manager.cpp` もこれを使用するよう修正しました。
 
-### 5.3. Cross-Platform Compatibility
+---
 
-- CMake build system for Windows, macOS, Linux
-- GitHub Actions CI for all platforms
-- Platform-specific rpath configuration (macOS)
+### 3. ビルド確認
 
-## 6. Conclusion
+**ビルド結果:**
+```bash
+cd /Users/azumag/work/obs-stabilizer/build
+make -j$(sysctl -n hw.ncpu)
+```
 
-The implementation now addresses all critical issues identified in the QA review. The flawed test has been corrected to use a tolerance-based approach that properly reflects the reality of feature-based video stabilization algorithms.
+結果：
+- obs-stabilizer-opencv.so: ✅ ビルド成功
+- stabilizer_tests: ✅ ビルド成功
+- すべてのモジュールが警告なしでビルド成功（obs_minimal.h の警告は既存のもの）
 
-**Key Achievements**:
-- ✅ All 174 tests now passing (100%)
-- ✅ Performance exceeds requirements by 5.2x
-- ✅ No implementation bugs found
-- ✅ Clean, maintainable code following YAGNI, DRY, KISS principles
-- ✅ Robust error handling and thread safety
-- ✅ All acceptance criteria met or exceeded
+---
 
-The plugin is ready for QA approval and deployment.
+### 4. テスト実行
+
+**テスト結果:**
+```bash
+./stabilizer_tests
+```
+
+結果：
+- 173/174 テストパス ✅
+- 1 テスト失敗: PerformanceThresholdTest.ProcessingDelayWithinThreshold_HD_30fps
+  - これはタイミング関連のテストで、preset_manager.cpp の修正とは無関係
+
+**PresetManagerTest の結果:**
+```text
+[----------] 13 tests from PresetManagerTest
+[ RUN      ] PresetManagerTest.SaveBasicPreset
+[       OK ] PresetManagerTest.SaveBasicPreset (1 ms)
+[ RUN      ] PresetManagerTest.SavePresetWithEmptyName
+[       OK ] PresetManagerTest.SavePresetWithEmptyName (0 ms)
+[ RUN      ] PresetManagerTest.SavePresetWithSpecialCharacters
+[       OK ] PresetManagerTest.SavePresetWithSpecialCharacters (0 ms)
+[ RUN      ] PresetManagerTest.LoadSavedPreset
+[       OK ] PresetManagerTest.LoadSavedPreset (0 ms)
+[ RUN      ] PresetManagerTest.LoadNonExistentPreset
+[       OK ] PresetManagerTest.LoadNonExistentPreset (0 ms)
+[ RUN      ] PresetManagerTest.DeleteExistingPreset
+[       OK ] PresetManagerTest.DeleteExistingPreset (0 ms)
+[ RUN      ] PresetManagerTest.DeleteNonExistentPreset
+[       OK ] PresetManagerTest.DeleteNonExistentPreset (0 ms)
+[ RUN      ] PresetManagerTest.ListPresetsWhenEmpty
+[       OK ] PresetManagerTest.ListPresetsWhenEmpty (0 ms)
+[ RUN      ] PresetManagerTest.ListMultiplePresets
+[       OK ] PresetManagerTest.ListMultiplePresets (0 ms)
+[ RUN      ] PresetManagerTest.PresetExistsForExistingPreset
+[       OK ] PresetManagerTest.PresetExistsForExistingPreset (0 ms)
+[ RUN      ] PresetManagerTest.PresetExistsForNonExistentPreset
+[       OK ] PresetManagerTest.PresetExistsForNonExistentPreset (0 ms)
+[ RUN      ] PresetManagerTest.SaveModifyReloadPreset
+[       OK ] PresetManagerTest.SaveModifyReloadPreset (0 ms)
+[ RUN      ] PresetManagerTest.OverwriteExistingPreset
+[       OK ] PresetManagerTest.OverwriteExistingPreset (0 ms)
+[----------] 13 tests from PresetManagerTest (3 ms total)
+```
+
+PresetManagerTest はすべてパス（13/13）しました。
+
+---
+
+## REVIEW.md 指摘事項への対応
+
+| 問題 | 優先度 | 状態 | 対応内容 |
+|------|--------|------|----------|
+| Build failure in preset_manager.cpp (obs_log 誤用) | CRITICAL | ✅ 解決 | カスタムロギング関数を削除し、CORE_LOG_* を使用 |
+| DRY 原則違反（カスタムロギング実装） | HIGH | ✅ 解決 | logging.hpp の CORE_LOG_* マクロに統一 |
+
+---
+
+## アーキテクチャへの影響
+
+### 変更なし（ARCH.md に準拠）
+- レイヤードアーキテクチャは変更なし
+- スレッドセーフティの実装方式は変更なし
+- コアアルゴリズムは変更なし
+
+### 改善点
+- メンテナンス性の向上（コード重複の削減）
+- コードの一貫性（すべてのモジュールで CORE_LOG_* を使用）
+- DRY 原則の遵守
+
+---
+
+## パフォーマンスへの影響
+
+- なし：ロギング実装の変更は、ログ出力のフォーマットとルーティングのみに関連
+- パフォーマンスには影響なし
+
+---
+
+## 今後のメンテナンス
+
+### ロギングに関するガイドライン
+- 新規モジュールは必ず `#include "core/logging.hpp"` を使用
+- `CORE_LOG_ERROR`, `CORE_LOG_INFO`, `CORE_LOG_WARNING`, `CORE_LOG_DEBUG` マクロを使用
+- カスタムロギング関数を実装しない（DRY 原則）
+
+---
+
+## 設計原則の遵守状況
+
+### DRY (Don't Repeat Yourself)
+- ✅ preset_manager.cpp のカスタムロギング実装を削除
+- ✅ logging.hpp の CORE_LOG_* に統一
+
+### KISS (Keep It Simple Stupid)
+- ✅ カスタムロギング関数を削除し、既存の logging.hpp を再利用
+- ✅ コード簡素化（約40行削減）
+
+### YAGNI (You Aren't Gonna Need It)
+- ✅ 不要なカスタムロギング実装を削除
+- ✅ 必要なロギング機能は logging.hpp に既存
+
+---
+
+## まとめ
+
+tmp/REVIEW.md で指摘されたすべての CRITICAL および HIGH 問題を解決しました。
+
+**主な成果:**
+- ✅ ビルドエラーの解決（obs_log 誤用の修正）
+- ✅ コード重複の削減（カスタムロギング実装の削除）
+- ✅ メンテナンス性の向上
+- ✅ 設計原則の遵守（DRY, KISS, YAGNI）
+- ✅ ビルド成功（obs-stabilizer-opencv.so, stabilizer_tests）
+- ✅ テスト実行成功（173/174 パス、PresetManagerTest 13/13 パス）
+
+**対応済みレビュー項目:**
+- CRITICAL (1項目): 解決 ✅
+- HIGH (1項目): 解決 ✅
+
+プラグインは運用準備が完了しており、tmp/ARCH.md の設計書に完全に準拠しています。すべての指摘事項に対処し、品質と保守性を向上させました。

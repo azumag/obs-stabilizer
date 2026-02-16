@@ -49,7 +49,7 @@ TEST_F(IntegrationTest, ProcessLongSequence) {
 
     // Check performance metrics
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 100);
+    EXPECT_EQ(metrics.total_frames, 100);
     EXPECT_GT(metrics.avg_processing_time, 0.0);
 }
 
@@ -70,7 +70,7 @@ TEST_F(IntegrationTest, ContinuousMotionSequence) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, FrameCount::STANDARD_SEQUENCE);
+    EXPECT_EQ(metrics.total_frames, FrameCount::STANDARD_SEQUENCE);
 }
 
 // ============================================================================
@@ -106,7 +106,7 @@ TEST_F(IntegrationTest, ResolutionChangeDuringStream) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_GT(metrics.frame_count, 0);
+    EXPECT_GT(metrics.total_frames, 0);
 }
 
 TEST_F(IntegrationTest, MultipleReinitializations) {
@@ -127,7 +127,7 @@ TEST_F(IntegrationTest, MultipleReinitializations) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_GT(metrics.frame_count, 0);
+    EXPECT_GT(metrics.total_frames, 0);
 }
 
 // ============================================================================
@@ -170,7 +170,7 @@ TEST_F(IntegrationTest, UpdateParametersDuringStream) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 30);
+    EXPECT_EQ(metrics.total_frames, 30);
 }
 
 // ============================================================================
@@ -206,7 +206,7 @@ TEST_F(IntegrationTest, MixedMotionSequence) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 40);
+    EXPECT_EQ(metrics.total_frames, 40);
 }
 
 // ============================================================================
@@ -226,7 +226,7 @@ TEST_F(IntegrationTest, PerformanceMetricsTracking) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_EQ(metrics.frame_count, 50);
+    EXPECT_EQ(metrics.total_frames, 50);
     EXPECT_GT(metrics.avg_processing_time, 0.0);
     EXPECT_LT(metrics.avg_processing_time, 1.0); // Should be less than 1 second
 }
@@ -362,7 +362,7 @@ TEST_F(IntegrationTest, RecoverFromInvalidFrame) {
     }
 
     auto metrics = stabilizer->get_performance_metrics();
-    EXPECT_GT(metrics.frame_count, 5);
+    EXPECT_GT(metrics.total_frames, 5);
 }
 
 TEST_F(IntegrationTest, RecoverFromBadInitialization) {
