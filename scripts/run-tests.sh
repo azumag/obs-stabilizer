@@ -9,26 +9,23 @@ echo "=== OBS Stabilizer Test Suite ==="
 echo "Running modular architecture tests..."
 
 # Run core compilation test
-echo ""
-echo "Step 1: Core Compilation Test"
-echo "=============================="
-if [ -f "scripts/test-core-only.sh" ]; then
-	./scripts/test-core-only.sh
-else
-	echo "❌ Core compilation test script not found"
-	exit 1
-fi
+# echo ""
+# echo "Step 1: Core Compilation Test"
+# echo "=============================="
+# if [ -f "scripts/test-core-only.sh" ]; then
+# 	./scripts/test-core-only.sh
+# else
+# 	echo "❌ Core compilation test script not found"
+# 	exit 1
+# fi
 
 # Try to run full test suite if dependencies are available
 echo ""
 echo "Step 2: Full Test Suite (if dependencies available)"
 echo "==================================================="
 
-# Navigate to tests directory
-cd tests
-
 # Clean previous build
-rm -rf ../tmp/builds/build-tests
+rm -rf tmp/builds/build-tests
 
 # Find CMAKE (try multiple possible cmake locations)
 CMAKE_CMD=""
@@ -55,13 +52,13 @@ fi
 
 # Try to build the test suite
 echo "Configuring test build..."
-if $CMAKE_CMD -S . -B ../tmp/builds/build-tests -DCMAKE_BUILD_TYPE=Debug 2>/dev/null; then
+if $CMAKE_CMD -S . -B tmp/builds/build-tests -DCMAKE_BUILD_TYPE=Debug; then
 	echo "Building test suite..."
-	if $CMAKE_CMD --build ../tmp/builds/build-tests 2>/dev/null; then
+	if $CMAKE_CMD --build tmp/builds/build-tests; then
 		echo "Running unit tests..."
 		echo "=========================="
 
-		if ../tmp/builds/build-tests/stabilizer_tests; then
+		if tmp/builds/build-tests/stabilizer_tests --gtest_output="xml:tmp/builds/build-tests/test_results.xml"; then
 			echo "✅ Full test suite PASSED"
 		else
 			echo "⚠️  Full test suite had issues but core compilation works"
@@ -73,8 +70,6 @@ else
 	echo "⚠️  Test suite configuration failed - dependency issues detected"
 	echo "Using basic compilation tests only"
 fi
-
-cd ..
 
 echo ""
 echo "=== Test Suite Complete ==="

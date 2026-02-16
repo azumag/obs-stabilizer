@@ -16,7 +16,7 @@ echo ""
 echo "Test 1: Compiling StabilizerCore without OpenCV (stub mode)"
 echo "=========================================================="
 
-if g++ $CXX_FLAGS -o test-core-stub tests/test-core-only.cpp src/core/stabilizer_core.cpp 2>&1; then
+if g++ $CXX_FLAGS -o test-core-stub tests/test_stabilizer_core.cpp src/core/stabilizer_core.cpp 2>&1; then
 	echo "✅ Core stub compilation PASSED"
 
 	echo "Running core stub test..."
@@ -82,7 +82,7 @@ if [ "$OPENCV_FOUND" = true ]; then
 	echo "Compiling StabilizerCore with OpenCV support..."
 	echo "OpenCV flags: $OPENCV_FLAGS"
 
-	if g++ $CXX_FLAGS -DENABLE_STABILIZATION $OPENCV_FLAGS -o test-core-opencv tests/test-core-only.cpp src/core/stabilizer_core.cpp 2>&1; then
+	if g++ $CXX_FLAGS -DENABLE_STABILIZATION $OPENCV_FLAGS -o test-core-opencv tests/test_stabilizer_core.cpp src/core/stabilizer_core.cpp 2>&1; then
 		echo "✅ Core OpenCV compilation PASSED"
 
 		echo "Running core OpenCV test..."
