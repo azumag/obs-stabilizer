@@ -19,6 +19,11 @@
 #include <unistd.h>
 #endif
 
+// Define NOMINMAX before Windows headers to prevent min/max macro conflicts
+#ifdef _WIN32
+#define NOMINMAX
+#endif
+
 #ifdef __APPLE__
 #include <mach/mach.h>
 #include <mach/mach_host.h>
