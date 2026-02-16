@@ -2,6 +2,10 @@
  * OBS Stabilizer Core Module
  * Implements the core stabilization algorithms using OpenCV
  * Separated from OBS integration for modularity and testability
+ *
+ * DESIGN NOTE: StabilizerCore is intentionally single-threaded (no mutex)
+ * Thread safety is provided by StabilizerWrapper layer above.
+ * This separation keeps the core algorithm simple and performant.
  */
 
 #pragma once
@@ -20,6 +24,11 @@
 /**
  * Core stabilization engine that processes video frames
  * Implements Lucas-Kanade optical flow for real-time stabilization
+ *
+ * DESIGN PRINCIPLE: Single-threaded design for performance
+ * - No mutex locking in the processing path
+ * - Thread safety is handled by StabilizerWrapper (caller's responsibility)
+ * - This keeps the core algorithm simple and fast (KISS principle)
  */
 class StabilizerCore {
     // Forward declaration for test access
@@ -156,7 +165,8 @@ private:
     cv::Mat apply_edge_handling(const cv::Mat& frame, EdgeMode mode);
 
     // Internal state
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex used - StabilizerCore is single-threaded by design
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     uint32_t width_ = 0;
     uint32_t height_ = 0;
     bool first_frame_ = true;

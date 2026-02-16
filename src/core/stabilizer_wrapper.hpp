@@ -2,25 +2,37 @@
 #define STABILIZER_WRAPPER_HPP
 
 #include "stabilizer_core.hpp"
-#include <opencv2/opencv.hpp>
+#include <mutex>
 #include <memory>
 #include <string>
 
 /**
- * @brief RAII wrapper for StabilizerCore for memory safety
+ * @brief Thread-safe RAII wrapper for StabilizerCore
  *
- * This class provides RAII resource management for StabilizerCore.
- * OBS filters are single-threaded by design, so no mutex is needed.
+ * This class provides thread-safe RAII resource management for StabilizerCore.
+ * OBS properties can be updated from UI thread while video processing happens on video thread,
+ * so mutex is required to prevent data races.
+ *
+ * RATIONALE: Thread safety is implemented in StabilizerWrapper (not StabilizerCore) because:
+ * 1. StabilizerCore is designed for single-threaded use (OBS video thread)
+ * 2. StabilizerWrapper provides the interface boundary between OBS UI thread and video thread
+ * 3. This separation keeps StabilizerCore simple (KISS principle) while ensuring thread safety
  *
  * Key benefits:
  * - Automatic cleanup via RAII pattern
  * - Exception-safe boundaries for OBS callbacks
  * - Safe initialization and error handling
- * - No mutex overhead (OBS filters are single-threaded)
+ * - Thread-safe interface for concurrent UI and video thread access
+ *
+ * Design decision: Mutex is added here rather than StabilizerCore to:
+ * - Avoid locking overhead in the performance-critical processing path
+ * - Keep core algorithm simple and focused on video stabilization
+ * - Provide clear separation of concerns (wrapper = thread safety, core = processing)
  */
 class StabilizerWrapper {
 private:
     std::unique_ptr<StabilizerCore> stabilizer;
+    mutable std::mutex mutex_;  // Mutable to allow locking in const methods
 
 public:
     StabilizerWrapper();

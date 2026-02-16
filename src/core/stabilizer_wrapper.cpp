@@ -1,7 +1,16 @@
 /*
  * OBS Stabilizer Plugin - StabilizerWrapper Implementation
- * RAII wrapper for StabilizerCore without thread safety
- * OBS filters are single-threaded, so mutex is unnecessary
+ * Thread-safe RAII wrapper for StabilizerCore
+ *
+ * RATIONALE: Thread safety is implemented here (not in StabilizerCore) because:
+ * 1. OBS UI thread can update properties concurrently with video thread processing
+ * 2. StabilizerCore is kept simple for performance (single-threaded design)
+ * 3. Wrapper provides clean separation: thread safety vs video processing
+ *
+ * Mutex locking strategy:
+ * - Lock for all public methods to prevent data races
+ * - Lock duration is minimized to avoid contention
+ * - Const methods use mutable mutex for proper const-correctness
  */
 
 #include "stabilizer_wrapper.hpp"
@@ -11,9 +20,10 @@ StabilizerWrapper::StabilizerWrapper() = default;
 StabilizerWrapper::~StabilizerWrapper() = default;
 
 bool StabilizerWrapper::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
+    std::lock_guard<std::mutex> lock(mutex_);
     try {
         stabilizer.reset();
-        stabilizer = std::make_unique<StabilizerCore>();
+        stabilizer.reset(new StabilizerCore());
         if (!stabilizer->initialize(width, height, params)) {
             stabilizer.reset();
             return false;
@@ -26,6 +36,8 @@ bool StabilizerWrapper::initialize(uint32_t width, uint32_t height, const Stabil
 }
 
 cv::Mat StabilizerWrapper::process_frame(cv::Mat frame) {
+    // Lock is acquired before accessing stabilizer to prevent concurrent modifications
+    std::lock_guard<std::mutex> lock(mutex_);
     try {
         if (!stabilizer) {
             return frame;
@@ -37,10 +49,12 @@ cv::Mat StabilizerWrapper::process_frame(cv::Mat frame) {
 }
 
 bool StabilizerWrapper::is_initialized() {
+    std::lock_guard<std::mutex> lock(mutex_);
     return stabilizer != nullptr;
 }
 
 std::string StabilizerWrapper::get_last_error() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (stabilizer) {
         return stabilizer->get_last_error();
     }
@@ -48,6 +62,7 @@ std::string StabilizerWrapper::get_last_error() {
 }
 
 StabilizerCore::PerformanceMetrics StabilizerWrapper::get_performance_metrics() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (stabilizer) {
         return stabilizer->get_performance_metrics();
     }
@@ -55,12 +70,14 @@ StabilizerCore::PerformanceMetrics StabilizerWrapper::get_performance_metrics() 
 }
 
 void StabilizerWrapper::update_parameters(const StabilizerCore::StabilizerParams& params) {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (stabilizer) {
         stabilizer->update_parameters(params);
     }
 }
 
 StabilizerCore::StabilizerParams StabilizerWrapper::get_current_params() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (stabilizer) {
         return stabilizer->get_current_params();
     }
@@ -68,12 +85,14 @@ StabilizerCore::StabilizerParams StabilizerWrapper::get_current_params() {
 }
 
 void StabilizerWrapper::reset() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (stabilizer) {
         stabilizer->reset();
     }
 }
 
 bool StabilizerWrapper::is_ready() {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (stabilizer) {
         return stabilizer->is_ready();
     }

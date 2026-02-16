@@ -32,8 +32,9 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     // when multiple StabilizerCore instances are created/destroyed rapidly
     cv::setNumThreads(1);
 
-    // Note: Mutex is not used because OBS filters are single-threaded
-    // This is intentional for performance (YAGNI principle)
+    // DESIGN NOTE: No mutex is used in StabilizerCore
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
+    // This design keeps the core algorithm simple and performant (KISS principle)
 
     // Validate dimensions before initialization
     // Zero or invalid dimensions cannot be processed and indicate configuration errors
@@ -69,7 +70,8 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
 
 cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     auto start_time = std::chrono::high_resolution_clock::now();
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
 
     try {
         // Early return for empty frames (likely common case)
@@ -532,12 +534,14 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
 }
 
 void StabilizerCore::update_parameters(const StabilizerCore::StabilizerParams& params) {
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     params_ = params;
 }
 
 void StabilizerCore::reset() {
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     first_frame_ = true;
     prev_gray_ = cv::Mat::zeros(height_, width_, CV_8UC1);
     prev_pts_.clear();
@@ -547,27 +551,32 @@ void StabilizerCore::reset() {
 }
 
 StabilizerCore::PerformanceMetrics StabilizerCore::get_performance_metrics() const {
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     return metrics_;
 }
 
 const std::deque<cv::Mat>& StabilizerCore::get_current_transforms() const {
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     return transforms_;
 }
 
 bool StabilizerCore::is_ready() const {
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     return width_ > 0 && height_ > 0;
 }
 
 std::string StabilizerCore::get_last_error() const {
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     return last_error_;
 }
 
 StabilizerCore::StabilizerParams StabilizerCore::get_current_params() const {
-    // Note: Mutex is not used because OBS filters are single-threaded
+    // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
+    // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     return params_;
 }
 
