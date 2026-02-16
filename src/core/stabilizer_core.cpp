@@ -21,7 +21,6 @@ using namespace StabilizerLogging;
 #define STAB_LOG_WARNING(...) CORE_LOG_WARNING(__VA_ARGS__)
 #define STAB_LOG_INFO(...) CORE_LOG_INFO(__VA_ARGS__)
 
-// (existing implementation)
 bool StabilizerCore::initialize(uint32_t width, uint32_t height, const StabilizerCore::StabilizerParams& params) {
     // Enable OpenCV SIMD optimizations for better performance
     // This enables platform-specific optimizations (SSE, AVX, NEON) without changing thread behavior
@@ -68,7 +67,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     return true;
 }
 
-    cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
+cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     auto start_time = std::chrono::high_resolution_clock::now();
     // Note: Mutex is not used because OBS filters are single-threaded
 
@@ -171,7 +170,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
 
     cv::Mat result = apply_transform(frame, smoothed_transform);
 
-    // Apply edge handling (Issue #226)
+    // Apply edge handling
     result = apply_edge_handling(result, params_.edge_mode);
 
     update_metrics(start_time);

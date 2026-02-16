@@ -352,22 +352,22 @@ install(TARGETS obs-stabilizer-opencv
       message(STATUS "Building performance testing infrastructure")
       
          # Performance benchmark executable
-         set(PERF_SOURCES
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/benchmark.cpp
-             ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
-             ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data_generator.cpp
-             ${CMAKE_CURRENT_SOURCE_DIR}/tools/performance_benchmark.cpp
-         )
+          set(PERF_SOURCES
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/core/benchmark.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data_generator.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/tools/performance_benchmark.cpp
+          )
 
         add_executable(performance_benchmark ${PERF_SOURCES})
 
-         # Singlerun executable - lightweight validation tool
-         set(SINGLERUN_SOURCES
-             tools/singlerun.cpp
-             src/core/benchmark.cpp
-             src/core/stabilizer_core.cpp
-             tests/test_data_generator.cpp
-         )
+          # Singlerun executable - lightweight validation tool
+          set(SINGLERUN_SOURCES
+              tools/singlerun.cpp
+              src/core/benchmark.cpp
+              src/core/stabilizer_core.cpp
+              tests/test_data_generator.cpp
+          )
 
         add_executable(singlerun ${SINGLERUN_SOURCES})
 

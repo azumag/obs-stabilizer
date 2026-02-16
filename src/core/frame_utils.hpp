@@ -17,8 +17,8 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <string>
-#include <climits> // For SIZE_MAX reference (security audit)
-#include <cstring> // For memset and memcpy
+#include <climits>
+#include <cstring>
 
 namespace FRAME_UTILS {
 
@@ -56,31 +56,13 @@ namespace FRAME_UTILS {
     }
 
     // Per-call frame buffer management
-    //
-    // Implementation Notes:
-    // - Each create() call allocates a new independent buffer
-    // - Ownership is transferred to caller (OBS)
-    // - OBS handles buffer deallocation when frame is consumed
-    // - This approach prevents buffer corruption in multi-threaded scenarios
-    // - Trade-off: Higher memory usage vs. thread safety and correctness
-    //
-    // Lifecycle:
-    // 1. create() allocates new obs_source_frame and data buffer
-    // 2. Pointer is returned to caller
-    // 3. OBS processes the frame
-    // 4. OBS deallocates the frame when done (obs_source_output_video)
-    // 5. Optionally, caller can manually release() if needed
     class FrameBuffer {
     public:
         // Create frame buffer from OpenCV Mat
-        // Returns a new buffer with ownership transferred to caller
-        // Caller must ensure proper deallocation (typically handled by OBS)
         static obs_source_frame* create(const cv::Mat& mat,
                                         const obs_source_frame* reference_frame);
 
         // Release frame buffer (manual cleanup if needed)
-        // Use this if OBS didn't consume the frame or for custom workflows
-        // Note: Only use if you know OBS won't handle deallocation
         static void release(obs_source_frame* frame);
 
     private:
@@ -102,48 +84,27 @@ namespace FRAME_UTILS {
     }
 #else
     // Minimal validation utilities for standalone mode (no OBS dependencies)
-    //
-    // NOTE: This implementation is intentionally duplicated in frame_utils.cpp (Lines 347-378)
-    // to ensure consistent behavior between standalone and OBS-linked builds.
-    //
-    // RATIONALE for duplication:
-    // - The standalone mode (#ifndef HAVE_OBS_HEADERS) is used for unit tests that don't link OBS
-    // - The OBS-linked mode uses the implementation in frame_utils.cpp for production builds
-    // - Both implementations must remain identical and updated together
-    // - Trade-off: DRY principle violation (acceptable) vs. build modularity (preferred)
-    //
-    // MAINTENANCE: If you modify validation logic in either location, update both immediately.
     namespace Validation {
         // Validate OpenCV Mat only
-        // This implementation mirrors the full version in frame_utils.cpp (Lines 347-378)
-        // to ensure consistent behavior between standalone and OBS-linked builds.
         inline bool validate_cv_mat(const cv::Mat& mat) {
             if (mat.empty()) {
                 return false;
             }
 
             // Check for invalid dimensions
-            // cv::Mat can have negative dimensions when constructed with invalid parameters
-            // These should be rejected as they indicate corrupted or improperly initialized data
             if (mat.rows <= 0 || mat.cols <= 0) {
                 return false;
             }
 
             // Validate pixel depth - only 8-bit unsigned formats are supported
-            // 16-bit (CV_16UC*) and other formats require different processing pipelines
-            // and are not compatible with the current stabilization algorithms
             int depth = mat.depth();
             if (depth != CV_8U) {
-                // Unsupported bit depth - only 8-bit unsigned is supported
                 return false;
             }
 
             // Validate channel count
-            // 1-channel (grayscale), 3-channel (BGR), and 4-channel (BGRA) formats are supported
-            // 2-channel formats are not supported by the current processing pipeline
             int channels = mat.channels();
             if (channels != 1 && channels != 3 && channels != 4) {
-                // Unsupported channel count
                 return false;
             }
 

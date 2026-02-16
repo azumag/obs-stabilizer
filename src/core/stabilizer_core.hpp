@@ -57,7 +57,7 @@ public:
         float min_point_spread = 10.0f;       // Minimum spread of feature points
         float max_coordinate = 100000.0f;      // Maximum valid coordinate value
 
-        // Edge handling (Issue #226)
+        // Edge handling
         EdgeMode edge_mode = EdgeMode::Padding;  // Edge handling mode: Padding, Crop, Scale
     };
 
@@ -76,10 +76,10 @@ public:
     bool initialize(uint32_t width, uint32_t height, const StabilizerParams& params);
 
     /**
-     * Process a single video frame
-     * @param frame Input frame in BGRA format
-     * @return Processed frame (stabilized) or nullptr on error
-     */
+      * Process a single video frame
+      * @param frame Input frame in BGRA format
+      * @return Processed frame (stabilized) or empty Mat on error
+      */
     cv::Mat process_frame(const cv::Mat& frame);
 
     /**
@@ -152,7 +152,7 @@ private:
     inline cv::Mat smooth_transforms_optimized();
     inline void update_metrics(const std::chrono::high_resolution_clock::time_point& start_time);
 
-    // Edge handling (Issue #226)
+    // Edge handling
     cv::Mat apply_edge_handling(const cv::Mat& frame, EdgeMode mode);
 
     // Internal state
