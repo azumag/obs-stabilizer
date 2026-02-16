@@ -1,395 +1,272 @@
-# OBS Stabilizer Architecture Design Document
+# OBS Stabilizer - Architecture Design
 
-## Overview
-This document describes the architecture and design decisions for the OBS Stabilizer plugin, a real-time video stabilization solution using OpenCV.
+## 1. 機能要件 (Functional Requirements)
 
-## Functional Requirements
+### 1.1. コア機能
+- **リアルタイム映像スタビライゼーション**: OBSのビデオソースに適用し、カメラの揺れを補正する
+- **パラメータ調整**: スタビライゼーションの強度、スムージング、機能パラメータなどを調整できる
+- **複数ソース対応**: 複数のビデオソースに同時に適用可能
+- **即時反映**: 設定変更がリアルタイムで映像に反映される
 
-### Core Features
-1. **Real-time Video Stabilization**
-   - Process video frames in real-time (30fps+ target)
-   - Use Lucas-Kanade optical flow for motion tracking
-   - Apply smooth motion correction to reduce camera shake
+### 1.2. アルゴリズム機能
+- **特徴点検出**: `goodFeaturesToTrack()` で画像の特徴点を検出
+- **オプティカルフロー**: `calcOpticalFlowPyrLK()` でフレーム間の動きを検出
+- **モーション分類**: 動きのタイプ（揺れ、パン、ズームなど）を分類
+- **適応的補正**: 動きの種類に応じて補正方法を切り替え
+- **スムージング**: ガウシアンフィルタや移動平均で補正値を平滑化
 
-2. **Frame Processing Pipeline**
-   - Accept BGRA/BGR format frames from OBS
-   - Convert to grayscale for feature detection
-   - Detect and track feature points between frames
-   - Estimate motion transform (translation, rotation)
-   - Apply smoothing to motion trajectory
-   - Warp frames to stabilize output
+### 1.3. UI機能
+- **プロパティパネル**: OBSの標準UIでパラメータ調整
+- **プリセット**: 用途別のプリセット保存・読み込み
+- **メトリクス表示**: 処理時間、FPS、メモリ使用量などの表示
 
-3. **Configurable Parameters**
-   - Smoothing radius (number of frames to average)
-   - Feature detection settings (count, quality, min distance)
-   - Maximum correction intensity
-   - Edge handling mode (Padding, Crop, Scale)
+## 2. 非機能要件 (Non-Functional Requirements)
 
-4. **OBS Integration**
-   - Video Filter plugin type
-   - Property panel for parameter adjustment
-   - Preset system for common use cases
+### 2.1. パフォーマンス (Performance)
+- **処理遅延**: 1フレーム以内（33ms以下、30fps基準）
+- **CPU使用率**: 全体のCPU使用率を5%以下に抑制
+- **メモリ使用量**: 最小限のメモリ使用、メモリリークなし
+- **対応解像度**: HD（1920x1080）、フルHD、4K対応
 
-### Edge Cases Handling
-- Content boundary detection (auto-crop black borders)
-- Frame validation (empty frames, invalid dimensions, unsupported formats)
-- Tracking failure recovery (graceful degradation)
-- First frame initialization
+### 2.2. セキュリティ (Security)
+- **外部ライブラリ**: OpenCVなどの脆弱性に対処
+- **入力検証**: 不正な入力に対して堅牢性を確保
+- **バッファオーバーフロー**: バッファオーバーフローを防止
 
-## Non-Functional Requirements
+### 2.3. 互換性 (Compatibility)
+- **プラットフォーム**: Windows、macOS、Linux対応
+- **OBSバージョン**: 最新版のOBS Studioに対応
+- **OpenCVバージョン**: 4.5以上
 
-### Performance
-- **Processing Time**: <10ms per frame (1080p target)
-- **Memory Usage**: Minimal allocation during processing loop
-- **CPU Utilization**: Efficient single-threaded design with SIMD where possible
-- **Real-time Capability**: Maintain 30fps+ for HD resolution
+### 2.4. メンテナンス性 (Maintainability)
+- **モジュール化**: 機能追加やバグ修正が容易
+- **ドキュメント**: コードコメント、APIドキュメント、ユーザーガイド
+- **テストカバレッジ**: 80%以上の単体テストカバレッジ
 
-### Reliability
-- **Thread Safety**: Single-threaded core with thread-safe wrapper layer
-- **Error Handling**: Graceful degradation on failures
-- **Memory Safety**: No memory leaks, proper RAII patterns
-- **Robustness**: Handle corrupted frames, tracking failures, edge cases
+### 2.5. 可用性 (Usability)
+- **直感的なUI**: 一般ユーザーが理解しやすいUI
+- **デフォルト設定**: 初期状態で最適なスタビライゼーションを実現
+- **エラーハンドリング**: 明確なエラーメッセージと回復方法
 
-### Maintainability
-- **Code Organization**: Clear separation of concerns (Core, Wrapper, UI)
-- **Testing**: Comprehensive unit and integration tests
-- **Documentation**: Inline comments explaining design rationale
-- **DRY Principle**: Eliminate code duplication
+## 3. 受け入れ基準 (Acceptance Criteria)
 
-### Platform Support
-- **Primary**: macOS (Apple Silicon), Linux
-- **Secondary**: Windows (future)
-- **Build System**: CMake 3.16+
-- **Dependencies**: OpenCV 4.5+, OBS Studio API
+### 3.1. 機能的受け入れ基準
+- [ ] 手振れ補正が視覚的に確認できる（明らかな揺れの低減）
+- [ ] 設定画面からスタビライゼーションレベルを調整でき、リアルタイムで反映される
+- [ ] 複数のビデオソースにフィルターを適用してもOBSがクラッシュしない
+- [ ] フィルター適用時のCPU使用率増加が閾値（5%）以下
+- [ ] Windows、macOS、Linuxの最新版OBSで基本動作が確認できる
 
-## Acceptance Criteria
+### 3.2. 非機能的受け入れ基準
+- [ ] 1920x1080 @ 30fpsで処理遅延が1フレーム（33ms）以内
+- [ ] 連続24時間動作でメモリリークがない
+- [ ] クラッシュや不正終了が発生しない
+- [ ] テストスイートがすべてパスする（カバレッジ80%以上）
+- [ ] コードが静的解析（cppcheck）でエラーなし
 
-### Core Functionality
-- [x] Real-time stabilization at 30fps+ for 1080p video
-- [x] Lucas-Kanade optical flow implementation
-- [x] Configurable smoothing radius (1-100 frames)
-- [x] Configurable feature detection parameters
-- [x] Edge handling modes (Padding, Crop, Scale)
+## 4. 設計方針 (Design Principles)
 
-### Quality Metrics
-- [x] >80% of tests passing (currently 174/174)
-- [x] Memory leak detection (valgrind/asan clean)
-- [x] Performance benchmarks (<10ms/frame on HD)
-- [x] Visual quality assessment (reduced shake, minimal artifacts)
+### 4.1. アーキテクチャ原則
+- **OBSプラグイン**: OBSのフィルタープラグインとして実装
+- **外部ライブラリ活用**: OpenCVなどの既存ライブラリを活用
+- **標準UI**: OBSの標準UIフレームワークを使用
+- **モジュール化**: 機能を独立したモジュールに分割
 
-### Integration
-- [x] OBS plugin loads without errors
-- [x] Property panel displays and functions correctly
-- [x] Preset system works (Gaming, Streaming, Recording)
-- [x] Plugin can be enabled/disabled without crashes
+### 4.2. コーディング規約
+- **YAGNI (You Aren't Gonna Need It)**: 今必要な機能だけ実装する
+- **DRY (Don't Repeat Yourself)**: コードの重複を避ける
+- **KISS (Keep It Simple, Stupid)**: シンプルに保つ
+- **TDD**: テスト駆動開発
 
-### Testing
-- [x] Unit tests cover core algorithms (28 StabilizerCore tests)
-- [x] Integration tests cover frame processing pipeline
-- [x] Performance tests verify real-time capability
-- [x] Edge case tests validate error handling
+### 4.3. トレードオフ
+- **精度 vs パフォーマンス**: 精度を上げると計算量が増え、CPU負荷が上がる。ユーザーがパラメータで調整できるようにする
+- **ライブラリ使用 vs 自作実装**: OpenCVを使用すると開発時間が短縮されるが、ライブラリ依存になる。開発速度を優先し、OpenCVを使用する
+- **リアルタイム vs 品質**: リアルタイム処理を優先し、品質を少し犠牲にする
 
-## Design Principles
+## 5. アーキテクチャ決定 (Architecture Decisions)
 
-### KISS (Keep It Simple, Stupid)
-- Single-threaded core design for simplicity
-- No mutex locking in processing path
-- Straightforward data structures (deque for transforms)
+### 5.1. 全体構成 (現状)
 
-### DRY (Don't Repeat Yourself)
-- Common validation in FRAME_UTILS namespace
-- Shared color conversion utilities
-- Preset creation uses helper function
-
-### YAGNI (You Aren't Gonna Need It)
-- Only implement Point Feature Matching (avoid SURF/ORB complexity)
-- No GPU acceleration until needed
-- No advanced algorithms until baseline is solid
-
-### SOLID Principles
-- **Single Responsibility**: Each class has one clear purpose
-  - StabilizerCore: Algorithm implementation
-  - StabilizerWrapper: Thread safety and OBS integration
-  - PresetManager: Configuration management
-- **Open/Closed**: Extensible via parameters, closed for modification
-- **Dependency Inversion**: Core depends on abstractions (OpenCV), not OBS specifics
-
-## Architecture Decisions
-
-### Layered Architecture
+現状のコードベースでは、多くのロジックが `StabilizerCore` に集約されています。将来的なリファクタリングで、より詳細なコンポーネント分割を目指します。
 
 ```
-┌─────────────────────────────────────┐
-│   OBS Studio Plugin Interface       │  (stabilizer_opencv.cpp)
-├─────────────────────────────────────┤
-│   Thread Safety & Integration      │  (stabilizer_wrapper.cpp)
-├─────────────────────────────────────┤
-│   Core Stabilization Engine       │  (stabilizer_core.cpp)
-│   - Feature Detection            │
-│   - Optical Flow Tracking        │
-│   - Transform Estimation        │
-│   - Motion Smoothing            │
-├─────────────────────────────────────┤
-│   Utilities                    │  (frame_utils.cpp)
-│   - Frame Conversion           │
-│   - Validation                │
-│   - Color Conversion          │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    OBS Studio                        │
+│                                                     │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │         OBS Stabilizer Plugin                  │   │
+│  │                                                 │   │
+│  │  ┌─────────────────────────────────────────┐   │   │
+│  │  │  Plugin Interface (stabilizer_opencv)  │   │   │
+│  │  │  - obs_source_info                   │   │   │
+│  │  │  - Property callbacks                │   │   │
+│  │  │  - Frame callbacks                  │   │   │
+│  │  └─────────────────────────────────────────┘   │   │
+│  │           │                                     │   │
+│  │           ▼                                     │   │
+│  │  ┌─────────────────────────────────────────┐   │   │
+│  │  │    StabilizerWrapper (core/wrapper)   │   │   │
+│  │  │  - Thread-safe interface             │   │   │
+│  │  │  - State management                │   │   │
+│  │  └─────────────────────────────────────────┘   │   │
+│  │           │                                     │   │
+│  │           ▼                                     │   │
+│  │  ┌─────────────────────────────────────────┐   │   │
+│  │  │    StabilizerCore (core/core)        │   │   │
+│  │  │  - Frame processing                │   │   │
+│  │  │  - Smoothing algorithms            │   │   │
+│  │  │  - Transform calculation          │   │   │
+│  │  │  - Feature detection (OpenCV)      │   │   │
+│  │  │  - Optical flow (OpenCV)           │   │   │
+│  │  └─────────────────────────────────────────┘   │   │
+│  │                                                 │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Module Descriptions
+### 5.2. コンポーネント説明
 
-#### 1. StabilizerCore (src/core/stabilizer_core.cpp)
-**Responsibility**: Core stabilization algorithm implementation
-- Single-threaded design for performance
-- No mutex locking (thread safety provided by wrapper)
-- Direct OpenCV API usage
+#### 5.2.1. Plugin Interface (`stabilizer_opencv.cpp`)
+- 役割: OBSプラグインとしてのインターフェース
+- 責任:
+  - `obs_source_info` 構造体の定義
+  - プロパティコールバック（設定UI）
+  - フレームコールバック（映像処理）
 
-**Key Classes**:
-- `StabilizerCore`: Main processing class
-- `StabilizerParams`: Configuration parameters
-- `PerformanceMetrics`: Timing and success tracking
+#### 5.2.2. StabilizerWrapper (`stabilizer_wrapper.cpp`)
+- 役割: スレッドセーフなラッパー
+- 責任:
+  - スレッドセーフなインターフェース提供
+  - 状態管理
+  - 初期化・クリーンアップ
 
-**Key Methods**:
-- `process_frame()`: Main processing pipeline
-- `detect_features()`: Feature point detection
-- `track_features()`: Lucas-Kanade tracking
-- `estimate_transform()`: Motion estimation
-- `smooth_transforms()`: Trajectory smoothing
+#### 5.2.3. StabilizerCore (`stabilizer_core.cpp`)
+- 役割: コア処理ロジック
+- 責任:
+  - フレーム処理
+  - スムージングアルゴリズム
+  - 変換行列の計算
+  - `goodFeaturesToTrack()` での特徴点検出
+  - `calcOpticalFlowPyrLK()` でのオプティカルフロー計算
+  - (将来的にはモーション分類や適応的補正も担う可能性がある)
 
-#### 2. StabilizerWrapper (src/core/stabilizer_wrapper.cpp)
-**Responsibility**: Thread safety and OBS integration
-- Provides mutex-protected access to StabilizerCore
-- Handles OBS frame conversion
-- Manages plugin lifecycle
 
-**Key Design Decisions**:
-- Wrapper handles thread safety (not core)
-- Allows core to remain single-threaded (fast)
-- Clear separation of concerns
-
-#### 3. FRAME_UTILS (src/core/frame_utils.hpp)
-**Responsibility**: Common utilities for frame processing
-- Frame conversion (OBS <-> OpenCV)
-- Validation (frame data, dimensions, format)
-- Color conversion utilities
-
-**Key Design Decisions**:
-- Inline implementations for performance
-- Works in both OBS and standalone modes
-- Eliminates code duplication
-
-#### 4. PresetManager (src/core/preset_manager.cpp)
-**Responsibility**: Configuration preset management
-- Pre-defined presets (Gaming, Streaming, Recording)
-- Save/load custom presets
-- Parameter validation
-
-**Design Note**:
-- Uses nlohmann/json in standalone mode
-- Uses OBS APIs in OBS mode
-
-### Data Flow
+### 5.3. データフロー
 
 ```
-OBS Frame (BGRA)
-    ↓
-[StabilizerWrapper]
-    ↓ mutex lock
-[StabilizerCore::process_frame]
-    ↓ validate_frame
-    ↓ convert_to_grayscale
-    ↓ detect_features (first frame only)
-    ↓ track_features (Lucas-Kanade)
-    ↓ estimate_transform (RANSAC)
-    ↓ smooth_transforms (exponential moving average)
-    ↓ apply_transform (warpAffine)
-    ↓ apply_edge_handling
-    ↓ mutex unlock
-Stabilized Frame (BGRA)
+OBS Frame (obs_source_frame)
+    │
+    ├─► Frame Utils (変換: obs_source_frame → cv::Mat)
+    │
+    ├─► StabilizerCore
+    │   ├─► Feature Detection (特徴点検出)
+    │   ├─► Optical Flow (オプティカルフロー計算)
+    │   ├─► Smoothing & Transform (スムージング、変換行列計算)
+    │   └─► Transform Application (warpAffine)
+    │
+    └─► Frame Utils (変換: cv::Mat → obs_source_frame)
+            │
+            └─► OBS Output
 ```
 
-### State Management
+### 5.4. スレッドモデル
 
-**Per-Core Instance**:
-- Previous grayscale frame (for tracking)
-- Previous feature points
-- Transform history (deque)
-- Performance metrics
-- Current parameters
+- **OBSスレッド**: プラグインのメインスレッド（フレーム処理）
+- **UIスレッド**: OBSのUIスレッド（プロパティ更新）
+- **スレッドセーフ**: `StabilizerWrapper` がスレッドセーフなインターフェースを提供
 
-**Reset Triggers**:
-- Scene change (large motion detected)
-- Parameter update
-- Manual reset call
+## 6. トレードオフの検討 (Trade-off Analysis)
 
-## Trade-offs
+### 6.1. Point Feature Matching vs SURF/ORB
 
-### Algorithm Choice: Point Feature Matching vs Feature-Based
+| 項目 | Point Feature Matching | SURF/ORB |
+|------|---------------------|-----------|
+| 精度 | 中 | 高 |
+| 計算コスト | 低 (1-4ms/frame) | 高 |
+| メモリ使用量 | 低 | 高 |
+| GPU加速 | 可能 | 可能 |
+| **結論** | **採用** | 採用せず |
 
-**Chosen**: Point Feature Matching (goodFeaturesToTrack + Lucas-Kanade)
+**理由**: リアルタイム性を重視し、Point Feature Matchingを採用
 
-**Rationale**:
-- **Performance**: 1-4ms/frame on HD (vs 10-20ms for ORB/SURF)
-- **Memory**: Low memory footprint (no descriptor storage)
-- **Simplicity**: Single-pass processing, no descriptor matching
+### 6.2. スムージングアルゴリズム
 
-**Trade-off**:
-- Less robust to large scene changes (tracking can fail)
-- Fewer features tracked vs feature-based methods
+| 項目 | ガウシアン | 移動平均 | カルマン |
+|------|----------|---------|--------|
+| 精度 | 中 | 低 | 高 |
+| 計算コスト | 低 | 低 | 高 |
+| 実装難易度 | 低 | 低 | 高 |
+| **結論** | **採用** | 採用せず | 将来検討 |
 
-**Mitigation**:
-- RANSAC for outlier rejection
-- Consecutive failure detection and reset
-- Configurable feature density
+**理由**: バランスの良さと実装の簡潔さからガウシアンを採用
 
-### Single-Threaded vs Multi-Threaded Core
+### 6.3. クロップ vs パディング
 
-**Chosen**: Single-threaded core with thread-safe wrapper
+| 項目 | クロップ | パディング |
+|------|--------|---------|
+| 画質 | 良い | やや劣化 |
+| 画角 | 変化あり | 変化なし |
+| 計算コスト | 低 | 高 |
+| **結論** | **デフォルト採用** | オプションとして提供 |
 
-**Rationale**:
-- **Simplicity**: No race conditions, easier to reason about
-- **Performance**: Mutex-free processing path (fast)
-- **Debugging**: Easier to profile and optimize
+**理由**: パフォーマンスを重視し、クロップをデフォルトに
 
-**Trade-off**:
-- Cannot parallelize frame processing (must be serial)
-- Limited to single CPU core for stabilization
+## 7. ビルド・テスト構成
 
-**Mitigation**:
-- SIMD optimizations for vector operations
-- OpenCV's optimized implementations
-- Future: GPU acceleration via OpenCV CUDA
+### 7.1. ビルドシステム
+- **CMake**: 3.16以上
+- **ビルドツール**: Ninja (推奨)、Make
+- **C++標準**: C++17
 
-### Smoothing: EMA vs Kalman Filter
+### 7.2. 依存ライブラリ
+- **OpenCV**: 4.5以上 (core, imgproc, video, calib3d)
+- **GTest**: 1.14.0以上（テスト用）
+- **OBS**: OBS Studioライブラリ（実行時）
 
-**Chosen**: Exponential Moving Average (EMA)
+### 7.3. テスト構成
+- **単体テスト**: Google Test (GTest)
+- **統合テスト**: 全体フローのテスト
+- **パフォーマンステスト**: ベンチマークツール
+- **メモリリーク検出**: Valgrind / AddressSanitizer
 
-**Rationale**:
-- **Simplicity**: One parameter to tune (alpha)
-- **Performance**: O(1) per frame (vs O(n²) for Kalman)
-- **Predictable**: Stable behavior, less parameter sensitivity
+### 7.4. CI/CD
+- **GitHub Actions**: 自動テスト、静的解析
+- **ワークフロー**:
+  - Build OBS Stabilizer (ビルド)
+  - Quality Assurance (テスト、カバレッジ、静的解析)
+  - Performance Tests (ベンチマーク)
+  - Feature Implementation Flow (事前チェック、単体テスト)
 
-**Trade-off**:
-- Less optimal for highly erratic motion
-- Fixed lag (adaptive with Kalman)
+## 8. 開発スケジュール
 
-**Mitigation**:
-- Configurable smoothing radius (controls alpha)
-- Future: Adaptive EMA based on motion magnitude
+### Phase 1: 基盤構築 (Week 1-2) ✅ 完了
+- [x] OBSプラグインテンプレート設定
+- [x] OpenCV統合
+- [x] 基本的なVideo Filter実装
+- [x] 性能検証プロトタイプ作成
+- [x] テストフレームワーク設定
 
-### Edge Handling: Padding vs Crop
+### Phase 2: コア機能実装 (Week 3-6) ✅ 完了
+- [x] Point Feature Matching実装
+- [x] スムージングアルゴリズム実装
+- [x] エラーハンドリング標準化
+- [x] 単体テスト実装
 
-**Chosen**: All three modes (Padding, Crop, Scale) as options
+### Phase 3: UI/UX・品質保証 (Week 7-8) ✅ 完了
+- [x] 設定パネル作成
+- [x] パフォーマンステスト自動化
+- [x] メモリ管理・リソース最適化
+- [x] 統合テスト環境構築
 
-**Rationale**:
-- **Flexibility**: Different use cases need different handling
-- **User Choice**: Expose as configuration option
-- **Quality**: Crop provides best quality, Scale provides best coverage
+### Phase 4: 最適化・リリース準備 (Week 9-10) - 現在
+- [ ] パフォーマンス調整
+- [ ] クロスプラットフォーム対応
+- [ ] デバッグ・診断機能実装
+- [ ] ドキュメント整備
 
-**Trade-off**:
-- Padding: Black borders visible
-- Crop: Reduced frame size
-- Scale: Potential quality loss
-
-**Mitigation**:
-- Content boundary detection (auto-crop)
-- User can choose based on content
-
-## Performance Considerations
-
-### Critical Path Optimization
-
-1. **Feature Detection** (goodFeaturesToTrack)
-   - Optimized by limiting feature count
-   - Harris detector optional (corners only)
-
-2. **Optical Flow** (calcOpticalFlowPyrLK)
-   - Uses pyramidal approach (faster, more robust)
-   - Early termination on tracking failures
-
-3. **Transform Estimation** (estimateAffinePartial2D)
-   - RANSAC for outlier rejection
-   - Iterative refinement
-
-4. **Frame Warping** (warpAffine)
-   - Single-pass transformation
-   - Interpolation flags configurable
-
-### Memory Management
-
-- **Pre-allocation**: Mats allocated once during initialization
-- **Reuse**: Temporary buffers reused across frames
-- **No allocations**: Processing loop is allocation-free
-- **Smart pointers**: Use std::unique_ptr for OBS frames
-
-### Profiling
-
-Performance metrics tracked:
-- Average processing time
-- Total frames processed
-- Successful frames
-- Tracking failures
-- Transform history size
-
-## Future Enhancements
-
-### Phase 4 (Week 9-10)
-1. **Performance Tuning**
-   - SIMD optimizations for custom functions
-   - Profile hotspots with perf/VTune
-   - Cache optimization
-
-2. **Cross-Platform**
-   - Windows support testing
-   - Linux package dependencies
-   - Platform-specific optimizations
-
-3. **Debug Features**
-   - Visualize feature points
-   - Debug overlay with motion vectors
-   - Performance metrics display
-
-### Phase 5 (Week 11-12)
-1. **CI/CD**
-   - Automated release builds
-   - Plugin packaging for distribution
-   - Version management
-
-2. **Advanced Features** (if needed)
-   - GPU acceleration (OpenCV CUDA)
-   - Adaptive smoothing
-   - Scene change detection
-
-## Testing Strategy
-
-### Unit Tests (tests/)
-- **test_basic.cpp**: Basic functionality
-- **test_stabilizer_core.cpp**: Core algorithm (28 tests)
-- **test_data_generator.cpp**: Test data utilities
-- **test_edge_cases.cpp**: Edge cases and errors
-- **test_integration.cpp**: Full pipeline tests
-- **test_memory_leaks.cpp**: Memory safety
-- **test_visual_quality.cpp**: Quality assessment
-- **test_performance_thresholds.cpp**: Performance validation
-- **test_multi_source.cpp**: Multiple video sources
-- **test_preset_manager.cpp**: Configuration management
-
-### Integration Tests
-- Full pipeline processing (frame in → frame out)
-- OBS plugin loading and operation
-- Property panel interaction
-- Preset save/load
-
-### Performance Tests
-- Benchmarking tools (tools/performance_benchmark.cpp)
-- Real-time capability verification
-- Memory usage profiling
-- CPU utilization measurement
-
-## References
-
-- OpenCV Documentation: https://docs.opencv.org/
-- OBS Plugin API: https://obsproject.com/docs/reference-plugins.html
-- Lucas-Kanade Paper: "An iterative image registration technique with an application to stereo vision" (B.D. Lucas & T. Kanade, 1981)
-- Good Features to Track: "Good Features to Track" (J. Shi & C. Tomasi, 1994)
+### Phase 5: 本格運用準備 (Week 11-12)
+- [ ] CI/CD パイプライン構築
+- [ ] プラグイン配布・インストール機能
+- [ ] セキュリティ・脆弱性対応
+- [ ] コミュニティ・コントリビューション体制構築

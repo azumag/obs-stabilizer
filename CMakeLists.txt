@@ -299,6 +299,9 @@ install(TARGETS obs-stabilizer-opencv
         tests/test_performance_thresholds.cpp
         tests/test_multi_source.cpp
         tests/test_preset_manager.cpp
+        tests/test_thread_safety.cpp
+        tests/test_frame_utils.cpp
+        tests/test_obs_integration.cpp
     )
 
     if(TEST_SOURCES)
@@ -307,6 +310,7 @@ install(TARGETS obs-stabilizer-opencv
             # Add test source files and core source files for testing
             set(TEST_CORE_SOURCES
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_wrapper.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/preset_manager.cpp
             )
 

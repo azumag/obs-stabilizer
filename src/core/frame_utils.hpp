@@ -191,7 +191,7 @@ namespace FRAME_UTILS {
             size_t failed_conversions;
         };
 
-        static ConversionStats get_stats();
+        ConversionStats get_stats();
     }
 
     // Color conversion utilities (available in both modes)

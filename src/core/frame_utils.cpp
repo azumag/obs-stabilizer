@@ -152,7 +152,7 @@ namespace FRAME_UTILS {
     // ============================================================================
 
     obs_source_frame* FrameBuffer::create(const cv::Mat& mat,
-                                         const obs_source_frame* reference_frame) {
+                                          const obs_source_frame* reference_frame) {
         if (mat.empty() || !reference_frame) {
             obs_log(LOG_ERROR, "Invalid input in FrameBuffer::create: mat=%s, ref=%s",
                     mat.empty() ? "empty" : "valid",
@@ -179,8 +179,51 @@ namespace FRAME_UTILS {
                 return nullptr;
             }
 
-            // Calculate required buffer size
-            size_t required_size = converted.total() * converted.elemSize();
+            // Calculate required buffer size based on format
+            size_t required_size = 0;
+            uint32_t linesizes[DATA_PLANES_COUNT] = {0};
+            uint8_t* data_pointers[DATA_PLANES_COUNT] = {nullptr};
+
+            switch (reference_frame->format) {
+                case VIDEO_FORMAT_BGRA:
+                case VIDEO_FORMAT_BGRX:
+                case VIDEO_FORMAT_BGR3:
+                    // Single plane formats
+                    required_size = converted.total() * converted.elemSize();
+                    linesizes[0] = static_cast<uint32_t>(converted.cols * converted.elemSize());
+                    break;
+
+                case VIDEO_FORMAT_NV12:
+                    // NV12: Y plane + interleaved UV plane
+                    {
+                        int width = mat.cols;
+                        int height = mat.rows;
+                        int y_size = width * height;
+                        int uv_size = (width * height) / 4;
+                        required_size = y_size + uv_size * 2;
+                        linesizes[0] = width;
+                    }
+                    break;
+
+                case VIDEO_FORMAT_I420:
+                    // I420: Y + U + V planes
+                    {
+                        int width = mat.cols;
+                        int height = mat.rows;
+                        int y_size = width * height;
+                        int uv_size = (width / 2) * (height / 2);
+                        required_size = y_size + uv_size * 2;
+                        linesizes[0] = width;
+                        linesizes[1] = width / 2;
+                        linesizes[2] = width / 2;
+                    }
+                    break;
+
+                default:
+                    obs_log(LOG_ERROR, "Unsupported output format in FrameBuffer::create: %d", reference_frame->format);
+                    Performance::track_conversion_failure();
+                    return nullptr;
+            }
 
             if (required_size == 0) {
                 obs_log(LOG_ERROR, "Converted matrix has zero size");
@@ -198,15 +241,33 @@ namespace FRAME_UTILS {
                 memset(raii_frame.get(), 0, sizeof(obs_source_frame));
                 copy_frame_metadata(reference_frame, raii_frame.get());
 
-                // Set data pointers - data buffer is managed by RAII wrapper
+                // Set data pointers and linesizes based on format
                 raii_frame.get()->data[0] = raii_frame.get_data_buffer();
-                raii_frame.get()->linesize[0] = static_cast<uint32_t>(converted.step);
+                raii_frame.get()->linesize[0] = linesizes[0];
 
                 // Copy frame data
-                memcpy(raii_frame.get()->data[0], converted.data, required_size);
+                if (reference_frame->format == VIDEO_FORMAT_I420) {
+                    // I420: Copy Y, U, V planes separately
+                    int y_size = mat.cols * mat.rows;
+                    int uv_size = (mat.cols / 2) * (mat.rows / 2);
+                    const uint8_t* src_y = converted.data;
+                    const uint8_t* src_u = converted.data + y_size;
+                    const uint8_t* src_v = src_u + uv_size;
+
+                    memcpy(raii_frame.get()->data[0], src_y, y_size);
+                    raii_frame.get()->data[1] = raii_frame.get()->data[0] + y_size;
+                    memcpy(raii_frame.get()->data[1], src_u, uv_size);
+                    raii_frame.get()->data[2] = raii_frame.get()->data[1] + uv_size;
+                    memcpy(raii_frame.get()->data[2], src_v, uv_size);
+                    raii_frame.get()->linesize[1] = linesizes[1];
+                    raii_frame.get()->linesize[2] = linesizes[2];
+                } else {
+                    // All other formats: single plane copy
+                    memcpy(raii_frame.get()->data[0], converted.data, required_size);
+                }
 
                 // Clear other data planes
-                for (int i = 1; i < DATA_PLANES_COUNT; i++) {
+                for (int i = 3; i < DATA_PLANES_COUNT; i++) {
                     raii_frame.get()->data[i] = nullptr;
                     raii_frame.get()->linesize[i] = 0;
                 }
@@ -262,6 +323,19 @@ namespace FRAME_UTILS {
     cv::Mat FrameBuffer::convert_mat_format(const cv::Mat& mat, uint32_t target_format) {
         cv::Mat converted;
 
+        // Convert to BGR3 first if needed (common intermediate format)
+        cv::Mat bgr_mat;
+        if (mat.channels() == 4) {
+            cv::cvtColor(mat, bgr_mat, cv::COLOR_BGRA2BGR);
+        } else if (mat.channels() == 3) {
+            bgr_mat = mat;
+        } else if (mat.channels() == 1) {
+            cv::cvtColor(mat, bgr_mat, cv::COLOR_GRAY2BGR);
+        } else {
+            obs_log(LOG_ERROR, "Unsupported input channels: %d", mat.channels());
+            return cv::Mat();
+        }
+
         switch (target_format) {
             case VIDEO_FORMAT_BGRA:
                 if (mat.channels() == 4) {
@@ -271,15 +345,41 @@ namespace FRAME_UTILS {
                 }
                 break;
             case VIDEO_FORMAT_BGR3:
-                if (mat.channels() == 3) {
-                    converted = mat;
-                } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGRA2BGR);
+                converted = bgr_mat;
+                break;
+            case VIDEO_FORMAT_NV12:
+                // Convert BGR to I420 first, then rearrange to NV12
+                {
+                    cv::Mat yuv420;
+                    cv::cvtColor(bgr_mat, yuv420, cv::COLOR_BGR2YUV_I420);
+
+                    // Rearrange I420 to NV12 (interleave UV)
+                    int height = mat.rows;
+                    int width = mat.cols;
+                    int y_size = width * height;
+                    int uv_size = (width * height) / 4;
+                    converted.create(height + height / 2, width, CV_8UC1);
+
+                    // Copy Y plane
+                    memcpy(converted.data, yuv420.data, y_size);
+
+                    // Interleave UV plane
+                    const uint8_t* u_plane = yuv420.data + y_size;
+                    const uint8_t* v_plane = u_plane + uv_size;
+                    uint8_t* uv_plane = converted.data + y_size;
+                    for (int i = 0; i < uv_size; i++) {
+                        uv_plane[i * 2] = u_plane[i];
+                        uv_plane[i * 2 + 1] = v_plane[i];
+                    }
                 }
+                break;
+            case VIDEO_FORMAT_I420:
+                // Convert BGR directly to I420
+                cv::cvtColor(bgr_mat, converted, cv::COLOR_BGR2YUV_I420);
                 break;
             default:
                 obs_log(LOG_ERROR, "Unsupported output format: %d", target_format);
-                return mat;
+                return cv::Mat();
         }
 
         return converted;

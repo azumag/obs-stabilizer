@@ -302,7 +302,7 @@ protected:
  * Test: CPU usage increase is within threshold (5%)
  * Acceptance criteria: CPU usage increase when filter is applied should be below threshold (5%)
  */
-TEST_F(PerformanceThresholdTest, DISABLED_CPUUsageWithinThreshold) {
+TEST_F(PerformanceThresholdTest, CPUUsageWithinThreshold) {
     // Measure baseline CPU usage (without stabilizer)
     cpu_tracker->reset();
     auto baseline_frames = TestDataGenerator::generate_test_sequence(
@@ -358,7 +358,7 @@ TEST_F(PerformanceThresholdTest, DISABLED_CPUUsageWithinThreshold) {
  */
 // DISABLED: CPU usage measurement is platform-dependent and unstable in CI environments
 // These tests are useful for local development but not for CI/CD pipelines
-TEST_F(PerformanceThresholdTest, DISABLED_CPUUsageScalesWithResolution) {
+TEST_F(PerformanceThresholdTest, CPUUsageScalesWithResolution) {
     auto params = getDefaultParams();
 
     // Measure CPU usage for VGA
@@ -412,7 +412,7 @@ TEST_F(PerformanceThresholdTest, DISABLED_CPUUsageScalesWithResolution) {
  */
 // DISABLED: CPU usage measurement is platform-dependent and unstable in CI environments
 // These tests are useful for local development but not for CI/CD pipelines
-TEST_F(PerformanceThresholdTest, DISABLED_CPUUsageWithMultipleSources) {
+TEST_F(PerformanceThresholdTest, CPUUsageWithMultipleSources) {
     auto params = getDefaultParams();
 
     // Create 3 stabilizer instances
@@ -673,7 +673,7 @@ TEST_F(PerformanceThresholdTest, ProcessingDelayWithDifferentFeatureCounts) {
  */
 // DISABLED: CPU usage measurement is platform-dependent and unstable in CI environments
 // These tests are useful for local development but not for CI/CD pipelines
-TEST_F(PerformanceThresholdTest, DISABLED_ProcessingDelayConsistency) {
+TEST_F(PerformanceThresholdTest, ProcessingDelayConsistency) {
     auto params = getDefaultParams();
     ASSERT_TRUE(stabilizer->initialize(Resolution::HD_WIDTH, Resolution::HD_HEIGHT, params));
 
