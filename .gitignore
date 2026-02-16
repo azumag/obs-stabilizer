@@ -225,4 +225,4 @@ wheels/
 *.bak
 *.backup
 *.orig
-*.rej
+*.rejcsv
