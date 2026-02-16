@@ -347,11 +347,14 @@ install(TARGETS obs-stabilizer-opencv
           # nlohmann/json-based standalone implementation instead of OBS APIs.
           target_compile_definitions(stabilizer_tests PRIVATE STANDALONE_TEST)
           target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
-      else()
-          # Use stubs for standalone testing
-          target_compile_definitions(stabilizer_tests PRIVATE BUILD_STANDALONE STANDALONE_TEST)
-          target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
-      endif()
+       else()
+           # Use stubs for standalone testing
+           # RATIONALE: obs_minimal.h provides obs_source_frame definition, so we define
+           # HAVE_OBS_HEADERS to enable FRAME_UTILS::Conversion for tests. The actual
+           # OBS API functions will use stubs from obs_minimal.h.
+           target_compile_definitions(stabilizer_tests PRIVATE BUILD_STANDALONE STANDALONE_TEST HAVE_OBS_HEADERS=1)
+           target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
+       endif()
      
      add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
      message(STATUS "Test suite enabled.")
