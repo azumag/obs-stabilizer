@@ -312,16 +312,8 @@ install(TARGETS obs-stabilizer-opencv
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_wrapper.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/preset_manager.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/core/frame_utils.cpp
             )
-
-        # Add frame_utils.cpp if OBS headers are available
-        # RATIONALE: frame_utils.cpp contains implementations for
-        # FRAME_UTILS::Conversion::obs_to_cv() and FRAME_UTILS::Validation::validate_cv_mat()
-        # which are used by tests when HAVE_OBS_HEADERS is defined.
-        # In standalone mode, these are provided as inline implementations in frame_utils.hpp.
-        if(HAVE_OBS_HEADERS)
-            list(APPEND TEST_CORE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/core/frame_utils.cpp)
-        endif()
 
         add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
 
