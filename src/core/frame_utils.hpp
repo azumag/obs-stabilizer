@@ -70,12 +70,10 @@ namespace FRAME_UTILS {
         static cv::Mat convert_mat_format(const cv::Mat& mat, uint32_t target_format);
         static void copy_frame_metadata(const obs_source_frame* src, obs_source_frame* dst);
     };
+#endif
 
     // Validation utilities
     namespace Validation {
-        // Validate OBS frame structure
-        bool validate_obs_frame(const obs_source_frame* frame);
-
         // Validate OpenCV Mat (inline for both OBS and standalone modes)
         // RATIONALE: This is implemented inline to eliminate code duplication.
         // The single implementation serves both OBS mode and standalone mode (testing).
@@ -93,7 +91,7 @@ namespace FRAME_UTILS {
 
             // Validate pixel depth - only 8-bit unsigned formats are supported
             // 16-bit (CV_16UC*) and other formats require different processing pipelines
-            // and are not compatible with the current stabilization algorithms
+            // and are not compatible with current stabilization algorithms
             int depth = mat.depth();
             if (depth != CV_8U) {
                 return false;
@@ -101,7 +99,7 @@ namespace FRAME_UTILS {
 
             // Validate channel count
             // 1-channel (grayscale), 3-channel (BGR), and 4-channel (BGRA) formats are supported
-            // 2-channel formats are not supported by the current processing pipeline
+            // 2-channel formats are not supported by current processing pipeline
             int channels = mat.channels();
             if (channels != 1 && channels != 3 && channels != 4) {
                 return false;
@@ -110,13 +108,15 @@ namespace FRAME_UTILS {
             return true;
         }
 
+#ifdef HAVE_OBS_HEADERS
+        // OBS-specific validation utilities (only available when OBS headers are present)
+        // Validate OBS frame structure
+        bool validate_obs_frame(const obs_source_frame* frame);
+
         // Get error message for invalid frame
         std::string get_frame_error_message(const obs_source_frame* frame);
-    }
-#else
-    // Standalone mode: OBS frame validation is not available, but cv::Mat validation is
-    // The validate_cv_mat() function is defined above and works in both modes
 #endif
+    }
 
     // Performance monitoring (available in both modes)
     // RATIONALE: Tracks conversion failures to help diagnose issues.
