@@ -27,13 +27,13 @@ jobs:
         with:
           platform: ubuntu
 
-      - name: Run tests
-        uses: ./.github/actions/run-tests
+      - name: Build project
+        uses: ./.github/actions/build-project
         with:
           platform: ubuntu
 
-      - name: Build project
-        uses: ./.github/actions/build-project
+      - name: Run tests
+        uses: ./.github/actions/run-tests
         with:
           platform: ubuntu
 
@@ -61,13 +61,13 @@ jobs:
         with:
           platform: windows
 
-      - name: Run tests
-        uses: ./.github/actions/run-tests
+      - name: Build project
+        uses: ./.github/actions/build-project
         with:
           platform: windows
 
-      - name: Build project
-        uses: ./.github/actions/build-project
+      - name: Run tests
+        uses: ./.github/actions/run-tests
         with:
           platform: windows
 
@@ -95,13 +95,13 @@ jobs:
         with:
           platform: macos
 
-      - name: Run tests
-        uses: ./.github/actions/run-tests
+      - name: Build project
+        uses: ./.github/actions/build-project
         with:
           platform: macos
 
-      - name: Build project
-        uses: ./.github/actions/build-project
+      - name: Run tests
+        uses: ./.github/actions/run-tests
         with:
           platform: macos
 
