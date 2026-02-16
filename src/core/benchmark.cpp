@@ -15,11 +15,16 @@
 #include <numeric>
 #include <iostream>
 #include <thread>
+#if defined(__APPLE__) || defined(__linux__)
 #include <unistd.h>
+#endif
 
 #ifdef __APPLE__
 #include <mach/mach.h>
 #include <mach/mach_host.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#include <psapi.h>
 #endif
 
 namespace PERF {
@@ -529,6 +534,11 @@ size_t get_current_memory_usage() {
         }
         fclose(file);
     }
+#elif defined(_WIN32)
+    PROCESS_MEMORY_COUNTERS_EX pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
+        return pmc.PrivateUsage;
+    }
 #endif
     return 0;
 }
@@ -539,6 +549,11 @@ size_t get_peak_memory_usage() {
     mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
     if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &count) == KERN_SUCCESS) {
         return info.resident_size_max;
+    }
+#elif defined(_WIN32)
+    PROCESS_MEMORY_COUNTERS pmc;
+    if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
+        return pmc.PeakWorkingSetSize;
     }
 #endif
     return 0;

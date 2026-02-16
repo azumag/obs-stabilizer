@@ -1,3 +1,5 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include "test_data_generator.hpp"
 #include <opencv2/opencv.hpp>
 

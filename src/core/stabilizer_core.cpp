@@ -323,7 +323,9 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
         }
 
         // Apply maximum correction limit to prevent over-correction
-        const double max_correction = params_.max_correction / 100.0;
+        const double max_correction_ratio = params_.max_correction / 100.0;
+        const double max_translation_x = max_correction_ratio * width_;
+        const double max_translation_y = max_correction_ratio * height_;
         double* ptr = transform.ptr<double>(0);
 
         // Limit rotation and translation components
@@ -335,12 +337,12 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
         constexpr int TX_10 = 3; // a10: shear y
         constexpr int TX_11 = 4; // a11: scale y
         constexpr int TX_12 = 5; // a12: translation y
-        ptr[TX_00] = std::clamp(ptr[TX_00], 1.0 - max_correction, 1.0 + max_correction);
-        ptr[TX_01] = std::clamp(ptr[TX_01], -max_correction, max_correction);
-        ptr[TX_02] = std::clamp(ptr[TX_02], -max_correction, max_correction);
-        ptr[TX_10] = std::clamp(ptr[TX_10], -max_correction, max_correction);
-        ptr[TX_11] = std::clamp(ptr[TX_11], 1.0 - max_correction, 1.0 + max_correction);
-        ptr[TX_12] = std::clamp(ptr[TX_12], -max_correction, max_correction);
+        ptr[TX_00] = std::clamp(ptr[TX_00], 1.0 - max_correction_ratio, 1.0 + max_correction_ratio);
+        ptr[TX_01] = std::clamp(ptr[TX_01], -max_correction_ratio, max_correction_ratio);
+        ptr[TX_02] = std::clamp(ptr[TX_02], -max_translation_x, max_translation_x);
+        ptr[TX_10] = std::clamp(ptr[TX_10], -max_correction_ratio, max_correction_ratio);
+        ptr[TX_11] = std::clamp(ptr[TX_11], 1.0 - max_correction_ratio, 1.0 + max_correction_ratio);
+        ptr[TX_12] = std::clamp(ptr[TX_12], -max_translation_y, max_translation_y);
 
         return transform;
 
