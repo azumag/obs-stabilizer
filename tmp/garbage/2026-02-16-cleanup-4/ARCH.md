@@ -434,6 +434,7 @@ OBS Frame (obs_source_frame)
 - **OpenCV Documentation**: https://docs.opencv.org/
 - **Issue #323**: Update architecture documentation to reflect current design
 - **Issue #324**: macOS fix-plugin-loading.sh and build instructions don't work
+- **docs/ARCHITECTURE.md**: 以前のアーキテクチャドキュメント
 - **docs/plugin-loading-fix-report.md**: プラグインローディング修正レポート
 - **README.md**: プロジェクトのREADME
 - **CLAUDE.md**: プロジェクト開発方針
