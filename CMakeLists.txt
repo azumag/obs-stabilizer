@@ -23,6 +23,8 @@ find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp
         /opt/homebrew/include  # macOS Homebrew (Apple Silicon)
         /usr/local/include      # macOS Homebrew (Intel)
         /usr/include           # Linux system
+        C:/vcpkg/installed/x64-windows/include  # Windows vcpkg
+        $ENV{VCPKG_ROOT}/installed/x64-windows/include  # Windows vcpkg (environment variable)
         ${CMAKE_SOURCE_DIR}/include
 )
 

@@ -104,7 +104,7 @@ runs:
             }
           }
           
-          Write-Host "Installing OpenCV and GTest via vcpkg (this may take a while)..."
-          .\vcpkg install opencv:x64-windows gtest:x64-windows
-          Write-Host "OpenCV and GTest installed successfully"
+          Write-Host "Installing OpenCV, GTest, and nlohmann-json via vcpkg (this may take a while)..."
+          .\vcpkg install opencv:x64-windows gtest:x64-windows nlohmann-json:x64-windows
+          Write-Host "OpenCV, GTest, and nlohmann-json installed successfully"
         }
