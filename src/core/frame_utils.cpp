@@ -188,48 +188,39 @@ namespace FRAME_UTILS {
                 return nullptr;
             }
 
-            // Allocate obs_source_frame and data buffer together
-            // This ensures both are deallocated together
-            uint8_t* data_buffer = new (std::nothrow) uint8_t[required_size];
-            if (!data_buffer) {
-                obs_log(LOG_ERROR, "Failed to allocate data buffer: %zu bytes", required_size);
-                Performance::track_conversion_failure();
-                return nullptr;
-            }
-
-            obs_source_frame* frame = new (std::nothrow) obs_source_frame();
-            if (!frame) {
-                delete[] data_buffer;
-                obs_log(LOG_ERROR, "Failed to allocate obs_source_frame structure");
-                Performance::track_conversion_failure();
-                return nullptr;
-            }
-
-            // Initialize frame structure with exception safety
-            // Wrap operations that could potentially throw to prevent memory leaks
+            // Use RAII wrapper to manage obs_source_frame and data buffer
+            // This addresses code review Issue #2: Manual Memory Management
+            // The wrapper ensures automatic cleanup on any exception or early return
             try {
-                memset(frame, 0, sizeof(obs_source_frame));
-                copy_frame_metadata(reference_frame, frame);
+                OBSFrameRAII raii_frame(required_size);
 
-                // Set data pointers
-                frame->data[0] = data_buffer;
-                frame->linesize[0] = static_cast<uint32_t>(converted.step);
+                // Initialize frame structure with exception safety
+                memset(raii_frame.get(), 0, sizeof(obs_source_frame));
+                copy_frame_metadata(reference_frame, raii_frame.get());
+
+                // Set data pointers - data buffer is managed by RAII wrapper
+                raii_frame.get()->data[0] = raii_frame.get_data_buffer();
+                raii_frame.get()->linesize[0] = static_cast<uint32_t>(converted.step);
 
                 // Copy frame data
-                memcpy(frame->data[0], converted.data, required_size);
+                memcpy(raii_frame.get()->data[0], converted.data, required_size);
 
                 // Clear other data planes
                 for (int i = 1; i < DATA_PLANES_COUNT; i++) {
-                    frame->data[i] = nullptr;
-                    frame->linesize[i] = 0;
+                    raii_frame.get()->data[i] = nullptr;
+                    raii_frame.get()->linesize[i] = 0;
                 }
 
-                return frame;
+                // Release ownership of frame - caller is now responsible for cleanup
+                return raii_frame.release();
 
+            } catch (const std::bad_alloc& e) {
+                // RAII wrapper handles cleanup automatically on exception
+                obs_log(LOG_ERROR, "Memory allocation failed in FrameBuffer::create: %s", e.what());
+                Performance::track_conversion_failure();
+                return nullptr;
             } catch (...) {
-                // Clean up resources if any exception occurs during initialization
-                delete[] data_buffer;
-                delete frame;
+                // RAII wrapper handles cleanup automatically on any exception
                 obs_log(LOG_ERROR, "Exception during frame buffer initialization");
                 Performance::track_conversion_failure();
                 return nullptr;
@@ -252,12 +243,15 @@ namespace FRAME_UTILS {
         }
 
         try {
-            // Free data buffer
+            // Free data buffer first (allocated by OBSFrameRAII)
+            // Note: When OBSFrameRAII::release() is called, data_buffer ownership
+            // is transferred to the caller, so we must delete it here
             if (frame->data[0]) {
                 delete[] frame->data[0];
+                frame->data[0] = nullptr;
             }
 
-            // Free frame structure
+            // Free frame structure (allocated by OBSFrameRAII)
             delete frame;
 
         } catch (const std::exception& e) {
@@ -372,10 +366,10 @@ namespace FRAME_UTILS {
     // Performance Implementation
     // ============================================================================
 
-    // NOTE: Mutex and atomic operations are not used because OBS filters are
-    // single-threaded by design. This Performance namespace is used in test
-    // environments only, where no multi-threading occurs. See stabilizer_core.hpp
-    // for architectural rationale.
+    // NOTE: Using std::atomic for thread-safety. While OBS filters are
+    // single-threaded by design, this ensures correctness in test environments
+    // and potential future multi-threading scenarios. The atomic operations
+    // have minimal overhead and provide safe access to statistics.
     //
     // REFACTORED: Removed unused total_time and total_conversions tracking to eliminate misleading metrics.
     // Detailed timing metrics are provided by StabilizerCore::PerformanceMetrics.
@@ -383,7 +377,7 @@ namespace FRAME_UTILS {
 
     namespace {
         struct PerformanceData {
-            size_t failed_conversions{0};
+            std::atomic<size_t> failed_conversions{0};
         };
 
         PerformanceData* get_perf_data() {
@@ -394,18 +388,17 @@ namespace FRAME_UTILS {
     }
 
     void Performance::track_conversion_failure() {
-        // No mutex needed - single-threaded design
+        // Atomic operation - thread-safe with minimal overhead
         PerformanceData* data = get_perf_data();
-        data->failed_conversions++;
+        data->failed_conversions.fetch_add(1, std::memory_order_relaxed);
     }
 
     Performance::ConversionStats Performance::get_stats() {
-        // No mutex needed - single-threaded design
-
+        // Atomic load operation - thread-safe
         PerformanceData* data = get_perf_data();
 
         ConversionStats stats;
-        stats.failed_conversions = data->failed_conversions;
+        stats.failed_conversions = data->failed_conversions.load(std::memory_order_relaxed);
 
         return stats;
     }

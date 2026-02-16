@@ -19,6 +19,7 @@
 #include <string>
 #include <climits>
 #include <cstring>
+#include <atomic>
 
 namespace FRAME_UTILS {
 
@@ -69,6 +70,65 @@ namespace FRAME_UTILS {
         // Format conversion helpers
         static cv::Mat convert_mat_format(const cv::Mat& mat, uint32_t target_format);
         static void copy_frame_metadata(const obs_source_frame* src, obs_source_frame* dst);
+
+        // RAII wrapper for obs_source_frame to ensure proper memory management
+        // This addresses the code review Issue #2: Manual Memory Management
+        class OBSFrameRAII {
+        private:
+            obs_source_frame* frame_;
+            std::unique_ptr<uint8_t[]> data_buffer_;
+
+            // Prevent copying - single ownership model
+            OBSFrameRAII(const OBSFrameRAII&) = delete;
+            OBSFrameRAII& operator=(const OBSFrameRAII&) = delete;
+
+        public:
+            // Constructor - allocates data buffer and frame structure
+            // Uses RAII pattern to ensure resources are properly managed
+            explicit OBSFrameRAII(size_t data_size) {
+                // Allocate data buffer with unique_ptr for automatic cleanup
+                data_buffer_ = std::make_unique<uint8_t[]>(data_size);
+
+                // Allocate frame structure (OBS requires heap allocation)
+                // Using new (nothrow) to avoid exceptions during allocation failure
+                frame_ = new (std::nothrow) obs_source_frame();
+                if (!frame_) {
+                    data_buffer_.reset();  // Clean up buffer allocation
+                    throw std::bad_alloc();
+                }
+            }
+
+            // Destructor - cleans up both frame and data buffer
+            // data_buffer_ is automatically freed by unique_ptr
+            ~OBSFrameRAII() {
+                if (frame_) {
+                    delete frame_;
+                    frame_ = nullptr;
+                }
+                // data_buffer_ is automatically freed by unique_ptr destructor
+            }
+
+            // Get raw pointer to frame structure
+            obs_source_frame* get() const { return frame_; }
+
+            // Get raw pointer to data buffer
+            uint8_t* get_data_buffer() const { return data_buffer_.get(); }
+
+            // Release ownership of frame structure
+            // Caller becomes responsible for deleting the frame and its data buffer
+            // Returns the frame pointer and transfers ownership
+            obs_source_frame* release() {
+                obs_source_frame* tmp = frame_;
+                frame_ = nullptr;
+                // data_buffer_ is still owned by this wrapper, so we must transfer it
+                // The caller is now responsible for deleting data_buffer_ when done
+                uint8_t* buffer_ptr = data_buffer_.release();
+                if (tmp) {
+                    tmp->data[0] = buffer_ptr;
+                }
+                return tmp;
+            }
+        };
     };
 #endif
 
