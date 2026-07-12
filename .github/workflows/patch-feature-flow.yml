@@ -1,0 +1,48 @@
+name: Patch Feature Flow Check
+
+on:
+  push:
+    branches:
+      - test/317-thread-sanitizer
+    paths:
+      - '.github/workflows/patch-feature-flow.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: test/317-thread-sanitizer
+          fetch-depth: 0
+
+      - name: Add repository coordinates to Checks API call
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('.github/workflows/flow-implement.yml')
+          text = path.read_text(encoding='utf-8')
+          old = "github.rest.checks.create({\n              name:"
+          new = (
+              "github.rest.checks.create({\n"
+              "              owner: context.repo.owner,\n"
+              "              repo: context.repo.repo,\n"
+              "              name:"
+          )
+          if old not in text:
+              raise SystemExit('Expected Checks API call was not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/flow-implement.yml
+          git commit -m 'ci: fix Feature Flow check status creation'
+          git push origin HEAD:test/317-thread-sanitizer
