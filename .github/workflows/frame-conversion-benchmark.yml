@@ -1,0 +1,55 @@
+name: Frame Conversion Benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/frame_utils.*'
+      - 'tests/frame_conversion_benchmark.cpp'
+      - '.github/workflows/frame-conversion-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frame-conversion-benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenCV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopencv-dev pkg-config
+
+      - name: Build benchmark
+        run: |
+          mkdir -p tmp/builds/frame-conversion
+          c++ -std=c++17 -O2 -Wall -Wextra -Werror \
+            -DBUILD_STANDALONE -DSTANDALONE_TEST -DHAVE_OBS_HEADERS=1 \
+            -Isrc -Iinclude \
+            tests/frame_conversion_benchmark.cpp src/core/frame_utils.cpp \
+            $(pkg-config --cflags --libs opencv4) \
+            -o tmp/builds/frame-conversion/frame_conversion_benchmark
+
+      - name: Run benchmark
+        run: |
+          set -o pipefail
+          mkdir -p tmp/reports/frame-conversion
+          tmp/builds/frame-conversion/frame_conversion_benchmark \
+            | tee tmp/reports/frame-conversion/results.txt
+
+      - name: Upload benchmark result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frame-conversion-benchmark
+          path: tmp/reports/frame-conversion/results.txt
+          if-no-files-found: error
+          retention-days: 14
