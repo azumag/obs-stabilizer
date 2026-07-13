@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 
 namespace stabilizer::image {
@@ -26,6 +27,11 @@ constexpr std::size_t channels_for(PixelFormat format) noexcept
     return 0;
 }
 
+constexpr bool can_multiply(std::size_t left, std::size_t right) noexcept
+{
+    return right == 0 || left <= (std::numeric_limits<std::size_t>::max() / right);
+}
+
 struct ImageView {
     std::uint8_t* data = nullptr;
     std::size_t width = 0;
@@ -40,13 +46,14 @@ struct ImageView {
 
     [[nodiscard]] constexpr std::size_t minimum_stride() const noexcept
     {
-        return width * channels();
+        return can_multiply(width, channels()) ? width * channels() : 0;
     }
 
     [[nodiscard]] constexpr bool is_valid() const noexcept
     {
         return data != nullptr && width > 0 && height > 0 &&
-               channels() > 0 && stride >= minimum_stride();
+               channels() > 0 && minimum_stride() > 0 &&
+               stride >= minimum_stride() && can_multiply(stride, height);
     }
 
     [[nodiscard]] constexpr std::size_t byte_size() const noexcept
@@ -95,13 +102,14 @@ struct ConstImageView {
 
     [[nodiscard]] constexpr std::size_t minimum_stride() const noexcept
     {
-        return width * channels();
+        return can_multiply(width, channels()) ? width * channels() : 0;
     }
 
     [[nodiscard]] constexpr bool is_valid() const noexcept
     {
         return data != nullptr && width > 0 && height > 0 &&
-               channels() > 0 && stride >= minimum_stride();
+               channels() > 0 && minimum_stride() > 0 &&
+               stride >= minimum_stride() && can_multiply(stride, height);
     }
 
     [[nodiscard]] constexpr std::size_t byte_size() const noexcept
