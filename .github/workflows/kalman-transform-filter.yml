@@ -1,0 +1,35 @@
+name: Kalman Transform Filter
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/kalman_transform_filter.*'
+      - 'tests/test_kalman_transform_filter.cpp'
+      - '.github/workflows/kalman-transform-filter.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: kalman-transform-filter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopencv-dev libgtest-dev cmake ninja-build
+      - name: Build focused tests
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            tests/test_kalman_transform_filter.cpp \
+            src/core/kalman_transform_filter.cpp \
+            -Isrc $(pkg-config --cflags opencv4) \
+            -lgtest -lgtest_main -pthread \
+            $(pkg-config --libs opencv4) \
+            -o kalman_transform_filter_tests
+      - name: Run focused tests
+        run: ./kalman_transform_filter_tests --gtest_color=yes
