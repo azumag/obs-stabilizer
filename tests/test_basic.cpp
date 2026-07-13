@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
+#include <cstdint>
+#include <vector>
 #include "test_constants.hpp"
 #include "test_data_generator.hpp"
 
@@ -18,7 +20,7 @@ protected:
 
 TEST_F(BasicTest, TestOpenCVInitialization) {
     cv::Mat test_frame = TestDataGenerator::generate_test_frame(
-        Resolution::VGA_WIDTH, 
+        Resolution::VGA_WIDTH,
         Resolution::VGA_HEIGHT
     );
     EXPECT_FALSE(test_frame.empty());
@@ -48,7 +50,7 @@ TEST_F(BasicTest, TestSequenceGeneration) {
         "static"
     );
     EXPECT_EQ(frames.size(), FrameCount::STANDARD_SEQUENCE);
-    
+
     for (const auto& frame : frames) {
         EXPECT_FALSE(frame.empty());
         EXPECT_EQ(frame.cols, Resolution::VGA_WIDTH);
@@ -82,8 +84,8 @@ TEST_F(BasicTest, TestComprehensiveTestData) {
 TEST_F(BasicTest, TestHorizontalMotionFrame) {
     cv::Mat base_frame = TestDataGenerator::generate_test_frame(640, 480);
     cv::Mat h_motion = TestDataGenerator::generate_horizontal_motion_frame(
-        base_frame, 
-        5, 
+        base_frame,
+        5,
         FrameCount::STANDARD_SEQUENCE
     );
     EXPECT_FALSE(h_motion.empty());
@@ -92,8 +94,8 @@ TEST_F(BasicTest, TestHorizontalMotionFrame) {
 TEST_F(BasicTest, TestVerticalMotionFrame) {
     cv::Mat base_frame = TestDataGenerator::generate_test_frame(640, 480);
     cv::Mat v_motion = TestDataGenerator::generate_vertical_motion_frame(
-        base_frame, 
-        5, 
+        base_frame,
+        5,
         FrameCount::STANDARD_SEQUENCE
     );
     EXPECT_FALSE(v_motion.empty());
@@ -102,9 +104,9 @@ TEST_F(BasicTest, TestVerticalMotionFrame) {
 TEST_F(BasicTest, TestRotationFrame) {
     cv::Mat base_frame = TestDataGenerator::generate_test_frame(640, 480);
     cv::Mat rot_frame = TestDataGenerator::generate_rotation_frame(
-        base_frame, 
-        5, 
-        FrameCount::STANDARD_SEQUENCE, 
+        base_frame,
+        5,
+        FrameCount::STANDARD_SEQUENCE,
         Motion::MEDIUM_ROTATION
     );
     EXPECT_FALSE(rot_frame.empty());
@@ -113,9 +115,9 @@ TEST_F(BasicTest, TestRotationFrame) {
 TEST_F(BasicTest, TestZoomFrame) {
     cv::Mat base_frame = TestDataGenerator::generate_test_frame(640, 480);
     cv::Mat zoom_frame = TestDataGenerator::generate_zoom_frame(
-        base_frame, 
-        5, 
-        FrameCount::STANDARD_SEQUENCE, 
+        base_frame,
+        5,
+        FrameCount::STANDARD_SEQUENCE,
         1.02f
     );
     EXPECT_FALSE(zoom_frame.empty());
@@ -163,44 +165,71 @@ TEST_F(BasicTest, TestProcessingConstants) {
 
 #ifdef HAVE_OBS_HEADERS
 TEST_F(BasicTest, TestFrameDimensionValidation) {
-    // Test that maximum dimension constants are properly defined
     EXPECT_GT(FRAME_UTILS::MAX_FRAME_WIDTH, 0u);
     EXPECT_GT(FRAME_UTILS::MAX_FRAME_HEIGHT, 0u);
-    
-    // Test reasonable limits (16K is safe upper bound)
+
     EXPECT_EQ(FRAME_UTILS::MAX_FRAME_WIDTH, 16384u);
     EXPECT_EQ(FRAME_UTILS::MAX_FRAME_HEIGHT, 16384u);
 }
 
 TEST_F(BasicTest, TestOverflowProtectionLargeFrame) {
-    // Test with frame dimensions near overflow point
-    // This validates that the code rejects oversized frames
-    obs_source_frame frame;
-    frame.width = 20000;  // Exceeds MAX_FRAME_WIDTH
-    frame.height = 20000; // Exceeds MAX_FRAME_HEIGHT
+    obs_source_frame frame{};
+    frame.width = 20000;
+    frame.height = 20000;
     frame.format = VIDEO_FORMAT_BGRA;
     frame.data[0] = nullptr;
-    
-    // Should return empty matrix for invalid dimensions
+
     cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
     EXPECT_TRUE(result.empty());
 }
 
 TEST_F(BasicTest, TestOverflowProtectionZeroDimension) {
-    // Test with zero dimensions (edge case)
-    obs_source_frame frame;
+    obs_source_frame frame{};
     frame.width = 0;
     frame.height = 480;
     frame.format = VIDEO_FORMAT_BGRA;
     frame.data[0] = nullptr;
-    
+
     cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
     EXPECT_TRUE(result.empty());
-    
-    // Test other zero dimension
+
     frame.width = 640;
     frame.height = 0;
     result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
+    EXPECT_TRUE(result.empty());
+}
+
+TEST_F(BasicTest, TestUnsupportedObsFormatReturnsEmpty) {
+    constexpr uint32_t width = 32;
+    constexpr uint32_t height = 32;
+    std::vector<uint8_t> pixels(width * height * 4, 0);
+
+    obs_source_frame frame{};
+    frame.width = width;
+    frame.height = height;
+    frame.linesize[0] = width * 4;
+    frame.data[0] = pixels.data();
+    frame.format = static_cast<video_format>(UINT32_MAX);
+
+    cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
+    EXPECT_TRUE(result.empty());
+}
+
+TEST_F(BasicTest, TestI420MissingChromaPlaneReturnsEmpty) {
+    constexpr uint32_t width = 32;
+    constexpr uint32_t height = 32;
+    std::vector<uint8_t> luma(width * height, 0);
+
+    obs_source_frame frame{};
+    frame.width = width;
+    frame.height = height;
+    frame.linesize[0] = width;
+    frame.data[0] = luma.data();
+    frame.data[1] = nullptr;
+    frame.data[2] = nullptr;
+    frame.format = VIDEO_FORMAT_I420;
+
+    cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
     EXPECT_TRUE(result.empty());
 }
 #endif
