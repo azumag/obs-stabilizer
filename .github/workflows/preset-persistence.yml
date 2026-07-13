@@ -1,0 +1,68 @@
+name: Preset Persistence
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/preset_manager.*'
+      - 'src/core/stabilizer_core.*'
+      - 'tests/test_preset_manager.cpp'
+      - 'CMakeLists.txt'
+      - '.github/workflows/preset-persistence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preset-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preset-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            g++ \
+            libgtest-dev \
+            libopencv-dev \
+            nlohmann-json3-dev
+
+      - name: Configure standalone test build
+        run: |
+          cmake -S . -B build-preset-tests \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_PERFORMANCE_TESTS=OFF
+
+      - name: Build preset tests
+        run: cmake --build build-preset-tests --target stabilizer_tests --parallel 2
+
+      - name: Run preset persistence suite
+        env:
+          HOME: ${{ runner.temp }}/preset-home
+        run: |
+          mkdir -p "$HOME"
+          set -o pipefail
+          ./build-preset-tests/stabilizer_tests \
+            --gtest_filter='PresetManagerTest.*' \
+            --gtest_output=xml:preset-test-results.xml \
+            2>&1 | tee preset-test-output.log
+
+      - name: Upload preset test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preset-persistence-results
+          path: |
+            preset-test-results.xml
+            preset-test-output.log
+          if-no-files-found: error
+          retention-days: 14
