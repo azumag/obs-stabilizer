@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <limits>
 
 using stabilizer::image::ConstImageView;
 using stabilizer::image::ImageView;
@@ -48,6 +49,15 @@ int main()
     ImageView short_stride{pixels.data(), 4, 2, 15, PixelFormat::Bgra8};
     assert(!short_stride.is_valid());
     assert(!short_stride.row(0).has_value());
+
+    const auto maximum = std::numeric_limits<std::size_t>::max();
+    ImageView width_overflow{pixels.data(), maximum, 1, maximum, PixelFormat::Bgra8};
+    assert(!width_overflow.is_valid());
+    assert(width_overflow.minimum_stride() == 0);
+
+    ImageView byte_size_overflow{pixels.data(), 1, maximum, 4, PixelFormat::Bgra8};
+    assert(!byte_size_overflow.is_valid());
+    assert(byte_size_overflow.byte_size() == 0);
 
     return 0;
 }
