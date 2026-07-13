@@ -105,10 +105,30 @@ jobs:
         with:
           platform: macos
 
+      - name: Validate and stage plugin artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_path="$(find build -type f \
+            \( -name 'obs-stabilizer-opencv.so' -o -name 'obs-stabilizer-opencv.dylib' \) \
+            -print -quit)"
+
+          if [[ -z "${artifact_path}" ]]; then
+            echo "::error::macOS plugin artifact was not produced. Expected obs-stabilizer-opencv.so or obs-stabilizer-opencv.dylib under build/."
+            echo "Files currently present under build/:"
+            find build -maxdepth 4 -type f -print | sort || true
+            exit 1
+          fi
+
+          mkdir -p tmp/artifacts/macos
+          cp "${artifact_path}" tmp/artifacts/macos/
+          echo "Staged macOS plugin artifact: ${artifact_path}"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: obs-stabilizer-macos-${{ github.run_number }}
           retention-days: 30
-          path: |
-            build/obs-stabilizer-opencv.so
+          if-no-files-found: error
+          path: tmp/artifacts/macos/
