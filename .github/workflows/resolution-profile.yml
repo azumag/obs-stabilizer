@@ -1,0 +1,28 @@
+name: Resolution Profile Policy
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/resolution_profile.hpp'
+      - 'tests/resolution_profile_test.cpp'
+      - '.github/workflows/resolution-profile.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: resolution-profile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build standalone test
+        run: |
+          mkdir -p tmp/builds/resolution-profile
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            tests/resolution_profile_test.cpp \
+            -o tmp/builds/resolution-profile/resolution_profile_test
+      - name: Run standalone test
+        run: tmp/builds/resolution-profile/resolution_profile_test
