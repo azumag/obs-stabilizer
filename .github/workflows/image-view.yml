@@ -1,0 +1,31 @@
+name: Image View Abstraction
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/image_view.hpp'
+      - 'tests/image_view_test.cpp'
+      - '.github/workflows/image-view.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: image-view-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image-view:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image view regression test
+        run: |
+          mkdir -p tmp/tests
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            tests/image_view_test.cpp \
+            -o tmp/tests/image_view_test
+
+      - name: Run image view regression test
+        run: tmp/tests/image_view_test
