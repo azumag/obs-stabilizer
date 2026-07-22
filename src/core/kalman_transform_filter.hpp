@@ -17,7 +17,8 @@ public:
         float initial_error = 1.0f;
     };
 
-    explicit KalmanTransformFilter(const NoiseConfig& config = {});
+    KalmanTransformFilter();
+    explicit KalmanTransformFilter(const NoiseConfig& config);
 
     cv::Vec4f update(const cv::Vec4f& measurement, float delta_time = 1.0f);
     cv::Vec4f predict(float delta_time = 1.0f);
