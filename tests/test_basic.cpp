@@ -209,7 +209,7 @@ TEST_F(BasicTest, TestUnsupportedObsFormatReturnsEmpty) {
     frame.height = height;
     frame.linesize[0] = width * 4;
     frame.data[0] = pixels.data();
-    frame.format = static_cast<video_format>(UINT32_MAX);
+    frame.format = static_cast<decltype(frame.format)>(UINT32_MAX);
 
     cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
     EXPECT_TRUE(result.empty());
