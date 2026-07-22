@@ -52,7 +52,16 @@ runs:
       if: inputs.platform == 'macos'
       shell: bash
       run: |
-        brew install cmake ninja opencv pkg-config googletest nlohmann-json || brew upgrade cmake ninja opencv pkg-config googletest nlohmann-json
+        # The unversioned Homebrew formula now provides OpenCV 5, whose default
+        # package does not expose all modules required by this project. Keep the
+        # CI build on the compatible OpenCV 4 formula until OpenCV 5 support is
+        # implemented and tested explicitly.
+        brew install cmake ninja opencv@4 pkg-config googletest nlohmann-json
+
+        opencv_prefix="$(brew --prefix opencv@4)"
+        echo "OpenCV_DIR=${opencv_prefix}/lib/cmake/opencv4" >> "${GITHUB_ENV}"
+        echo "CMAKE_PREFIX_PATH=${opencv_prefix}:${CMAKE_PREFIX_PATH:-}" >> "${GITHUB_ENV}"
+        echo "PKG_CONFIG_PATH=${opencv_prefix}/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >> "${GITHUB_ENV}"
 
     - name: Setup MSVC (Windows)
       if: inputs.platform == 'windows'
