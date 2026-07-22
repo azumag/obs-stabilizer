@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <stdexcept>
 
+KalmanTransformFilter::KalmanTransformFilter()
+    : KalmanTransformFilter(NoiseConfig{}) {}
+
 KalmanTransformFilter::KalmanTransformFilter(const NoiseConfig& config)
     : filter_(8, 4, 0, CV_32F), config_(config) {
     if (config_.process_noise <= 0.0f || config_.measurement_noise <= 0.0f ||
