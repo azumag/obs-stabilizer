@@ -60,13 +60,29 @@ cmake \
 	"-DSEARCH_DIRS=${SEARCH_DIRS_VALUE}" \
 	-P "${PROJECT_ROOT}/cmake/BundledOpenCV.cmake"
 
-BINARY_DEPENDENCIES=$(otool -L "${BINARY_PATH}")
-if printf '%s\n' "${BINARY_DEPENDENCIES}" | grep -Fq '@executable_path/../Frameworks/'; then
-	printf "Error: Plugin dependencies must use @loader_path, not @executable_path\n" >&2
-	exit 1
+# OBS loads plugin modules with dlopen(). Reject executable-relative framework
+# references in both the plugin and its bundled libraries because
+# @executable_path resolves from OBS.app rather than from the plugin bundle.
+VERIFY_ITEMS=("${BINARY_PATH}")
+FRAMEWORKS_DIR="${PLUGIN_PATH}/Contents/Frameworks"
+if [ -d "${FRAMEWORKS_DIR}" ]; then
+	while IFS= read -r dependency; do
+		VERIFY_ITEMS+=("${dependency}")
+	done < <(find "${FRAMEWORKS_DIR}" -maxdepth 1 -type f -print)
 fi
+
+for item in "${VERIFY_ITEMS[@]}"; do
+	ITEM_DEPENDENCIES=$(otool -L "${item}")
+	if [[ "${ITEM_DEPENDENCIES}" == *"@executable_path/../Frameworks"* ]]; then
+		printf "Error: executable-relative bundled dependency remains in %s\n" "${item}" >&2
+		printf '%s\n' "${ITEM_DEPENDENCIES}" >&2
+		exit 1
+	fi
+done
+
+BINARY_DEPENDENCIES=$(otool -L "${BINARY_PATH}")
 if [ -n "$(find "${PLUGIN_PATH}/Contents/Frameworks" -maxdepth 1 -type f -print -quit)" ] && \
-	! printf '%s\n' "${BINARY_DEPENDENCIES}" | grep -Fq '@loader_path/../Frameworks/'; then
+	[[ "${BINARY_DEPENDENCIES}" != *"@loader_path/../Frameworks/"* ]]; then
 	printf "Error: Plugin does not reference its bundled Frameworks via @loader_path\n" >&2
 	exit 1
 fi
