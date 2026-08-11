@@ -22,7 +22,7 @@ if [ -z "${BINARY_PATH}" ]; then
 	exit 1
 fi
 
-for command in cmake codesign; do
+for command in cmake codesign otool; do
 	if ! command -v "${command}" >/dev/null 2>&1; then
 		printf "Error: Required command not found: %s\n" "${command}" >&2
 		exit 1
@@ -59,6 +59,25 @@ cmake \
 	"-DBINARY_PATH=${BINARY_PATH}" \
 	"-DSEARCH_DIRS=${SEARCH_DIRS_VALUE}" \
 	-P "${PROJECT_ROOT}/cmake/BundledOpenCV.cmake"
+
+# OBS loads plugin modules with dlopen(). Reject executable-relative framework
+# references because @executable_path resolves from OBS.app rather than from
+# the plugin bundle. All bundled references must use @loader_path instead.
+VERIFY_ITEMS=("${BINARY_PATH}")
+FRAMEWORKS_DIR="${PLUGIN_PATH}/Contents/Frameworks"
+if [ -d "${FRAMEWORKS_DIR}" ]; then
+	while IFS= read -r dependency; do
+		VERIFY_ITEMS+=("${dependency}")
+	done < <(find "${FRAMEWORKS_DIR}" -maxdepth 1 -type f -print)
+fi
+
+for item in "${VERIFY_ITEMS[@]}"; do
+	if otool -L "${item}" | grep -Fq '@executable_path/../Frameworks'; then
+		printf "Error: executable-relative bundled dependency remains in %s\n" "${item}" >&2
+		otool -L "${item}" >&2
+		exit 1
+	fi
+done
 
 codesign --force --deep --sign - "${PLUGIN_PATH}"
 codesign --verify --deep --strict "${PLUGIN_PATH}"
