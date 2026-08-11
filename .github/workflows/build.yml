@@ -154,5 +154,6 @@ jobs:
         with:
           name: obs-stabilizer-macos-${{ github.run_number }}
           retention-days: 30
+          if-no-files-found: error
           path: |
             build/obs-stabilizer-macos.zip
