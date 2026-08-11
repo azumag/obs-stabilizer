@@ -60,7 +60,7 @@ void verifies_bgr3_view_uses_three_channels() {
 }
 
 void rejects_planar_and_invalid_frames() {
-    std::vector<uint8_t> storage(32, 0);
+    std::vector<uint8_t> storage(64, 0);
     auto planar = make_frame(VIDEO_FORMAT_NV12, 4, 4, 4, storage.data());
     assert(FRAME_UTILS::Conversion::obs_to_cv_view(&planar).empty());
 
@@ -69,6 +69,12 @@ void rejects_planar_and_invalid_frames() {
 
     auto null_data = make_frame(VIDEO_FORMAT_BGRA, 4, 4, 16, nullptr);
     assert(FRAME_UTILS::Conversion::obs_to_cv_view(&null_data).empty());
+
+    auto short_bgra_stride = make_frame(VIDEO_FORMAT_BGRA, 4, 2, 15, storage.data());
+    assert(FRAME_UTILS::Conversion::obs_to_cv_view(&short_bgra_stride).empty());
+
+    auto short_bgr3_stride = make_frame(VIDEO_FORMAT_BGR3, 4, 2, 11, storage.data());
+    assert(FRAME_UTILS::Conversion::obs_to_cv_view(&short_bgr3_stride).empty());
 
     assert(FRAME_UTILS::Conversion::obs_to_cv_view(nullptr).empty());
 }
