@@ -54,10 +54,6 @@ static void apply_preset(obs_data_t *settings, const char *preset_name);
 static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *settings);
 static void params_to_settings(const StabilizerCore::StabilizerParams& params, obs_data_t *settings);
 
-// Frame conversion functions
-static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame);
-static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame);
-
 // Plugin structure definition
 static struct obs_source_info stabilizer_filter_info = {
     .id = "stabilizer_filter",
@@ -176,8 +172,9 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
             blog(LOG_INFO, "[obs-stabilizer] Stabilizer initialized for %dx%d", frame->width, frame->height);
         }
 
-        // Convert OBS frame to OpenCV Mat
-        cv::Mat cv_frame = obs_frame_to_cv_mat(frame);
+        // Use the shared conversion API directly so all format handling, validation,
+        // conversion metrics, and buffer ownership stay centralized in FrameUtils.
+        cv::Mat cv_frame = FRAME_UTILS::Conversion::obs_to_cv(frame);
         if (cv_frame.empty()) {
             blog(LOG_ERROR, "[obs-stabilizer] Failed to convert OBS frame to OpenCV Mat");
             return frame;
@@ -196,8 +193,9 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
         context->frame_count++;
         context->avg_processing_time = (context->avg_processing_time * (context->frame_count - 1) + processing_time) / context->frame_count;
 
-        // Convert back to OBS frame
-        obs_source_frame* result = cv_mat_to_obs_frame(stabilized_frame, frame);
+        // Convert back through the same shared API. Conversion::cv_to_obs delegates
+        // output allocation and metadata copying to FrameBuffer.
+        obs_source_frame* result = FRAME_UTILS::Conversion::cv_to_obs(stabilized_frame, frame);
 
         return result ? result : frame;
 
@@ -425,49 +423,6 @@ static void params_to_settings(const StabilizerCore::StabilizerParams& params, o
             break;
     }
     obs_data_set_string(settings, "edge_handling", edge_str);
-}
-
-// Frame conversion functions using centralized utilities
-static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
-{
-    if (!frame || !frame->data[0]) {
-        return cv::Mat();
-    }
-    
-    try {
-        // Use centralized frame conversion utility
-        return FRAME_UTILS::Conversion::obs_to_cv(frame);
-        
-    } catch (const cv::Exception& e) {
-        blog(LOG_ERROR, "[obs-stabilizer] OpenCV exception in obs_frame_to_cv_mat: %s", e.what());
-        return cv::Mat();
-    }
-}
-
-/**
- * Converts an OpenCV Mat to an OBS source frame using centralized utilities.
- *
- * This function creates a complete copy of frame data and does NOT modify the reference frame.
- * Uses FRAME_UTILS::FrameBuffer for thread-safe buffer management.
- *
- * @param mat The OpenCV matrix to convert
- * @param reference_frame The reference frame to copy metadata from
- * @return Pointer to internal buffer with the converted data, or nullptr on error
- */
-static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame)
-{
-    if (mat.empty() || !reference_frame) {
-        return nullptr;
-    }
-    
-    try {
-        // Use centralized frame conversion utility with thread-safe buffer management
-        return FRAME_UTILS::FrameBuffer::create(mat, reference_frame);
-        
-    } catch (const std::exception& e) {
-        blog(LOG_ERROR, "[obs-stabilizer] Exception in cv_mat_to_obs_frame: %s", e.what());
-        return nullptr;
-    }
 }
 #endif // HAVE_OBS_HEADERS
 
