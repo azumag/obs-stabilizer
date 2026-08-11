@@ -24,8 +24,8 @@ namespace FRAME_UTILS {
         // Validate frame dimensions to prevent integer overflow
         if (frame->width == 0 || frame->height == 0 ||
             frame->width > MAX_FRAME_WIDTH || frame->height > MAX_FRAME_HEIGHT) {
-            obs_log(LOG_ERROR, "Invalid frame dimensions: %ux%u (max: %ux%u)",
-                     frame->width, frame->height, MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT);
+            blog(LOG_ERROR, "[obs-stabilizer] Invalid frame dimensions: %ux%u (max: %ux%u)",
+                 frame->width, frame->height, MAX_FRAME_WIDTH, MAX_FRAME_HEIGHT);
             Performance::track_conversion_failure();
             return cv::Mat();
         }
@@ -60,7 +60,7 @@ namespace FRAME_UTILS {
                 case VIDEO_FORMAT_I420:
                     {
                         if (!frame->data[1] || !frame->data[2]) {
-                            obs_log(LOG_ERROR, "I420 format missing U/V plane data");
+                            blog(LOG_ERROR, "[obs-stabilizer] I420 format missing U/V plane data");
                             return cv::Mat();
                         }
 
@@ -76,7 +76,7 @@ namespace FRAME_UTILS {
                         // This must be checked before the final addition to prevent overflow
                         const size_t uv_size_doubled = uv_size * 2;
                         if (uv_size > 0 && uv_size_doubled / 2 != uv_size) {
-                            obs_log(LOG_ERROR, "Integer overflow in I420 UV size calculation");
+                            blog(LOG_ERROR, "[obs-stabilizer] Integer overflow in I420 UV size calculation");
                             Performance::track_conversion_failure();
                             return cv::Mat();
                         }
@@ -84,7 +84,7 @@ namespace FRAME_UTILS {
                         // Check for integer overflow in final total size addition
                         const size_t total_size = y_size + uv_size_doubled;
                         if (y_size > 0 && total_size < y_size) {
-                            obs_log(LOG_ERROR, "Integer overflow in I420 total size calculation");
+                            blog(LOG_ERROR, "[obs-stabilizer] Integer overflow in I420 total size calculation");
                             Performance::track_conversion_failure();
                             return cv::Mat();
                         }
@@ -109,7 +109,7 @@ namespace FRAME_UTILS {
                     break;
 
                 default:
-                    obs_log(LOG_ERROR, "Unsupported frame format: %d", frame->format);
+                    blog(LOG_ERROR, "[obs-stabilizer] Unsupported frame format: %d", frame->format);
                     Performance::track_conversion_failure();
                     return cv::Mat();
             }
@@ -117,7 +117,7 @@ namespace FRAME_UTILS {
             return mat.clone();
 
         } catch (const cv::Exception& e) {
-            obs_log(LOG_ERROR, "OpenCV exception in obs_to_cv: %s", e.what());
+            blog(LOG_ERROR, "[obs-stabilizer] OpenCV exception in obs_to_cv: %s", e.what());
             Performance::track_conversion_failure();
             return cv::Mat();
         }
@@ -154,9 +154,9 @@ namespace FRAME_UTILS {
     obs_source_frame* FrameBuffer::create(const cv::Mat& mat,
                                           const obs_source_frame* reference_frame) {
         if (mat.empty() || !reference_frame) {
-            obs_log(LOG_ERROR, "Invalid input in FrameBuffer::create: mat=%s, ref=%s",
-                    mat.empty() ? "empty" : "valid",
-                    reference_frame ? "valid" : "null");
+            blog(LOG_ERROR, "[obs-stabilizer] Invalid input in FrameBuffer::create: mat=%s, ref=%s",
+                 mat.empty() ? "empty" : "valid",
+                 reference_frame ? "valid" : "null");
             Performance::track_conversion_failure();
             return nullptr;
         }
@@ -164,8 +164,8 @@ namespace FRAME_UTILS {
         try {
             // Validate reference frame dimensions
             if (reference_frame->width == 0 || reference_frame->height == 0) {
-                obs_log(LOG_ERROR, "Invalid reference frame dimensions: %ux%u",
-                        reference_frame->width, reference_frame->height);
+                blog(LOG_ERROR, "[obs-stabilizer] Invalid reference frame dimensions: %ux%u",
+                     reference_frame->width, reference_frame->height);
                 Performance::track_conversion_failure();
                 return nullptr;
             }
@@ -174,7 +174,7 @@ namespace FRAME_UTILS {
             cv::Mat converted = convert_mat_format(mat, reference_frame->format);
 
             if (converted.empty()) {
-                obs_log(LOG_ERROR, "Failed to convert Mat to target format");
+                blog(LOG_ERROR, "[obs-stabilizer] Failed to convert Mat to target format");
                 Performance::track_conversion_failure();
                 return nullptr;
             }
@@ -220,13 +220,14 @@ namespace FRAME_UTILS {
                     break;
 
                 default:
-                    obs_log(LOG_ERROR, "Unsupported output format in FrameBuffer::create: %d", reference_frame->format);
+                    blog(LOG_ERROR, "[obs-stabilizer] Unsupported output format in FrameBuffer::create: %d",
+                         reference_frame->format);
                     Performance::track_conversion_failure();
                     return nullptr;
             }
 
             if (required_size == 0) {
-                obs_log(LOG_ERROR, "Converted matrix has zero size");
+                blog(LOG_ERROR, "[obs-stabilizer] Converted matrix has zero size");
                 Performance::track_conversion_failure();
                 return nullptr;
             }
@@ -277,22 +278,22 @@ namespace FRAME_UTILS {
 
             } catch (const std::bad_alloc& e) {
                 // RAII wrapper handles cleanup automatically on exception
-                obs_log(LOG_ERROR, "Memory allocation failed in FrameBuffer::create: %s", e.what());
+                blog(LOG_ERROR, "[obs-stabilizer] Memory allocation failed in FrameBuffer::create: %s", e.what());
                 Performance::track_conversion_failure();
                 return nullptr;
             } catch (...) {
                 // RAII wrapper handles cleanup automatically on any exception
-                obs_log(LOG_ERROR, "Exception during frame buffer initialization");
+                blog(LOG_ERROR, "[obs-stabilizer] Exception during frame buffer initialization");
                 Performance::track_conversion_failure();
                 return nullptr;
             }
 
         } catch (const std::bad_alloc& e) {
-            obs_log(LOG_ERROR, "Memory allocation failed in FrameBuffer::create: %s", e.what());
+            blog(LOG_ERROR, "[obs-stabilizer] Memory allocation failed in FrameBuffer::create: %s", e.what());
             Performance::track_conversion_failure();
             return nullptr;
         } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "Exception in FrameBuffer::create: %s", e.what());
+            blog(LOG_ERROR, "[obs-stabilizer] Exception in FrameBuffer::create: %s", e.what());
             Performance::track_conversion_failure();
             return nullptr;
         }
@@ -316,7 +317,7 @@ namespace FRAME_UTILS {
             delete frame;
 
         } catch (const std::exception& e) {
-            obs_log(LOG_ERROR, "Exception in FrameBuffer::release: %s", e.what());
+            blog(LOG_ERROR, "[obs-stabilizer] Exception in FrameBuffer::release: %s", e.what());
         }
     }
 
@@ -332,7 +333,7 @@ namespace FRAME_UTILS {
         } else if (mat.channels() == 1) {
             cv::cvtColor(mat, bgr_mat, cv::COLOR_GRAY2BGR);
         } else {
-            obs_log(LOG_ERROR, "Unsupported input channels: %d", mat.channels());
+            blog(LOG_ERROR, "[obs-stabilizer] Unsupported input channels: %d", mat.channels());
             return cv::Mat();
         }
 
@@ -378,7 +379,7 @@ namespace FRAME_UTILS {
                 cv::cvtColor(bgr_mat, converted, cv::COLOR_BGR2YUV_I420);
                 break;
             default:
-                obs_log(LOG_ERROR, "Unsupported output format: %d", target_format);
+                blog(LOG_ERROR, "[obs-stabilizer] Unsupported output format: %d", target_format);
                 return cv::Mat();
         }
 

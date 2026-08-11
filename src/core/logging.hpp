@@ -11,7 +11,7 @@
 #include <opencv2/core.hpp>
 
 #ifdef HAVE_OBS_HEADERS
-#include "obs_minimal.h"
+#include "obs_compat.h"
 #endif
 
 #ifdef BUILD_STANDALONE
@@ -42,22 +42,18 @@ static inline LogLevel get_log_level() {
 }
 
 // Log function with level filtering
-static inline void core_log_with_level(LogLevel level, const char* level_str, const char* fmt, ...) {
+static inline void core_log_with_level(LogLevel level, const char* level_str,
+                                       const char* fmt, va_list args) {
     // Skip log if current level is higher than message level
     if (level < get_global_log_level()) {
         return;
     }
-
-    va_list args;
-    va_start(args, fmt);
 
     // Output to stderr for ERROR and WARNING, stdout for INFO and DEBUG
     FILE* output = (level >= LogLevel::WARNING) ? stderr : stdout;
     fprintf(output, "[%s] ", level_str);
     vfprintf(output, fmt, args);
     fprintf(output, "\n");
-
-    va_end(args);
 }
 
 static inline void core_log_error(const char* fmt, ...) {
@@ -95,14 +91,7 @@ static inline void core_log_debug(const char* fmt, ...) {
 
 #else
 
-// OBS logging macros
-#ifdef HAVE_OBS_HEADERS
-#include "obs_minimal.h"
-#define LOG_DEBUG(format, ...) obs_log(LOG_DEBUG, format, ##__VA_ARGS__)
-#define LOG_INFO(format, ...) obs_log(LOG_INFO, format, ##__VA_ARGS__)
-#define LOG_WARNING(format, ...) obs_log(LOG_WARNING, format, ##__VA_ARGS__)
-#define LOG_ERROR(format, ...) obs_log(LOG_ERROR, format, ##__VA_ARGS__)
-#else
+#ifndef HAVE_OBS_HEADERS
 // Fallback for non-OBS builds
 #define LOG_DEBUG(format, ...) std::printf("[DEBUG] " format "\n", ##__VA_ARGS__)
 #define LOG_INFO(format, ...) std::printf("[INFO] " format "\n", ##__VA_ARGS__)
@@ -154,8 +143,10 @@ static inline void core_log_with_level_obs(LogLevel level, const char* fmt, va_l
         return;
     }
 
+    char message[2048];
+    std::vsnprintf(message, sizeof(message), fmt, args);
     int obs_level = log_level_to_obs(level);
-    blog(obs_level, "[obs-stabilizer] %s", fmt);
+    blog(obs_level, "[obs-stabilizer] %s", message);
 }
 
 static inline void core_log_error(const char* fmt, ...) {
@@ -253,4 +244,3 @@ auto safe_call(Func func, const char* location, T default_value) -> decltype(fun
 }
 
 } // namespace StabilizerLogging
-

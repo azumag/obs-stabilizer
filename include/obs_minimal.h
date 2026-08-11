@@ -96,13 +96,13 @@ struct obs_source_info {
     const char *(*get_name)(void *type_data);
     void *(*create)(obs_data_t *settings, obs_source_t *source);
     void (*destroy)(void *data);
+
+    void (*get_defaults)(obs_data_t *settings);
+    obs_properties_t *(*get_properties)(void *data);
     void (*update)(void *data, obs_data_t *settings);
 
     void (*video_render)(void *data, gs_effect_t *effect);
     struct obs_source_frame *(*filter_video)(void *data, struct obs_source_frame *frame);
-
-    obs_properties_t *(*get_properties)(void *data);
-    void (*get_defaults)(obs_data_t *settings);
 };
 
 /* Obs data structure (minimal) */

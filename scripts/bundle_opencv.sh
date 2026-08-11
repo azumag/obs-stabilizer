@@ -22,7 +22,7 @@ if [ -z "${BINARY_PATH}" ]; then
 	exit 1
 fi
 
-for command in cmake codesign; do
+for command in cmake codesign otool; do
 	if ! command -v "${command}" >/dev/null 2>&1; then
 		printf "Error: Required command not found: %s\n" "${command}" >&2
 		exit 1
@@ -59,6 +59,17 @@ cmake \
 	"-DBINARY_PATH=${BINARY_PATH}" \
 	"-DSEARCH_DIRS=${SEARCH_DIRS_VALUE}" \
 	-P "${PROJECT_ROOT}/cmake/BundledOpenCV.cmake"
+
+BINARY_DEPENDENCIES=$(otool -L "${BINARY_PATH}")
+if printf '%s\n' "${BINARY_DEPENDENCIES}" | grep -Fq '@executable_path/../Frameworks/'; then
+	printf "Error: Plugin dependencies must use @loader_path, not @executable_path\n" >&2
+	exit 1
+fi
+if [ -n "$(find "${PLUGIN_PATH}/Contents/Frameworks" -maxdepth 1 -type f -print -quit)" ] && \
+	! printf '%s\n' "${BINARY_DEPENDENCIES}" | grep -Fq '@loader_path/../Frameworks/'; then
+	printf "Error: Plugin does not reference its bundled Frameworks via @loader_path\n" >&2
+	exit 1
+fi
 
 codesign --force --deep --sign - "${PLUGIN_PATH}"
 codesign --verify --deep --strict "${PLUGIN_PATH}"

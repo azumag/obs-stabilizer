@@ -73,7 +73,7 @@ namespace Harris {
 // Optical Flow Parameters
 namespace OpticalFlow {
     constexpr int MAX_ITERATIONS = 30;
-    constexpr float EPSILON = 0.01f;
+    constexpr float CONVERGENCE_EPSILON = 0.01f;
 }
 
 // Content Detection Parameters

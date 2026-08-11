@@ -20,7 +20,7 @@
 #include "core/logging.hpp"
 
 #ifdef HAVE_OBS_HEADERS
-#include "obs_minimal.h"
+#include "obs_compat.h"
 #endif
 
 // Include nlohmann/json at top level to avoid namespace conflicts
@@ -268,10 +268,6 @@ static obs_data_t* json_to_obs_data(const nlohmann::json& j) {
     obs_data_set_double(data, FIELD_K, j.value(FIELD_K, DEFAULT_K));
     obs_data_set_bool(data, FIELD_DEBUG_MODE, j.value(FIELD_DEBUG_MODE, DEFAULT_DEBUG_MODE));
     obs_data_set_string(data, FIELD_EDGE_HANDLING, j.value(FIELD_EDGE_HANDLING, EDGE_MODE_PADDING).c_str());
-    obs_data_set_double(data, FIELD_FRAME_MOTION_THRESHOLD,
-                        j.value(FIELD_FRAME_MOTION_THRESHOLD, DEFAULT_FRAME_MOTION_THRESHOLD));
-    obs_data_set_double(data, FIELD_MAX_DISPLACEMENT,
-                        j.value(FIELD_MAX_DISPLACEMENT, DEFAULT_MAX_DISPLACEMENT));
     obs_data_set_double(data, FIELD_TRACKING_ERROR_THRESHOLD,
                         j.value(FIELD_TRACKING_ERROR_THRESHOLD, DEFAULT_TRACKING_ERROR_THRESHOLD));
     obs_data_set_double(data, FIELD_RANSAC_THRESHOLD_MIN,
@@ -287,14 +283,17 @@ static obs_data_t* json_to_obs_data(const nlohmann::json& j) {
 }
 
 std::string PresetManager::get_preset_directory() {
-    // Get OBS config directory
-    const char* config_path = obs_get_config_path("obs-stabilizer/presets");
+    char* config_path = obs_module_config_path("presets");
     // Check for nullptr or empty string
-    // RATIONALE: obs_get_config_path() returns nullptr or empty string in test environments
+    // RATIONALE: obs_module_config_path() can return nullptr or an empty string
+    // when OBS is not fully initialized in a test environment.
     // because OBS is not fully initialized. Using /tmp as fallback ensures tests work
     // without requiring full OBS initialization. In production, this serves as a safety net
     // for unexpected initialization failures.
     if (!config_path || config_path[0] == '\0') {
+        if (config_path) {
+            bfree(config_path);
+        }
         std::string preset_dir = "/tmp/obs-stabilizer-presets";
         try {
             std::filesystem::create_directories(preset_dir);
@@ -308,6 +307,7 @@ std::string PresetManager::get_preset_directory() {
     }
 
     std::string preset_dir(config_path);
+    bfree(config_path);
 
     // Create directory if it doesn't exist
     try {

@@ -170,7 +170,6 @@ while IFS= read -r lib; do
 done < <(otool -L "$BINARY_PATH" | awk 'NR > 1 && /opencv/ {print $1}')
 
 install_name_tool -add_rpath "@loader_path/../Frameworks" "$BINARY_PATH" 2>/dev/null || true
-install_name_tool -add_rpath "@executable_path/../Frameworks" "$BINARY_PATH" 2>/dev/null || true
 
 if [ "$HAS_BUNDLED_DEPENDENCIES" -eq 0 ]; then
 	for rpath in \

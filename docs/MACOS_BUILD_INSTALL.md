@@ -82,4 +82,4 @@ codesign --verify --deep --strict --verbose=2 build/obs-stabilizer.plugin
 otool -L build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer
 ```
 
-The bundled OpenCV references should use `@loader_path` or `@executable_path`; Homebrew absolute paths should not remain in the distributable bundle.
+The bundled OpenCV references must use `@loader_path`; `@executable_path` points at the OBS application rather than the loaded plugin and must not remain in the distributable bundle.
