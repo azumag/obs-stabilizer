@@ -1,0 +1,72 @@
+name: Thread Sanitizer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/core/**'
+      - 'tests/test_thread_safety.cpp'
+      - 'CMakeLists.txt'
+      - '.github/workflows/thread-sanitizer.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/core/**'
+      - 'tests/test_thread_safety.cpp'
+      - 'CMakeLists.txt'
+      - '.github/workflows/thread-sanitizer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  thread-sanitizer:
+    name: ThreadSanitizer race detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup build environment
+        uses: ./.github/actions/setup-build-env
+        with:
+          platform: ubuntu
+
+      - name: Configure ThreadSanitizer build
+        env:
+          CC: gcc
+          CXX: g++
+        run: |
+          mkdir -p tmp/builds/thread-sanitizer tmp/reports/thread-sanitizer
+          cmake -S . -B tmp/builds/thread-sanitizer -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_FLAGS='-fsanitize=thread -fno-omit-frame-pointer -O1 -g' \
+            -DCMAKE_CXX_FLAGS='-fsanitize=thread -fno-omit-frame-pointer -O1 -g' \
+            -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=thread' \
+            -DCMAKE_SHARED_LINKER_FLAGS='-fsanitize=thread'
+
+      - name: Build thread-safety tests
+        run: cmake --build tmp/builds/thread-sanitizer --target stabilizer_tests --parallel 2
+
+      - name: Run thread-safety tests under ThreadSanitizer
+        shell: bash
+        env:
+          TSAN_OPTIONS: halt_on_error=1:history_size=7:second_deadlock_stack=1
+        run: |
+          set -o pipefail
+          timeout 10m ./tmp/builds/thread-sanitizer/stabilizer_tests \
+            --gtest_filter='ThreadSafetyTest.*' \
+            --gtest_color=yes \
+            2>&1 | tee tmp/reports/thread-sanitizer/tsan.log
+
+      - name: Upload ThreadSanitizer log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: thread-sanitizer-log-${{ github.run_number }}
+          path: tmp/reports/thread-sanitizer/tsan.log
+          if-no-files-found: warn
+          retention-days: 14
