@@ -1,0 +1,41 @@
+name: Frame Analyzer
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/core/frame_analyzer.hpp'
+      - 'src/core/frame_utils.hpp'
+      - 'src/core/stabilizer_constants.hpp'
+      - 'tests/frame_analyzer_regression.cpp'
+      - '.github/workflows/frame-analyzer.yml'
+
+concurrency:
+  group: frame-analyzer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OpenCV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopencv-dev pkg-config
+
+      - name: Build regression test
+        run: |
+          mkdir -p tmp/builds/frame-analyzer
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -DBUILD_STANDALONE -DSTANDALONE_TEST \
+            -Isrc -Iinclude \
+            tests/frame_analyzer_regression.cpp \
+            $(pkg-config --cflags --libs opencv4) \
+            -o tmp/builds/frame-analyzer/frame_analyzer_regression
+
+      - name: Run regression test
+        run: tmp/builds/frame-analyzer/frame_analyzer_regression
