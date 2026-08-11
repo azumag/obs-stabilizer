@@ -60,9 +60,15 @@ namespace FRAME_UTILS {
             switch (frame->format) {
                 case VIDEO_FORMAT_BGRA:
                 case VIDEO_FORMAT_BGRX:
+                    if (frame->linesize[0] < static_cast<size_t>(frame->width) * 4U) {
+                        return cv::Mat();
+                    }
                     return cv::Mat(frame->height, frame->width, CV_8UC4,
                                    frame->data[0], frame->linesize[0]);
                 case VIDEO_FORMAT_BGR3:
+                    if (frame->linesize[0] < static_cast<size_t>(frame->width) * 3U) {
+                        return cv::Mat();
+                    }
                     return cv::Mat(frame->height, frame->width, CV_8UC3,
                                    frame->data[0], frame->linesize[0]);
                 default:
