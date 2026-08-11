@@ -114,6 +114,10 @@ int main(int argc, char* argv[]) {
         
         runner.run_scenario(scenario);
         runner.print_summary();
+
+        if (!config.output_file.empty()) {
+            runner.save_results(config.output_file);
+        }
     }
     
     // Compare against baseline

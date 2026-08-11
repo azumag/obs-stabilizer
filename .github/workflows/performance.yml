@@ -29,6 +29,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 
 jobs:
   benchmark:
@@ -113,6 +114,7 @@ jobs:
           path: |
             perf_*.csv
             perf_*.json
+          if-no-files-found: error
           retention-days: 30
       
       - name: Upload performance results (if regression detected)
@@ -133,7 +135,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -164,8 +166,15 @@ jobs:
           echo "Run on: $(date)" >> summary.md
           echo "" >> summary.md
           echo "## Results by Platform" >> summary.md
-          
-          for dir in results/performance-results-*; do
+
+          shopt -s nullglob
+          result_dirs=(results/performance-results-*)
+          if [ "${#result_dirs[@]}" -eq 0 ]; then
+            echo "No performance result artifacts were produced." >&2
+            exit 1
+          fi
+
+          for dir in "${result_dirs[@]}"; do
             platform=$(basename "$dir" | sed 's/performance-results-//')
             echo "" >> summary.md
             echo "### $platform" >> summary.md
@@ -177,6 +186,8 @@ jobs:
               echo '```' >> summary.md
             fi
           done
+
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
       
       - name: Upload summary
         uses: actions/upload-artifact@v4
@@ -193,7 +204,7 @@ jobs:
           script: |
             const fs = require('fs');
             const summary = fs.readFileSync('summary.md', 'utf8');
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
