@@ -307,6 +307,7 @@ endif()
         tests/test_preset_manager.cpp
         tests/test_thread_safety.cpp
         tests/test_frame_utils.cpp
+        tests/test_filter_runtime.cpp
         tests/test_obs_integration.cpp
     )
 

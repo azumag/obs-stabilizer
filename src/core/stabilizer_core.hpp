@@ -187,6 +187,7 @@ private:
     // OpenCV data structures
     cv::Mat prev_gray_;
     std::vector<cv::Point2f> prev_pts_;
+    cv::Mat trajectory_;
     std::deque<cv::Mat> transforms_;
 
     // Performance monitoring

@@ -305,6 +305,39 @@ TEST_F(VisualStabilizationTest, ShakeReductionForHandTremor) {
 }
 
 /**
+ * Test: Causal trajectory smoothing reduces deterministic camera jitter
+ * EXPECTED: Stabilized inter-frame motion RMS is at least 30% lower
+ *
+ * RATIONALE: Averaging incremental transforms and applying that average in the
+ * observed direction does not stabilize video. A real filter must smooth the
+ * cumulative camera trajectory and apply the trajectory error as correction.
+ */
+TEST_F(VisualStabilizationTest, CumulativeTrajectoryReducesDeterministicJitter) {
+    std::vector<cv::Mat> jitter_frames;
+    cv::Mat base_frame = TestDataGenerator::generate_test_frame(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT
+    );
+
+    for (int i = 0; i < 90; ++i) {
+        const float dx = 12.0f * std::sin(i * 0.73f) + 5.0f * std::sin(i * 1.91f);
+        const float dy = 9.0f * std::cos(i * 0.61f) + 4.0f * std::sin(i * 1.47f);
+        jitter_frames.push_back(TestDataGenerator::create_motion_frame(
+            base_frame, dx, dy, 0.0f
+        ));
+    }
+
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.smoothing_radius = 30;
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    std::pair<double, double> result = calculate_shake_reduction(jitter_frames, params);
+
+    ASSERT_GT(result.first, 1.0) << "Synthetic input must contain measurable jitter";
+    EXPECT_LT(result.second, result.first * 0.70)
+        << "Cumulative trajectory correction should reduce jitter by at least 30%. "
+        << "Before: " << result.first << ", after: " << result.second;
+}
+
+/**
  * Test: Shake reduction with strong smoothing
  * Tests that increasing smoothing radius improves shake reduction
  */
