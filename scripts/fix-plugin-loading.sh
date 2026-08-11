@@ -169,8 +169,10 @@ while IFS= read -r lib; do
 	fi
 done < <(otool -L "$BINARY_PATH" | awk 'NR > 1 && /opencv/ {print $1}')
 
+# OBS modules are loaded with dlopen(), so plugin-local dependencies must be
+# resolved relative to the module itself, not relative to the OBS executable.
+install_name_tool -delete_rpath "@executable_path/../Frameworks" "$BINARY_PATH" 2>/dev/null || true
 install_name_tool -add_rpath "@loader_path/../Frameworks" "$BINARY_PATH" 2>/dev/null || true
-install_name_tool -add_rpath "@executable_path/../Frameworks" "$BINARY_PATH" 2>/dev/null || true
 
 if [ "$HAS_BUNDLED_DEPENDENCIES" -eq 0 ]; then
 	for rpath in \
