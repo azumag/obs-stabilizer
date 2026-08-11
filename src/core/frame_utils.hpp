@@ -36,15 +36,52 @@ namespace FRAME_UTILS {
 #ifdef HAVE_OBS_HEADERS
     // Frame conversion utilities (only available when OBS headers are present)
     namespace Conversion {
-        // Convert OBS frame to OpenCV Mat
+        // Convert OBS frame to an owning OpenCV Mat copy.
         cv::Mat obs_to_cv(const obs_source_frame* frame);
-        
+
+        /**
+         * Create a zero-copy OpenCV view over a packed OBS frame.
+         *
+         * The returned Mat borrows frame->data[0]. The caller must not retain it
+         * after the source obs_source_frame or its backing storage becomes invalid.
+         * Only packed BGRA, BGRX, and BGR3 frames are supported because planar
+         * formats require color conversion and therefore cannot be represented as
+         * a single borrowed Mat with the current API.
+         *
+         * @param frame Source OBS frame whose storage remains owned by OBS.
+         * @return Borrowed Mat view, or an empty Mat for invalid/unsupported input.
+         */
+        inline cv::Mat obs_to_cv_view(const obs_source_frame* frame) {
+            if (!frame || !frame->data[0] || frame->width == 0 || frame->height == 0 ||
+                frame->width > MAX_FRAME_WIDTH || frame->height > MAX_FRAME_HEIGHT) {
+                return cv::Mat();
+            }
+
+            switch (frame->format) {
+                case VIDEO_FORMAT_BGRA:
+                case VIDEO_FORMAT_BGRX:
+                    if (frame->linesize[0] < static_cast<size_t>(frame->width) * 4U) {
+                        return cv::Mat();
+                    }
+                    return cv::Mat(frame->height, frame->width, CV_8UC4,
+                                   frame->data[0], frame->linesize[0]);
+                case VIDEO_FORMAT_BGR3:
+                    if (frame->linesize[0] < static_cast<size_t>(frame->width) * 3U) {
+                        return cv::Mat();
+                    }
+                    return cv::Mat(frame->height, frame->width, CV_8UC3,
+                                   frame->data[0], frame->linesize[0]);
+                default:
+                    return cv::Mat();
+            }
+        }
+
         // Convert OpenCV Mat to OBS frame
         obs_source_frame* cv_to_obs(const cv::Mat& mat, const obs_source_frame* reference_frame);
-        
+
         // Get format name for logging
         std::string get_format_name(uint32_t obs_format);
-        
+
         // Check if format is supported
         bool is_supported_format(uint32_t obs_format);
     }

@@ -1,0 +1,39 @@
+name: Borrowed Frame View
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/frame_utils.hpp'
+      - 'tests/borrowed_frame_view_test.cpp'
+      - '.github/workflows/borrowed-frame-view.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  borrowed-frame-view:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install OpenCV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libopencv-dev pkg-config
+
+      - name: Build borrowed frame view test
+        run: |
+          mkdir -p tmp/builds/borrowed-frame-view
+          c++ -std=c++17 -Wall -Wextra -Werror \
+            -DHAVE_OBS_HEADERS=1 -DBUILD_STANDALONE=1 \
+            -Isrc -Iinclude \
+            tests/borrowed_frame_view_test.cpp \
+            $(pkg-config --cflags --libs opencv4) \
+            -o tmp/builds/borrowed-frame-view/borrowed_frame_view_test
+
+      - name: Run borrowed frame view test
+        run: tmp/builds/borrowed-frame-view/borrowed_frame_view_test
