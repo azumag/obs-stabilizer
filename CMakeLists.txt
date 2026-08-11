@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(obs-stabilizer-opencv)
+project(obs-stabilizer-opencv VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -191,6 +191,10 @@ if(APPLE)
         message(STATUS "Adding OBS.framework to rpath")
     endif()
 
+    # Keep bundled dependencies next to the plugin binary while retaining
+    # development fallbacks for locally installed OpenCV and OBS frameworks.
+    list(PREPEND RPATH_DIRS "@loader_path/../Frameworks")
+
     # Set link flags and rpath
     set_target_properties(obs-stabilizer-opencv PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup"
@@ -198,44 +202,6 @@ if(APPLE)
         BUILD_WITH_INSTALL_RPATH TRUE
         MACOSX_RPATH TRUE
     )
-
-    # Convert OpenCV library paths from absolute to @rpath references
-    # This ensures the plugin can find OpenCV libraries at runtime when loaded by OBS
-    # RATIONALE: OpenCV libraries are embedded with absolute paths during linking,
-    # which prevents OBS from finding them at runtime. Converting to @rpath
-    # allows the dynamic loader to use the RPATH_DIRS we configured above.
-    #
-    # REFACTORED: Use glob pattern to find all opencv libraries instead of hardcoding version numbers.
-    # This makes the build system future-proof and compatible with different OpenCV versions.
-    # Previously hardcoded version 4.12, now works with any OpenCV 4.x version.
-    if(EXISTS "${OPENCV_LIB_REALDIR}")
-        # Use glob to find all opencv libraries dynamically
-        # RATIONALE: Eliminates version hardcoding, making build system maintainable across OpenCV versions
-        file(GLOB OPENCV_LIBS_TO_FIX
-            "${OPENCV_LIB_REALDIR}/libopencv_*.dylib"
-        )
-
-        # Verify we found some libraries
-        list(LENGTH OPENCV_LIBS_TO_FIX NUM_LIBS)
-        if(NUM_LIBS GREATER 0)
-            message(STATUS "Found ${NUM_LIBS} OpenCV libraries to convert to @rpath")
-
-            # Use install_name_tool to convert each library path
-            foreach(opencv_lib ${OPENCV_LIBS_TO_FIX})
-                get_filename_component(opencv_lib_name "${opencv_lib}" NAME)
-                add_custom_command(TARGET obs-stabilizer-opencv POST_BUILD
-                    COMMAND ${CMAKE_INSTALL_NAME_TOOL}
-                        -change "${opencv_lib}"
-                                "@rpath/${opencv_lib_name}"
-                        $<TARGET_FILE:obs-stabilizer-opencv>
-                    COMMENT "Converting ${opencv_lib_name} to use @rpath"
-                )
-            endforeach()
-            message(STATUS "Configured post-build step to convert OpenCV libs to @rpath")
-        else()
-            message(WARNING "No OpenCV libraries found in ${OPENCV_LIB_REALDIR}")
-        endif()
-    endif()
 
     # For static linking (if enabled in future)
     if(OPENCV_STATIC_LINKING)
@@ -255,13 +221,41 @@ if(WIN32)
         SUFFIX ".dll"
     )
 elseif(APPLE)
-    # macOS typically uses .so or .dylib for OBS plugins
-    # Using .so to match OBS plugin conventions
+    # OBS discovers macOS plugins as CFBundle directories. The target name stays
+    # unchanged for CMake, while the produced artifact is obs-stabilizer.plugin.
+    set(OBS_STABILIZER_BUNDLE_NAME "OBS Stabilizer")
+    set(OBS_STABILIZER_BUNDLE_EXECUTABLE "obs-stabilizer")
+    set(OBS_STABILIZER_BUNDLE_IDENTIFIER "com.azumag.obs-stabilizer")
+    set(OBS_STABILIZER_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/obs-stabilizer-Info.plist")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
+        "${OBS_STABILIZER_INFO_PLIST}"
+        @ONLY
+    )
+
     set_target_properties(obs-stabilizer-opencv PROPERTIES
         PREFIX ""
-        OUTPUT_NAME "obs-stabilizer-opencv"
-        SUFFIX ".so"
+        OUTPUT_NAME "${OBS_STABILIZER_BUNDLE_EXECUTABLE}"
+        SUFFIX ""
+        BUNDLE TRUE
+        BUNDLE_EXTENSION plugin
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${OBS_STABILIZER_BUNDLE_IDENTIFIER}"
+        MACOSX_BUNDLE_BUNDLE_NAME "${OBS_STABILIZER_BUNDLE_NAME}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         CXX_VISIBILITY_PRESET hidden
+    )
+
+    # Some non-Xcode generators omit bundle metadata for MODULE targets. Make
+    # the installable OBS bundle complete regardless of the chosen generator.
+    add_custom_command(TARGET obs-stabilizer-opencv POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_BUNDLE_CONTENT_DIR:obs-stabilizer-opencv>/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${OBS_STABILIZER_INFO_PLIST}"
+            "$<TARGET_BUNDLE_CONTENT_DIR:obs-stabilizer-opencv>/Info.plist"
+        COMMENT "Completing the macOS OBS plugin bundle"
     )
 else()
     # Linux and other Unix systems
@@ -273,10 +267,17 @@ else()
 endif()
 
 # --- Installation ---
-install(TARGETS obs-stabilizer-opencv
-    LIBRARY DESTINATION obs-plugins
-    RUNTIME DESTINATION obs-plugins
-)
+if(APPLE)
+    install(TARGETS obs-stabilizer-opencv
+        BUNDLE DESTINATION .
+        LIBRARY DESTINATION .
+    )
+else()
+    install(TARGETS obs-stabilizer-opencv
+        LIBRARY DESTINATION obs-plugins
+        RUNTIME DESTINATION obs-plugins
+    )
+endif()
 
  # --- Tests ---
   enable_testing()
@@ -349,6 +350,16 @@ install(TARGETS obs-stabilizer-opencv
        endif()
      
      add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
+     if(UNIX)
+         add_test(
+             NAME macos_packaging_scripts
+             COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_macos_packaging_scripts.sh
+         )
+         set_tests_properties(
+             macos_packaging_scripts
+             PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+         )
+     endif()
      message(STATUS "Test suite enabled.")
  else()
       message(STATUS "No test sources found, skipping test suite.")
@@ -406,4 +417,3 @@ install(TARGETS obs-stabilizer-opencv
       
       message(STATUS "Performance testing infrastructure enabled")
  endif()
-

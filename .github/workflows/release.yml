@@ -84,8 +84,9 @@ jobs:
     - name: Package (macOS)
       if: matrix.os == 'macos-latest'
       run: |
+        ./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
         mkdir -p package/obs-stabilizer
-        cp build/*.so package/obs-stabilizer/
+        cp -R build/obs-stabilizer.plugin package/obs-stabilizer/
         cp README.md LICENSE package/obs-stabilizer/
         cd package
         tar -czf ../obs-stabilizer-macos.tar.gz obs-stabilizer/
@@ -95,4 +96,3 @@ jobs:
       with:
         tag_name: ${{ github.ref_name }}
         files: ./${{ matrix.asset_name }}
-

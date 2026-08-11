@@ -164,18 +164,19 @@ git clone https://github.com/azumag/obs-stabilizer.git
 cd obs-stabilizer
 
 # Simple build (recommended)
-cmake -B build
+cmake -S . -B build
 cmake --build build
 
 # Alternative: Direct build in current directory
 cmake .
 make
 
-# macOS: Fix plugin loading (required for macOS)
-./scripts/fix-plugin-loading.sh
+# macOS output: build/obs-stabilizer.plugin
+# Bundle third-party libraries for distribution (recommended)
+./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
 
-# macOS: Bundle OpenCV libraries for deployment (optional)
-./scripts/bundle_opencv.sh
+# Or keep system OpenCV references for local development
+./scripts/fix-plugin-loading.sh build/obs-stabilizer.plugin
 ```
 
 **Build System Changes:**
@@ -187,7 +188,7 @@ make
 - ✅ **OpenCV Integration**: Automatic detection with optimized essential components (core, imgproc, video, features2d)
 - ✅ **C11/C++17 Standards**: Modern language compliance with proper conditional compilation
 - ✅ **Plugin Loading Fix**: Resolved undefined symbol errors with proper OBS API bridging
-- ✅ **Bundle Format Fix**: Changed from SHARED to MODULE library type for correct macOS plugin bundle format
+- ✅ **Bundle Format Fix**: Produces `obs-stabilizer.plugin` with the standard `Contents/MacOS` layout
 - ✅ **Qt6 Compatibility Resolution**: Successfully resolved Qt version conflicts through minimal Qt-independent plugin architecture
 - ✅ **Apple Silicon Optimization**: Native ARM64 build for M1/M2/M3/M4 Mac performance optimization
 
@@ -382,16 +383,19 @@ Comprehensive performance testing system with:
 **SECURE STABILIZATION** - Production-Ready Core
 
 #### macOS
+
+See [docs/MACOS_BUILD_INSTALL.md](docs/MACOS_BUILD_INSTALL.md) for the complete Apple Silicon build, packaging, and verification flow.
+
 ```bash
 # Option 1: Install with bundled OpenCV libraries (recommended for distribution)
-./scripts/bundle_opencv.sh
-cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
-cp -r build/Frameworks ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
+./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
+mkdir -p ~/Library/Application\ Support/obs-studio/plugins
+cp -R build/obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
 
 # Option 2: Install with system OpenCV (requires OpenCV to be installed on target system)
-cp build/obs-stabilizer ~/Library/Application\ Support/obs-studio/plugins/obs-stabilizer.plugin/Contents/MacOS/
-# Or copy complete plugin bundle if available
-cp -r obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
+./scripts/fix-plugin-loading.sh build/obs-stabilizer.plugin
+mkdir -p ~/Library/Application\ Support/obs-studio/plugins
+cp -R build/obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
 ```
 
 #### Linux
@@ -422,37 +426,30 @@ The plugin requires OpenCV libraries for computer vision algorithms. Two deploym
 
 #### Option 1: Bundled Distribution (Recommended for Users)
 
-The `scripts/bundle_opencv.sh` script creates a self-contained distribution with OpenCV libraries bundled:
+The `scripts/bundle_opencv.sh` script copies non-system dependencies into the generated plugin bundle and rewrites their load paths:
 
 ```bash
 # Build the plugin
-cmake -B build
+cmake -S . -B build
 cmake --build build
 
-# Bundle OpenCV libraries
-./scripts/bundle_opencv.sh
+# Bundle third-party libraries and sign the completed bundle
+./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
 
 # Deploy
-cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
-cp -r build/Frameworks ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/
+mkdir -p ~/Library/Application\ Support/obs-studio/plugins
+cp -R build/obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
 ```
 
 **Benefits:**
 - ✅ Self-contained plugin - no OpenCV installation required on target system
-- ✅ Version consistency - always uses bundled OpenCV 4.12.0
-- ✅ Easy distribution - single plugin file + Frameworks directory
+- ✅ Version consistency - ships the OpenCV version used for the build
+- ✅ Easy distribution - a single `.plugin` bundle contains its Frameworks directory
 - ✅ No conflicts with other applications' OpenCV requirements
 
 **Bundle Contents:**
-- Plugin: `obs-stabilizer-opencv.so` (~500KB)
-- OpenCV libraries: 7 essential modules in `Frameworks/` (~16MB)
-  - libopencv_core.412.dylib
-  - libopencv_imgproc.412.dylib
-  - libopencv_video.412.dylib
-  - libopencv_calib3d.412.dylib
-  - libopencv_features2d.412.dylib
-  - libopencv_flann.412.dylib
-  - libopencv_dnn.412.dylib
+- Plugin binary: `obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer`
+- Third-party libraries: `obs-stabilizer.plugin/Contents/Frameworks/`
 
 #### Option 2: System OpenCV (For Development)
 
@@ -463,15 +460,16 @@ Use system-installed OpenCV for development:
 brew install opencv
 
 # Build plugin (will link to system OpenCV)
-cmake -B build
+cmake -S . -B build
 cmake --build build
 
 # Deploy (requires OpenCV on target system)
-cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/
+./scripts/fix-plugin-loading.sh build/obs-stabilizer.plugin
+cp -R build/obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
 ```
 
 **Requirements:**
-- Target system must have OpenCV 4.12.0 installed
+- Target system must have a compatible OpenCV installation
 - Version compatibility issues across different OpenCV installations
 - Different package managers may have different versions
 
@@ -480,8 +478,8 @@ cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/
 After bundling, verify the plugin uses bundled libraries:
 
 ```bash
-otool -L build/obs-stabilizer-opencv.so | grep opencv
-# Should show: @loader_path/Frameworks/libopencv_*.dylib
+otool -L build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer | grep opencv
+# Should resolve from: @executable_path/../Frameworks/ or @loader_path/../Frameworks/
 ```
 
 ## 📚 User Guide
@@ -541,32 +539,24 @@ otool -L build/obs-stabilizer-opencv.so | grep opencv
    ```bash
    git clone https://github.com/azumag/obs-stabilizer.git
    cd obs-stabilizer
-   cmake -B build
+   cmake -S . -B build
    cmake --build build
    ```
 
-3. Fix plugin loading (required for macOS):
+3. Bundle dependencies for distribution:
    ```bash
-   ./scripts/fix-plugin-loading.sh
+   ./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
    ```
 
-4. Copy plugin (choose one method):
-
-   **Option 1: With bundled OpenCV (recommended for distribution):**
+4. Install the generated plugin bundle:
    ```bash
-   ./scripts/bundle_opencv.sh
-   cp build/obs-stabilizer-opencv.so ~/Library/Application\ Support/obs-studio/plugins/obs-stabilizer-opencv/bin/
-   cp -r build/Frameworks ~/Library/Application\ Support/obs-studio/plugins/obs-stabilizer-opencv/bin/
+   mkdir -p ~/Library/Application\ Support/obs-studio/plugins
+   cp -R build/obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
    ```
 
-   **Option 2: With system OpenCV (requires OpenCV on target system):**
+   For local development with Homebrew OpenCV instead of bundled libraries:
    ```bash
-   cp build/obs-stabilizer.so ~/Library/Application\ Support/obs-studio/plugins/obs-stabilizer.plugin/Contents/MacOS/
-   ```
-
-   **Option 3: Complete plugin bundle (if available):**
-   ```bash
-   cp -r obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
+   ./scripts/fix-plugin-loading.sh build/obs-stabilizer.plugin
    ```
 
 5. Restart OBS Studio

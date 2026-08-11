@@ -11,6 +11,9 @@ runs:
       if: inputs.platform != 'windows'
       shell: bash
       run: |
+        echo "Running macOS packaging script tests"
+        bash tests/test_macos_packaging_scripts.sh
+
         echo "Running unit tests"
         if [ -f "build/stabilizer_tests" ]; then
           echo "Unit test executable found - running tests"
