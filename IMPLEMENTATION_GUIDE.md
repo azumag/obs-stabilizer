@@ -5,8 +5,7 @@
 ### Building from Source
 
 ```bash
-mkdir build && cd build
-cmake -B build
+cmake -S . -B build
 cmake --build build
 ```
 
@@ -27,14 +26,12 @@ make
 ### macOS
 
 ```bash
-# Copy plugin to OBS plugins directory
-cp build/obs-stabilizer-opencv.so ~/Library/Application\ Support/obs-studio/plugins/
+# Build an installable plugin bundle
+./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
 
-# Fix plugin loading (required for macOS)
-./scripts/fix-plugin-loading.sh
-
-# Optional: Bundle OpenCV libraries
-./scripts/bundle_opencv.sh
+# Copy the complete bundle to the OBS plugins directory
+mkdir -p ~/Library/Application\ Support/obs-studio/plugins
+cp -R build/obs-stabilizer.plugin ~/Library/Application\ Support/obs-studio/plugins/
 ```
 
 ### Linux

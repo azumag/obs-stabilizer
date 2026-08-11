@@ -105,10 +105,13 @@ jobs:
         with:
           platform: macos
 
+      - name: Bundle macOS dependencies
+        run: ./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: obs-stabilizer-macos-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/obs-stabilizer-opencv.so
+            build/obs-stabilizer.plugin

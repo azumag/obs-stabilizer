@@ -3,7 +3,11 @@ name: macOS Plugin Package
 on:
   pull_request:
     paths:
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "scripts/bundle_opencv.sh"
       - "scripts/fix-plugin-loading.sh"
+      - "tests/test_macos_packaging_scripts.sh"
       - "docs/MACOS_BUILD_INSTALL.md"
       - ".github/workflows/macos-plugin-package.yml"
   workflow_dispatch:
@@ -22,9 +26,8 @@ jobs:
       - name: Create a minimal loadable module
         run: |
           mkdir -p build
-          cat >/tmp/obs-stabilizer-smoke.c <<'EOF'
-          int obs_stabilizer_smoke_symbol(void) { return 0; }
-          EOF
+          printf '%s\n' 'int obs_stabilizer_smoke_symbol(void) { return 0; }' \
+            >/tmp/obs-stabilizer-smoke.c
           clang -bundle -undefined dynamic_lookup \
             -o build/obs-stabilizer-opencv.so \
             /tmp/obs-stabilizer-smoke.c
@@ -35,6 +38,7 @@ jobs:
 
           test -x build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer
           test -f build/obs-stabilizer.plugin/Contents/Info.plist
+          test -d build/obs-stabilizer.plugin/Contents/Resources
 
           plutil -lint build/obs-stabilizer.plugin/Contents/Info.plist
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' \
@@ -42,3 +46,6 @@ jobs:
 
           codesign --verify --deep --strict \
             build/obs-stabilizer.plugin
+
+      - name: Run packaging regression tests
+        run: bash tests/test_macos_packaging_scripts.sh

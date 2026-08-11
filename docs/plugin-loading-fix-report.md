@@ -1,7 +1,11 @@
 # Plugin Loading Fix Report
 
 **Date**: February 11, 2026
-**Status**: RESOLVED
+**Status**: Development rpath fix complete; distributable bundle packaging added for Issue #324
+
+> This report records the original rpath investigation. The current macOS build
+> produces `build/obs-stabilizer.plugin`; use `scripts/bundle_opencv.sh` to copy
+> non-system dependencies into `Contents/Frameworks` before distribution.
 
 ## Problem Description
 

@@ -1,113 +1,85 @@
 # macOS build and installation
 
-This guide describes the supported local build flow for OBS Stabilizer on macOS, including Apple Silicon systems.
+This is the supported local build flow for OBS Stabilizer on macOS, including Apple Silicon.
 
 ## Prerequisites
 
-Install OBS Studio and the build dependencies first:
+Install OBS Studio and the build dependencies:
 
 ```bash
 brew install --cask obs
-brew install cmake ninja pkg-config opencv@4 googletest nlohmann-json
+brew install cmake ninja pkg-config opencv googletest nlohmann-json
 xcode-select --install
 ```
 
-The project currently targets OpenCV 4 for the macOS build. Point CMake at the Homebrew OpenCV 4 package explicitly so a separately installed OpenCV 5 package is not selected:
-
-```bash
-export OpenCV_DIR="$(brew --prefix opencv@4)/lib/cmake/opencv4"
-```
+If your Homebrew setup provides `opencv@4` instead of `opencv`, use that formula name in the commands below.
 
 ## Build
 
 From the repository root:
 
 ```bash
+OPENCV_PREFIX="$(brew --prefix opencv)"
 cmake -S . -B build -G Ninja \
-  -DOpenCV_DIR="$OpenCV_DIR"
+  -DOpenCV_DIR="$OPENCV_PREFIX/lib/cmake/opencv4"
 cmake --build build --target obs-stabilizer-opencv
 ```
 
-The raw CMake module is normally produced as:
-
-```text
-build/obs-stabilizer-opencv.so
-```
-
-A raw `.so` is an intermediate build product. For OBS on macOS, convert it to the plugin bundle before installation.
-
-## Create the `.plugin` bundle
-
-Run:
-
-```bash
-./scripts/fix-plugin-loading.sh build/obs-stabilizer-opencv.so
-```
-
-The script creates:
+CMake produces a complete plugin structure:
 
 ```text
 build/obs-stabilizer.plugin/
-└── Contents/
-    ├── Info.plist
-    └── MacOS/
-        └── obs-stabilizer
+  Contents/
+    Info.plist
+    MacOS/
+      obs-stabilizer
+    Resources/
 ```
 
-It also normalizes Homebrew OpenCV references to `@rpath`, adds available OpenCV/OBS runtime search paths, validates the plist, ad-hoc signs the complete bundle, and verifies the signature.
-
-If a `.plugin` bundle already exists, you can pass the bundle path directly:
+The build output can use the local Homebrew OpenCV installation during development:
 
 ```bash
 ./scripts/fix-plugin-loading.sh build/obs-stabilizer.plugin
 ```
 
-To place the generated bundle somewhere else, set `OBS_STABILIZER_BUNDLE_PATH`:
+## Create a redistributable bundle
+
+For CI artifacts, releases, or another Mac, bundle OpenCV and its non-system transitive dependencies:
 
 ```bash
-OBS_STABILIZER_BUNDLE_PATH="$PWD/dist/obs-stabilizer.plugin" \
-  ./scripts/fix-plugin-loading.sh build/obs-stabilizer-opencv.so
+./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
 ```
+
+The command copies dependencies into `Contents/Frameworks`, rewrites load paths to relative references, removes Homebrew RPATHs, ad-hoc signs the bundle, and verifies its signature. The resulting `.plugin` does not require Homebrew OpenCV on the target Mac.
 
 ## Install
 
-The script prints the exact installation commands. The user-local installation is:
+Move any older OBS Stabilizer `.plugin` or loose `.so` installation aside first so OBS does not discover two copies. Then install the completed bundle:
 
 ```bash
 mkdir -p "$HOME/Library/Application Support/obs-studio/plugins"
-rm -rf "$HOME/Library/Application Support/obs-studio/plugins/obs-stabilizer.plugin"
 cp -R build/obs-stabilizer.plugin \
   "$HOME/Library/Application Support/obs-studio/plugins/"
 ```
 
-Restart OBS after installing the bundle, open a source, then open **Filters** and add OBS Stabilizer.
+Restart OBS, open a source's **Filters** dialog, and add OBS Stabilizer.
 
-## OpenCV dependency note
+## Legacy raw module compatibility
 
-The generated `.plugin` is a structurally complete macOS plugin bundle, but the current dynamic build still expects the matching Homebrew OpenCV libraries to be installed on the machine. The script supports both `opencv@4` and legacy `opencv` Homebrew prefixes.
-
-For a redistributable bundle that does not depend on a local Homebrew OpenCV installation, the OpenCV dylibs and their transitive dependencies must be packaged and re-signed as a separate deployment step.
-
-## Troubleshooting
-
-If CMake selects OpenCV 5, remove the build directory and configure again with `OpenCV_DIR` pointing at `opencv@4`:
+Older build directories may contain `obs-stabilizer-opencv.so` instead of a `.plugin` directory. The repair script can wrap that module without overwriting an existing bundle:
 
 ```bash
-rm -rf build
-export OpenCV_DIR="$(brew --prefix opencv@4)/lib/cmake/opencv4"
-cmake -S . -B build -G Ninja -DOpenCV_DIR="$OpenCV_DIR"
+OBS_STABILIZER_BUNDLE_PATH="$PWD/dist/obs-stabilizer.plugin" \
+  ./scripts/fix-plugin-loading.sh build/obs-stabilizer-opencv.so
+./scripts/bundle_opencv.sh dist/obs-stabilizer.plugin
 ```
 
-If the script reports a missing Xcode command, install or refresh the Command Line Tools:
-
-```bash
-xcode-select --install
-```
-
-If OBS does not list the filter, inspect the plugin bundle and signature:
+## Verification
 
 ```bash
 plutil -lint build/obs-stabilizer.plugin/Contents/Info.plist
 codesign --verify --deep --strict --verbose=2 build/obs-stabilizer.plugin
 otool -L build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer
 ```
+
+The bundled OpenCV references should use `@loader_path` or `@executable_path`; Homebrew absolute paths should not remain in the distributable bundle.
