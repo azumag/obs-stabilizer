@@ -5,16 +5,9 @@
 
 #pragma once
 
-#ifdef HAVE_OBS_HEADERS
-#include "obs_minimal.h"
-#include <memory>
-#else
-// Stubs for standalone testing
-#include "obs_minimal.h"
-#include <memory>
-#endif
-
 #include <opencv2/opencv.hpp>
+#include "obs_compat.h"
+#include <memory>
 #include <vector>
 #include <string>
 #include <climits>

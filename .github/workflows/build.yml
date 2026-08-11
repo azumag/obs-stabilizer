@@ -108,10 +108,51 @@ jobs:
       - name: Bundle macOS dependencies
         run: ./scripts/bundle_opencv.sh build/obs-stabilizer.plugin
 
+      - name: Verify macOS plugin ABI
+        shell: bash
+        run: |
+          bundle="build/obs-stabilizer.plugin"
+          plugin="$bundle/Contents/MacOS/obs-stabilizer"
+          exports="build/obs-stabilizer.exports"
+          dependencies="build/obs-stabilizer.dependencies"
+
+          nm -gU "$plugin" > "$exports"
+          otool -L "$plugin" > "$dependencies"
+
+          for symbol in obs_module_load obs_module_set_pointer obs_module_ver; do
+            if ! grep -q "_${symbol}$" "$exports"; then
+              echo "::error::Missing required OBS module export: ${symbol}"
+              exit 1
+            fi
+          done
+
+          if grep -q '@executable_path/../Frameworks' "$dependencies"; then
+            echo "::error::Plugin still contains executable-relative bundled library references"
+            exit 1
+          fi
+
+          if ! grep -q '@loader_path/../Frameworks' "$dependencies"; then
+            echo "::error::Plugin has no loader-relative bundled library references"
+            exit 1
+          fi
+
+          codesign --verify --deep --strict "$bundle"
+
+      - name: Package macOS artifact
+        shell: bash
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/obs-stabilizer.plugin \
+            build/obs-stabilizer-macos.zip
+          unzip -Z1 build/obs-stabilizer-macos.zip > \
+            build/obs-stabilizer-macos.contents
+          grep -Fqx 'obs-stabilizer.plugin/Contents/Info.plist' \
+            build/obs-stabilizer-macos.contents
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: obs-stabilizer-macos-${{ github.run_number }}
           retention-days: 30
           path: |
-            build/obs-stabilizer.plugin
+            build/obs-stabilizer-macos.zip

@@ -25,14 +25,12 @@ These principles guided the Phase 5 refactoring, resulting in a clean, secure, a
 - ✅ **Broken Include**: Removed non-existent `stabilizer_constants_c.h` include from src/core/frame_utils.cpp (Issue #279)
 - ✅ **Missing Constants**: Added `DATA_PLANES_COUNT` and `MEMORY_GROWTH_FACTOR` as constexpr values to frame_utils.hpp
 - ✅ **Undefined Symbol Errors**: Fixed `obs_log` and `obs_register_source` linking issues
-- ✅ **OBS Library Detection**: Implemented proper macOS framework detection (`/Applications/OBS.app/Contents/Frameworks/libobs.framework`)
-- ✅ **Symbol Bridge**: Created compatibility layer for OBS API differences (`plugin-support.c`)
+- ✅ **OBS Module ABI**: Uses the official OBS module declarations and host-provided runtime symbols
 - ✅ **Build System**: Enhanced CMakeLists.txt with proper OBS library linking and HAVE_OBS_HEADERS definition
 - ✅ **Missing Module Exports**: Fixed obs_module_name, obs_module_description, obs_module_load, obs_module_unload exports with proper C linkage (Issue #256)
 
 **Technical Implementation:**
-- **Symbol Mapping**: Bridge functions map `obs_register_source` → `obs_register_source_s` and `obs_log` → `blogva`
-- **Library Linking**: Direct path linking to OBS framework with proper rpath configuration
+- **OBS Compatibility**: Builds against the minimum supported OBS 30 module ABI and loads on newer releases
 - **OpenCV Optimization**: Reduced dependencies from 56 to 7 essential libraries (core, imgproc, video, features2d)
 - **Plugin Bundle Structure**: Proper macOS plugin bundle format with correct directory structure
 - **Code Signing Fix**: Resolved invalid signature preventing plugin loading
@@ -181,8 +179,8 @@ make
 
 **Build System Changes:**
 - ✅ **Dual-Mode Build System**: Automatically builds as OBS plugin (shared library) or standalone executable
-- ✅ **Smart OBS Detection**: Detects OBS headers and libraries with framework-aware macOS support
-- ✅ **OBS Library Linking**: Proper linking with OBS framework including symbol bridge compatibility layer
+- ✅ **Official OBS ABI**: Uses pinned official OBS 30 headers instead of runtime no-op stubs
+- ✅ **Portable Module Loading**: Resolves OBS host symbols when the plugin is loaded
 - ✅ **Development Mode**: Standalone executable for development without OBS installation  
 - ✅ **Cross-Platform**: Works with default system generators (Make, Visual Studio, Xcode)
 - ✅ **OpenCV Integration**: Automatic detection with optimized essential components (core, imgproc, video, features2d)
@@ -479,7 +477,7 @@ After bundling, verify the plugin uses bundled libraries:
 
 ```bash
 otool -L build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer | grep opencv
-# Should resolve from: @executable_path/../Frameworks/ or @loader_path/../Frameworks/
+# Should resolve from: @loader_path/../Frameworks/
 ```
 
 ## 📚 User Guide

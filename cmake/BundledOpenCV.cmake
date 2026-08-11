@@ -169,7 +169,10 @@ foreach(current_item IN LISTS ITEMS_TO_FIX)
         endif()
 
         if("${current_item}" STREQUAL "${BINARY_PATH}")
-            set(replacement "@executable_path/../Frameworks/${dependency_name}")
+            # OBS loads plugins with dlopen(). @loader_path is therefore rooted
+            # at the plugin binary, while @executable_path would incorrectly
+            # resolve relative to the OBS application executable.
+            set(replacement "@loader_path/../Frameworks/${dependency_name}")
         else()
             set(replacement "@loader_path/${dependency_name}")
         endif()
@@ -181,15 +184,13 @@ foreach(current_item IN LISTS ITEMS_TO_FIX)
         list(APPEND changes -id "@rpath/${current_name}")
     else()
         foreach(current_rpath IN LISTS current_rpaths)
-            if(IS_ABSOLUTE "${current_rpath}")
+            if(IS_ABSOLUTE "${current_rpath}" OR
+               "${current_rpath}" STREQUAL "@executable_path/../Frameworks")
                 list(APPEND changes -delete_rpath "${current_rpath}")
             endif()
         endforeach()
         if(NOT "@loader_path/../Frameworks" IN_LIST current_rpaths)
             list(APPEND changes -add_rpath "@loader_path/../Frameworks")
-        endif()
-        if(NOT "@executable_path/../Frameworks" IN_LIST current_rpaths)
-            list(APPEND changes -add_rpath "@executable_path/../Frameworks")
         endif()
     endif()
 

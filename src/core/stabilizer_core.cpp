@@ -263,7 +263,9 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
         // Must be odd (requirement of cv::calcOpticalFlowPyrLK)
         static constexpr int LK_WINDOW_SIZE = 21;
         const cv::Size winSize(LK_WINDOW_SIZE, LK_WINDOW_SIZE);
-        cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS, OpticalFlow::MAX_ITERATIONS, OpticalFlow::EPSILON);
+        cv::TermCriteria termcrit(cv::TermCriteria::COUNT | cv::TermCriteria::EPS,
+                                  OpticalFlow::MAX_ITERATIONS,
+                                  OpticalFlow::CONVERGENCE_EPSILON);
 
         // Pre-resize curr_pts to match prev_pts size - required by cv::calcOpticalFlowPyrLK()
         // The function expects nextPts (curr_pts) to have the same size as prevPts (prev_pts)
