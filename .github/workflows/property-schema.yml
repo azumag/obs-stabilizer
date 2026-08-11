@@ -1,0 +1,29 @@
+name: Property Schema
+
+on:
+  pull_request:
+    paths:
+      - 'src/ui/stabilizer_property_schema.hpp'
+      - 'tests/property_schema_test.cpp'
+      - '.github/workflows/property-schema.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: property-schema-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  property-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile property schema test
+        run: >-
+          c++ -std=c++17 -Wall -Wextra -Werror
+          -Isrc tests/property_schema_test.cpp
+          -o property_schema_test
+      - name: Run property schema test
+        run: ./property_schema_test
