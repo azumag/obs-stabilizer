@@ -11,6 +11,7 @@ constexpr std::uint32_t kWidth = 1920;
 constexpr std::uint32_t kHeight = 1080;
 constexpr int kIterations = 30;
 constexpr double kMaxAverageRoundTripMs = 20.0;
+constexpr double kRequiredInputSpeedupRatio = 0.90;
 }
 
 int main()
@@ -26,12 +27,64 @@ int main()
     reference.data[0] = pixels.data();
     reference.linesize[0] = kWidth * 4U;
 
+    // Compare the legacy owning conversion with the processing hot path. The
+    // processing path must borrow packed OBS storage and avoid the full-frame copy.
+    double owning_input_ms = 0.0;
+    double processing_input_ms = 0.0;
+    std::uint64_t checksum = 0;
+
+    for (int iteration = 0; iteration < kIterations; ++iteration) {
+        const auto start = std::chrono::steady_clock::now();
+        cv::Mat converted = FRAME_UTILS::Conversion::obs_to_cv(&reference);
+        const auto end = std::chrono::steady_clock::now();
+
+        if (converted.empty() || converted.data == reference.data[0]) {
+            std::cerr << "Owning OBS conversion did not create independent storage\n";
+            return 1;
+        }
+        checksum += converted.data[iteration % converted.total()];
+        owning_input_ms +=
+            std::chrono::duration<double, std::milli>(end - start).count();
+    }
+
+    for (int iteration = 0; iteration < kIterations; ++iteration) {
+        const auto start = std::chrono::steady_clock::now();
+        cv::Mat converted =
+            FRAME_UTILS::Conversion::obs_to_cv_for_processing(&reference);
+        const auto end = std::chrono::steady_clock::now();
+
+        if (converted.empty() || converted.data != reference.data[0] ||
+            converted.step != reference.linesize[0]) {
+            std::cerr << "Packed processing conversion did not use the borrowed OBS buffer\n";
+            return 1;
+        }
+        checksum += converted.data[iteration % converted.total()];
+        processing_input_ms +=
+            std::chrono::duration<double, std::milli>(end - start).count();
+    }
+
+    const double average_owning_input_ms = owning_input_ms / kIterations;
+    const double average_processing_input_ms = processing_input_ms / kIterations;
+
+    std::cout << "Average 1080p BGRA owning input conversion: "
+              << average_owning_input_ms << " ms\n";
+    std::cout << "Average 1080p BGRA processing input conversion: "
+              << average_processing_input_ms << " ms\n";
+    std::cout << "Conversion benchmark checksum: " << checksum << "\n";
+
+    if (average_processing_input_ms >
+        average_owning_input_ms * kRequiredInputSpeedupRatio) {
+        std::cerr << "Zero-copy processing conversion did not improve input latency by at least 10%\n";
+        return 1;
+    }
+
     double total_ms = 0.0;
 
     for (int iteration = 0; iteration < kIterations; ++iteration) {
         const auto start = std::chrono::steady_clock::now();
 
-        cv::Mat converted = FRAME_UTILS::Conversion::obs_to_cv(&reference);
+        cv::Mat converted =
+            FRAME_UTILS::Conversion::obs_to_cv_for_processing(&reference);
         if (converted.empty() || converted.cols != static_cast<int>(kWidth) ||
             converted.rows != static_cast<int>(kHeight) || converted.channels() != 4) {
             std::cerr << "OBS to OpenCV conversion produced an invalid frame\n";
@@ -64,7 +117,7 @@ int main()
     }
 
     const double average_ms = total_ms / kIterations;
-    std::cout << "Average 1080p BGRA conversion round trip: " << average_ms
+    std::cout << "Average 1080p BGRA processing round trip: " << average_ms
               << " ms over " << kIterations << " iterations\n";
 
     if (average_ms > kMaxAverageRoundTripMs) {
