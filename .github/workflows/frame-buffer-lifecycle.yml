@@ -1,0 +1,46 @@
+name: Frame Buffer Lifecycle
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/frame_utils.*'
+      - 'tests/frame_buffer_lifecycle_regression.cpp'
+      - '.github/workflows/frame-buffer-lifecycle.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/core/frame_utils.*'
+      - 'tests/frame_buffer_lifecycle_regression.cpp'
+      - '.github/workflows/frame-buffer-lifecycle.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++ pkg-config libopencv-dev
+
+      - name: Build lifecycle regression test
+        run: |
+          mkdir -p tmp/builds/frame-buffer-lifecycle
+          # frame_utils.cpp currently contains a pre-existing unused local that is
+          # unrelated to this focused lifecycle regression. Keep all other warnings
+          # fatal while allowing the standalone harness to compile that source file.
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror -Wno-error=unused-variable \
+            -DHAVE_OBS_HEADERS=1 -DBUILD_STANDALONE \
+            -Iinclude -Isrc \
+            tests/frame_buffer_lifecycle_regression.cpp \
+            src/core/frame_utils.cpp \
+            $(pkg-config --cflags --libs opencv4) \
+            -o tmp/builds/frame-buffer-lifecycle/frame_buffer_lifecycle_regression
+
+      - name: Verify independent frame ownership
+        run: tmp/builds/frame-buffer-lifecycle/frame_buffer_lifecycle_regression
