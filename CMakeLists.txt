@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(obs-stabilizer-opencv)
+project(obs-stabilizer-opencv VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -39,60 +39,63 @@ endif()
 # Allow user to specify custom OBS paths
 set(OBS_INCLUDE_PATH "" CACHE PATH "Path to OBS include directory")
 set(OBS_LIBRARY_PATH "" CACHE PATH "Path to OBS library directory")
+set(OBS_SOURCE_DIR "" CACHE PATH "Path to an OBS Studio source tree")
+set(HAVE_OBS_HEADERS FALSE)
 
-# For macOS, prefer OBS app bundle
+# On macOS, always compile the distributable plugin against the official OBS
+# headers. CI runners do not have OBS.app installed, so falling back to the
+# standalone stubs here would produce a bundle with no usable OBS module.
 if(APPLE)
-    # Check if OBS.app exists
-    if(EXISTS "/Applications/OBS.app")
-        # Use minimal stub header for compilation (doesn't require full OBS headers)
-        set(OBS_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
-        set(OBS_FRONTEND_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
+    if(NOT OBS_SOURCE_DIR)
+        include(FetchContent)
+        set(OBS_SOURCE_URL https://github.com/obsproject/obs-studio/archive/refs/tags/30.0.0.tar.gz)
+        set(OBS_SOURCE_HASH SHA256=c23dd463862b1a8f40365d84fd52105d7eafc3614fb3d470b695ba28a6e4da06)
 
-        # OBS framework exists for runtime linking
-        set(OBS_LIBRARY "/Applications/OBS.app/Contents/Frameworks/libobs.framework")
-
-        # Set HAVE_OBS_HEADERS as a CMake variable and preprocessor definition
-        # RATIONALE: This variable is used in CMakeLists.txt conditional checks
-        # to determine which source files to include (e.g., frame_utils.cpp).
-        set(HAVE_OBS_HEADERS TRUE CACHE BOOL "OBS headers are available" FORCE)
-        add_definitions(-DHAVE_OBS_HEADERS=1)
-        message(STATUS "Using OBS.app at /Applications/OBS.app")
-        message(STATUS "OBS headers: ${OBS_INCLUDE_DIR}")
-        message(STATUS "OBS library: ${OBS_LIBRARY}")
-    else()
-        # OBS.app not found, try other locations
-        find_path(OBS_INCLUDE_DIR obs.h
-            PATHS
-                ${OBS_INCLUDE_PATH}
-                /opt/homebrew/include  # macOS Homebrew (Apple Silicon)
-                /usr/local/include      # macOS Homebrew (Intel)
-                ${CMAKE_SOURCE_DIR}/include
-            PATH_SUFFIXES obs)
-
-        if(OBS_INCLUDE_DIR)
-            find_library(OBS_LIBRARY obs
-                PATHS
-                    ${OBS_LIBRARY_PATH}
-                    /opt/homebrew/lib/obs  # macOS Homebrew (Apple Silicon)
-                    /usr/local/lib/obs)     # macOS Homebrew (Intel)
-
-            if(OBS_LIBRARY)
-                add_definitions(-DHAVE_OBS_HEADERS=1)
-                message(STATUS "Found OBS headers at ${OBS_INCLUDE_DIR}")
-            else()
-                message(WARNING "OBS library not found. Building in standalone mode.")
-                add_definitions(-DSTANDALONE_TEST)
-                add_definitions(-DBUILD_STANDALONE)
-                set(OBS_INCLUDE_DIR "")
-            endif()
+        # Build against the documented minimum so the module ABI remains
+        # loadable by OBS 30.x as well as newer OBS releases.
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+            FetchContent_Declare(
+                obs_source_headers
+                URL ${OBS_SOURCE_URL}
+                URL_HASH ${OBS_SOURCE_HASH}
+                DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+                SOURCE_SUBDIR _headers_only
+            )
+            FetchContent_MakeAvailable(obs_source_headers)
         else()
-            message(WARNING "OBS headers not found. Building in standalone mode.")
-            add_definitions(-DSTANDALONE_TEST)
-            add_definitions(-DBUILD_STANDALONE)
-            set(OBS_INCLUDE_DIR "")
-            set(OBS_FRONTEND_INCLUDE_DIR "")
+            FetchContent_Declare(
+                obs_source_headers
+                URL ${OBS_SOURCE_URL}
+                URL_HASH ${OBS_SOURCE_HASH}
+                DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+            )
+            FetchContent_GetProperties(obs_source_headers)
+            if(NOT obs_source_headers_POPULATED)
+                FetchContent_Populate(obs_source_headers)
+            endif()
         endif()
+        set(OBS_SOURCE_DIR "${obs_source_headers_SOURCE_DIR}")
     endif()
+
+    if(NOT EXISTS "${OBS_SOURCE_DIR}/libobs/obs-module.h")
+        message(FATAL_ERROR "OBS source headers not found under ${OBS_SOURCE_DIR}/libobs")
+    endif()
+
+    set(OBS_INCLUDE_DIR "${OBS_SOURCE_DIR}/libobs")
+    set(OBS_FRONTEND_INCLUDE_DIR "")
+    set(OBS_RELEASE_CANDIDATE 0)
+    set(OBS_BETA 0)
+    set(OBS_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/obs-generated")
+    file(MAKE_DIRECTORY "${OBS_GENERATED_INCLUDE_DIR}")
+    configure_file(
+        "${OBS_INCLUDE_DIR}/obsconfig.h.in"
+        "${OBS_GENERATED_INCLUDE_DIR}/obsconfig.h"
+        @ONLY
+    )
+    set(HAVE_OBS_HEADERS TRUE)
+    message(STATUS "OBS headers: ${OBS_INCLUDE_DIR}")
+    set(OBS_LIBRARY "")
+    message(STATUS "OBS symbols will resolve when the plugin is loaded")
 else()
     # Windows/Linux OBS header search
     find_path(OBS_INCLUDE_DIR obs.h
@@ -109,7 +112,7 @@ else()
             /usr/local/lib/obs)
 
     if(OBS_INCLUDE_DIR AND OBS_LIBRARY)
-        add_definitions(-DHAVE_OBS_HEADERS=1)
+        set(HAVE_OBS_HEADERS TRUE)
         message(STATUS "Found OBS headers at ${OBS_INCLUDE_DIR}")
         message(STATUS "Found OBS library at ${OBS_LIBRARY}")
     else()
@@ -128,6 +131,7 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${OBS_INCLUDE_DIR}
     ${OBS_FRONTEND_INCLUDE_DIR}
+    ${OBS_GENERATED_INCLUDE_DIR}
 )
 
 # --- Source Files ---
@@ -139,12 +143,19 @@ set(SOURCES
 )
 
 # Frame utils is only needed when OBS headers are available
-if(OBS_INCLUDE_DIR AND OBS_FRONTEND_INCLUDE_DIR)
+if(HAVE_OBS_HEADERS)
     list(APPEND SOURCES src/core/frame_utils.cpp)
 endif()
 
 # --- Main Plugin Target ---
 add_library(obs-stabilizer-opencv MODULE ${SOURCES})
+
+if(HAVE_OBS_HEADERS)
+    target_compile_definitions(
+        obs-stabilizer-opencv
+        PRIVATE HAVE_OBS_HEADERS=1 OBS_STABILIZER_USE_REAL_OBS=1
+    )
+endif()
 
 target_link_libraries(obs-stabilizer-opencv ${OpenCV_LIBS})
 if(OBS_LIBRARY)
@@ -185,11 +196,9 @@ if(APPLE)
         set(RPATH_DIRS "${OPENCV_LIB_REALDIR}")
     endif()
 
-    # Add OBS.framework rpath if using OBS.app
-    if(OBS_LIBRARY AND EXISTS "/Applications/OBS.app/Contents/Frameworks")
-        set(RPATH_DIRS "${RPATH_DIRS};/Applications/OBS.app/Contents/Frameworks")
-        message(STATUS "Adding OBS.framework to rpath")
-    endif()
+    # Keep bundled dependencies next to the plugin binary while retaining a
+    # development fallback for locally installed OpenCV.
+    list(PREPEND RPATH_DIRS "@loader_path/../Frameworks")
 
     # Set link flags and rpath
     set_target_properties(obs-stabilizer-opencv PROPERTIES
@@ -198,44 +207,6 @@ if(APPLE)
         BUILD_WITH_INSTALL_RPATH TRUE
         MACOSX_RPATH TRUE
     )
-
-    # Convert OpenCV library paths from absolute to @rpath references
-    # This ensures the plugin can find OpenCV libraries at runtime when loaded by OBS
-    # RATIONALE: OpenCV libraries are embedded with absolute paths during linking,
-    # which prevents OBS from finding them at runtime. Converting to @rpath
-    # allows the dynamic loader to use the RPATH_DIRS we configured above.
-    #
-    # REFACTORED: Use glob pattern to find all opencv libraries instead of hardcoding version numbers.
-    # This makes the build system future-proof and compatible with different OpenCV versions.
-    # Previously hardcoded version 4.12, now works with any OpenCV 4.x version.
-    if(EXISTS "${OPENCV_LIB_REALDIR}")
-        # Use glob to find all opencv libraries dynamically
-        # RATIONALE: Eliminates version hardcoding, making build system maintainable across OpenCV versions
-        file(GLOB OPENCV_LIBS_TO_FIX
-            "${OPENCV_LIB_REALDIR}/libopencv_*.dylib"
-        )
-
-        # Verify we found some libraries
-        list(LENGTH OPENCV_LIBS_TO_FIX NUM_LIBS)
-        if(NUM_LIBS GREATER 0)
-            message(STATUS "Found ${NUM_LIBS} OpenCV libraries to convert to @rpath")
-
-            # Use install_name_tool to convert each library path
-            foreach(opencv_lib ${OPENCV_LIBS_TO_FIX})
-                get_filename_component(opencv_lib_name "${opencv_lib}" NAME)
-                add_custom_command(TARGET obs-stabilizer-opencv POST_BUILD
-                    COMMAND ${CMAKE_INSTALL_NAME_TOOL}
-                        -change "${opencv_lib}"
-                                "@rpath/${opencv_lib_name}"
-                        $<TARGET_FILE:obs-stabilizer-opencv>
-                    COMMENT "Converting ${opencv_lib_name} to use @rpath"
-                )
-            endforeach()
-            message(STATUS "Configured post-build step to convert OpenCV libs to @rpath")
-        else()
-            message(WARNING "No OpenCV libraries found in ${OPENCV_LIB_REALDIR}")
-        endif()
-    endif()
 
     # For static linking (if enabled in future)
     if(OPENCV_STATIC_LINKING)
@@ -255,13 +226,41 @@ if(WIN32)
         SUFFIX ".dll"
     )
 elseif(APPLE)
-    # macOS typically uses .so or .dylib for OBS plugins
-    # Using .so to match OBS plugin conventions
+    # OBS discovers macOS plugins as CFBundle directories. The target name stays
+    # unchanged for CMake, while the produced artifact is obs-stabilizer.plugin.
+    set(OBS_STABILIZER_BUNDLE_NAME "OBS Stabilizer")
+    set(OBS_STABILIZER_BUNDLE_EXECUTABLE "obs-stabilizer")
+    set(OBS_STABILIZER_BUNDLE_IDENTIFIER "com.azumag.obs-stabilizer")
+    set(OBS_STABILIZER_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/obs-stabilizer-Info.plist")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
+        "${OBS_STABILIZER_INFO_PLIST}"
+        @ONLY
+    )
+
     set_target_properties(obs-stabilizer-opencv PROPERTIES
         PREFIX ""
-        OUTPUT_NAME "obs-stabilizer-opencv"
-        SUFFIX ".so"
+        OUTPUT_NAME "${OBS_STABILIZER_BUNDLE_EXECUTABLE}"
+        SUFFIX ""
+        BUNDLE TRUE
+        BUNDLE_EXTENSION plugin
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist.in"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "${OBS_STABILIZER_BUNDLE_IDENTIFIER}"
+        MACOSX_BUNDLE_BUNDLE_NAME "${OBS_STABILIZER_BUNDLE_NAME}"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         CXX_VISIBILITY_PRESET hidden
+    )
+
+    # Some non-Xcode generators omit bundle metadata for MODULE targets. Make
+    # the installable OBS bundle complete regardless of the chosen generator.
+    add_custom_command(TARGET obs-stabilizer-opencv POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_BUNDLE_CONTENT_DIR:obs-stabilizer-opencv>/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${OBS_STABILIZER_INFO_PLIST}"
+            "$<TARGET_BUNDLE_CONTENT_DIR:obs-stabilizer-opencv>/Info.plist"
+        COMMENT "Completing the macOS OBS plugin bundle"
     )
 else()
     # Linux and other Unix systems
@@ -273,10 +272,17 @@ else()
 endif()
 
 # --- Installation ---
-install(TARGETS obs-stabilizer-opencv
-    LIBRARY DESTINATION obs-plugins
-    RUNTIME DESTINATION obs-plugins
-)
+if(APPLE)
+    install(TARGETS obs-stabilizer-opencv
+        BUNDLE DESTINATION .
+        LIBRARY DESTINATION .
+    )
+else()
+    install(TARGETS obs-stabilizer-opencv
+        LIBRARY DESTINATION obs-plugins
+        RUNTIME DESTINATION obs-plugins
+    )
+endif()
 
  # --- Tests ---
   enable_testing()
@@ -301,6 +307,7 @@ install(TARGETS obs-stabilizer-opencv
         tests/test_preset_manager.cpp
         tests/test_thread_safety.cpp
         tests/test_frame_utils.cpp
+        tests/test_filter_runtime.cpp
         tests/test_obs_integration.cpp
     )
 
@@ -331,24 +338,25 @@ install(TARGETS obs-stabilizer-opencv
           ${OBS_INCLUDE_DIR}
       )
 
-      if(HAVE_OBS_HEADERS)
-          # Use real OBS headers but test with standalone PresetManager
-          # RATIONALE: Tests need to use the standalone PresetManager implementation
-          # because OBS stub functions (obs_data_create, etc.) return nullptr.
-          # The STANDALONE_TEST macro ensures preset_manager.cpp uses the
-          # nlohmann/json-based standalone implementation instead of OBS APIs.
-          target_compile_definitions(stabilizer_tests PRIVATE STANDALONE_TEST)
-          target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
-       else()
-           # Use stubs for standalone testing
-           # RATIONALE: obs_minimal.h provides obs_source_frame definition, so we define
-           # HAVE_OBS_HEADERS to enable FRAME_UTILS::Conversion for tests. The actual
-           # OBS API functions will use stubs from obs_minimal.h.
-           target_compile_definitions(stabilizer_tests PRIVATE BUILD_STANDALONE STANDALONE_TEST HAVE_OBS_HEADERS=1)
-           target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
-       endif()
+      # Unit tests use the isolated OBS stubs even when a real OBS SDK is
+      # available for the plugin target.
+      target_compile_definitions(
+          stabilizer_tests
+          PRIVATE BUILD_STANDALONE STANDALONE_TEST HAVE_OBS_HEADERS=1
+      )
+      target_link_libraries(stabilizer_tests GTest::gtest_main ${OpenCV_LIBS})
      
      add_test(NAME stabilizer_unit_tests COMMAND stabilizer_tests)
+     if(UNIX)
+         add_test(
+             NAME macos_packaging_scripts
+             COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_macos_packaging_scripts.sh
+         )
+         set_tests_properties(
+             macos_packaging_scripts
+             PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+         )
+     endif()
      message(STATUS "Test suite enabled.")
  else()
       message(STATUS "No test sources found, skipping test suite.")
@@ -386,9 +394,7 @@ install(TARGETS obs-stabilizer-opencv
            ${CMAKE_CURRENT_SOURCE_DIR}/src/core
        )
 
-       if(NOT HAVE_OBS_HEADERS)
-           target_compile_definitions(singlerun PRIVATE BUILD_STANDALONE STANDALONE_TEST)
-       endif()
+       target_compile_definitions(singlerun PRIVATE BUILD_STANDALONE STANDALONE_TEST)
 
        target_link_libraries(singlerun ${OpenCV_LIBS})
 
@@ -398,12 +404,9 @@ install(TARGETS obs-stabilizer-opencv
           ${CMAKE_CURRENT_SOURCE_DIR}/src/core
       )
 
-       if(NOT HAVE_OBS_HEADERS)
-           target_compile_definitions(performance_benchmark PRIVATE BUILD_STANDALONE STANDALONE_TEST)
-       endif()
+       target_compile_definitions(performance_benchmark PRIVATE BUILD_STANDALONE STANDALONE_TEST)
 
        target_link_libraries(performance_benchmark ${OpenCV_LIBS})
       
       message(STATUS "Performance testing infrastructure enabled")
  endif()
-

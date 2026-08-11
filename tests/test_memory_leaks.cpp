@@ -57,11 +57,12 @@ protected:
 #endif
         }
 #elif defined(_WIN32)
-        // Windows: Use GetProcessMemoryInfo() to get working set size
-        // Returns working set size in bytes, convert to KB
+        // Windows: Use GetProcessMemoryInfo() to get peak working set size.
+        // This matches ru_maxrss semantics and avoids unsigned underflow when
+        // the current working set drops below the baseline measurement.
         PROCESS_MEMORY_COUNTERS pmc;
         if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) {
-            return pmc.WorkingSetSize / 1024;  // bytes to KB
+            return pmc.PeakWorkingSetSize / 1024;  // bytes to KB
         }
 #endif
         // Fallback for unsupported platforms or API failures

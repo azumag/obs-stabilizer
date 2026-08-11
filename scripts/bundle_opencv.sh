@@ -1,83 +1,97 @@
 #!/bin/bash
 
-# Script to bundle OpenCV libraries with the plugin for macOS deployment
-# This creates a self-contained .plugin bundle that can be distributed without
-# requiring OpenCV to be installed separately
+# Bundle non-system dependencies into a generated macOS OBS plugin.
+set -euo pipefail
 
-set -e
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+PLUGIN_PATH="${1:-${PROJECT_ROOT}/build/obs-stabilizer.plugin}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BUILD_DIR="${PROJECT_ROOT}/build"
-PLUGIN_NAME="obs-stabilizer-opencv.so"
-PLUGIN_FILE="${BUILD_DIR}/${PLUGIN_NAME}"
-
-if [ ! -f "${PLUGIN_FILE}" ]; then
-	echo "Error: Plugin file not found at ${PLUGIN_FILE}"
-	echo "Please build the plugin first using: mkdir build && cd build && cmake .. && make"
+if [ ! -d "${PLUGIN_PATH}" ] || [[ "${PLUGIN_PATH}" != *.plugin ]]; then
+	printf "Error: Plugin bundle not found at %s\n" "${PLUGIN_PATH}" >&2
+	printf "Build it first with: cmake -S . -B build && cmake --build build\n" >&2
 	exit 1
 fi
 
-echo "Analyzing plugin dependencies..."
-
-# Get list of OpenCV dependencies (handle various installation paths)
-OPENCV_LIBS=$(otool -L "${PLUGIN_FILE}" | grep 'libopencv.*\.dylib' | awk '{print $1}' | grep -E '^/' | sort -u)
-
-if [ -z "$OPENCV_LIBS" ]; then
-	echo "No OpenCV dependencies found."
-	echo "Plugin may already be bundled or statically linked."
-	OTOOL_OUTPUT=$(otool -L "${PLUGIN_FILE}" | grep -E 'libopencv|@loader_path' || true)
-	if [ -n "$OTOOl_OUTPUT" ]; then
-		echo "Current OpenCV dependencies:"
-		echo "$OTOOl_OUTPUT"
-	fi
-	exit 0
+BINARY_PATH=$(find "${PLUGIN_PATH}/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit 2>/dev/null || true)
+if [ -z "${BINARY_PATH}" ]; then
+	BINARY_PATH=$(find "${PLUGIN_PATH}/Contents/MacOS" -maxdepth 1 -type f -print -quit 2>/dev/null || true)
+fi
+if [ -z "${BINARY_PATH}" ]; then
+	printf "Error: No plugin binary found under %s/Contents/MacOS\n" "${PLUGIN_PATH}" >&2
+	exit 1
 fi
 
-echo "Found OpenCV dependencies to bundle:"
-echo "$OPENCV_LIBS"
-
-# Create Frameworks directory
-FRAMEWORKS_DIR="${BUILD_DIR}/Frameworks"
-mkdir -p "${FRAMEWORKS_DIR}"
-
-# Copy OpenCV libraries to Frameworks directory
-echo ""
-echo "Copying OpenCV libraries to bundle..."
-for lib in $OPENCV_LIBS; do
-	lib_name=$(basename "$lib")
-	echo "  Copying $lib_name"
-	cp "$lib" "${FRAMEWORKS_DIR}/"
+for command in cmake codesign otool; do
+	if ! command -v "${command}" >/dev/null 2>&1; then
+		printf "Error: Required command not found: %s\n" "${command}" >&2
+		exit 1
+	fi
 done
 
-# Update plugin to use bundled libraries
-echo ""
-echo "Updating plugin to use bundled libraries..."
-for lib in $OPENCV_LIBS; do
-	lib_name=$(basename "$lib")
-	echo "  Updating reference to $lib_name"
-	install_name_tool -change "$lib" "@loader_path/Frameworks/$lib_name" "${PLUGIN_FILE}"
+SEARCH_DIRS=(
+	"/Applications/OBS.app/Contents/Frameworks"
+	"/opt/homebrew/lib"
+	"/opt/homebrew/opt/opencv/lib"
+	"/opt/homebrew/opt/gcc/lib/gcc/current"
+	"/usr/local/lib"
+	"/usr/local/opt/opencv/lib"
+	"/opt/local/lib"
+)
+
+if command -v brew >/dev/null 2>&1; then
+	# These are the current transitive formula families used by Homebrew OpenCV.
+	# Absolute install names resolve directly; the opt directories cover the
+	# remaining @rpath references without scanning every installed formula.
+	for formula in opencv abseil protobuf openvino tbb pugixml openblas libomp gcc; do
+		formula_prefix=$(brew --prefix "${formula}" 2>/dev/null || true)
+		if [ -n "${formula_prefix}" ] && [ -d "${formula_prefix}/lib" ]; then
+			SEARCH_DIRS+=("${formula_prefix}/lib")
+		fi
+	done
+fi
+
+SEARCH_DIRS_VALUE=$(IFS=';'; printf '%s' "${SEARCH_DIRS[*]}")
+
+printf "Bundling dependencies into %s\n" "${PLUGIN_PATH}"
+cmake \
+	"-DBUNDLE_PATH=${PLUGIN_PATH}" \
+	"-DBINARY_PATH=${BINARY_PATH}" \
+	"-DSEARCH_DIRS=${SEARCH_DIRS_VALUE}" \
+	-P "${PROJECT_ROOT}/cmake/BundledOpenCV.cmake"
+
+# OBS loads plugin modules with dlopen(). Reject executable-relative framework
+# references in both the plugin and its bundled libraries because
+# @executable_path resolves from OBS.app rather than from the plugin bundle.
+VERIFY_ITEMS=("${BINARY_PATH}")
+FRAMEWORKS_DIR="${PLUGIN_PATH}/Contents/Frameworks"
+if [ -d "${FRAMEWORKS_DIR}" ]; then
+	while IFS= read -r dependency; do
+		VERIFY_ITEMS+=("${dependency}")
+	done < <(find "${FRAMEWORKS_DIR}" -maxdepth 1 -type f -print)
+fi
+
+for item in "${VERIFY_ITEMS[@]}"; do
+	ITEM_DEPENDENCIES=$(otool -L "${item}")
+	if [[ "${ITEM_DEPENDENCIES}" == *"@executable_path/../Frameworks"* ]]; then
+		printf "Error: executable-relative bundled dependency remains in %s\n" "${item}" >&2
+		printf '%s\n' "${ITEM_DEPENDENCIES}" >&2
+		exit 1
+	fi
 done
 
-# Verify the changes
-echo ""
-echo "Verifying plugin dependencies after bundling..."
-echo "Plugin dependencies:"
-otool -L "${PLUGIN_FILE}" | grep -E "(opencv|@loader_path)"
+BINARY_DEPENDENCIES=$(otool -L "${BINARY_PATH}")
+if [ -n "$(find "${PLUGIN_PATH}/Contents/Frameworks" -maxdepth 1 -type f -print -quit)" ] && \
+	[[ "${BINARY_DEPENDENCIES}" != *"@loader_path/../Frameworks/"* ]]; then
+	printf "Error: Plugin does not reference its bundled Frameworks via @loader_path\n" >&2
+	exit 1
+fi
 
-echo ""
-echo "=========================================="
-echo "OpenCV libraries bundled successfully!"
-echo "=========================================="
-echo ""
-echo "The plugin now references OpenCV libraries from the Frameworks directory:"
-echo "  ${FRAMEWORKS_DIR}"
-echo ""
-echo "To deploy:"
-echo "1. Copy the plugin (${PLUGIN_FILE}) to OBS plugins directory"
-echo "2. Copy the Frameworks directory to the same location as the plugin"
-echo "3. The Frameworks directory should be at: <OBS plugins dir>/Frameworks/"
-echo ""
-echo "Example:"
-echo "  cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/"
-echo "  cp -r build/Frameworks ~/.config/obs-studio/plugins/obs-stabilizer-opencv/bin/"
+codesign --force --deep --sign - "${PLUGIN_PATH}"
+codesign --verify --deep --strict "${PLUGIN_PATH}"
+
+printf "Plugin bundle is ready: %s\n" "${PLUGIN_PATH}"
+printf "Install it with:\n"
+printf "  mkdir -p '%s'\n" "${HOME}/Library/Application Support/obs-studio/plugins"
+printf "  cp -R '%s' '%s/'\n" \
+	"${PLUGIN_PATH}" "${HOME}/Library/Application Support/obs-studio/plugins"

@@ -16,7 +16,7 @@
 #include <vector>
 
 #ifdef HAVE_OBS_HEADERS
-#include "obs_minimal.h"
+#include "obs_compat.h"
 #endif
 
 namespace STABILIZER_PRESETS {
