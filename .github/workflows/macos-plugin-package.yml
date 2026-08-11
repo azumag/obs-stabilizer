@@ -1,0 +1,44 @@
+name: macOS Plugin Package
+
+on:
+  pull_request:
+    paths:
+      - "scripts/fix-plugin-loading.sh"
+      - "docs/MACOS_BUILD_INSTALL.md"
+      - ".github/workflows/macos-plugin-package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-smoke-test:
+    runs-on: macos-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create a minimal loadable module
+        run: |
+          mkdir -p build
+          cat >/tmp/obs-stabilizer-smoke.c <<'EOF'
+          int obs_stabilizer_smoke_symbol(void) { return 0; }
+          EOF
+          clang -bundle -undefined dynamic_lookup \
+            -o build/obs-stabilizer-opencv.so \
+            /tmp/obs-stabilizer-smoke.c
+
+      - name: Create and validate plugin bundle
+        run: |
+          ./scripts/fix-plugin-loading.sh build/obs-stabilizer-opencv.so
+
+          test -x build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer
+          test -f build/obs-stabilizer.plugin/Contents/Info.plist
+
+          plutil -lint build/obs-stabilizer.plugin/Contents/Info.plist
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' \
+            build/obs-stabilizer.plugin/Contents/Info.plist)" = "obs-stabilizer"
+
+          codesign --verify --deep --strict \
+            build/obs-stabilizer.plugin

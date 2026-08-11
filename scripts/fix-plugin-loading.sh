@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Fix OBS Stabilizer Plugin Loading Issues for macOS
+# Fix OBS Stabilizer plugin loading issues on macOS.
+# Raw .so/.dylib build outputs are converted into a standard .plugin bundle.
 set -euo pipefail
 
 PLUGIN_PATH="${1:-}"
@@ -8,12 +9,12 @@ PLUGIN_PATH="${1:-}"
 find_build_output() {
 	local candidate
 	for candidate in \
+		build/obs-stabilizer.plugin \
 		build/obs-stabilizer-opencv.so \
 		build/obs-stabilizer.so \
-		build/obs-stabilizer.plugin \
+		build/Release/obs-stabilizer.plugin \
 		build/Release/obs-stabilizer-opencv.so \
 		build/Release/obs-stabilizer.so \
-		build/Release/obs-stabilizer.plugin \
 		obs-stabilizer.plugin; do
 		if [ -f "$candidate" ] || [ -d "$candidate" ]; then
 			printf '%s\n' "$candidate"
@@ -22,8 +23,8 @@ find_build_output() {
 	done
 
 	candidate=$(find build -maxdepth 5 \
-		\( -type f \( -name 'obs-stabilizer*.so' -o -name 'obs-stabilizer*.dylib' \) \
-		-o -type d -name 'obs-stabilizer*.plugin' \) \
+		\( -type d -name 'obs-stabilizer*.plugin' \
+		-o -type f \( -name 'obs-stabilizer*.so' -o -name 'obs-stabilizer*.dylib' \) \) \
 		-print -quit 2>/dev/null || true)
 	[ -n "$candidate" ] && printf '%s\n' "$candidate"
 }
@@ -31,9 +32,19 @@ find_build_output() {
 find_bundle_binary() {
 	local bundle="$1"
 	local macos_dir="$bundle/Contents/MacOS"
+	local executable_name=""
 	local candidate
 
 	[ -d "$macos_dir" ] || return 1
+
+	if [ -f "$bundle/Contents/Info.plist" ] && command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
+		executable_name=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' \
+			"$bundle/Contents/Info.plist" 2>/dev/null || true)
+		if [ -n "$executable_name" ] && [ -f "$macos_dir/$executable_name" ]; then
+			printf '%s\n' "$macos_dir/$executable_name"
+			return 0
+		fi
+	fi
 
 	for candidate in \
 		"$macos_dir/obs-stabilizer" \
@@ -53,6 +64,59 @@ find_bundle_binary() {
 	[ -n "$candidate" ] && printf '%s\n' "$candidate"
 }
 
+create_plugin_bundle() {
+	local source_binary="$1"
+	local source_dir
+	local bundle_path
+	local macos_dir
+	local binary_path
+	local plist_path
+
+	source_dir=$(cd "$(dirname "$source_binary")" && pwd)
+	bundle_path="${OBS_STABILIZER_BUNDLE_PATH:-$source_dir/obs-stabilizer.plugin}"
+	macos_dir="$bundle_path/Contents/MacOS"
+	binary_path="$macos_dir/obs-stabilizer"
+	plist_path="$bundle_path/Contents/Info.plist"
+
+	rm -rf "$bundle_path"
+	mkdir -p "$macos_dir"
+	cp "$source_binary" "$binary_path"
+	chmod +x "$binary_path"
+
+	cat >"$plist_path" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>OBS Stabilizer</string>
+	<key>CFBundleExecutable</key>
+	<string>obs-stabilizer</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.azumag.obs-stabilizer</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>OBS Stabilizer</string>
+	<key>CFBundlePackageType</key>
+	<string>BNDL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
+</dict>
+</plist>
+PLIST
+
+	printf '%s\n' "$bundle_path"
+}
+
 if [ -z "$PLUGIN_PATH" ]; then
 	PLUGIN_PATH=$(find_build_output || true)
 fi
@@ -67,69 +131,67 @@ if [ -z "$PLUGIN_PATH" ]; then
 fi
 
 if [ -f "$PLUGIN_PATH" ] && [[ "$PLUGIN_PATH" == *.so || "$PLUGIN_PATH" == *.dylib ]]; then
-	BINARY_PATH="$PLUGIN_PATH"
-	PLUGIN_NAME=$(basename "$PLUGIN_PATH")
-elif [ -d "$PLUGIN_PATH" ] && [[ "$PLUGIN_PATH" == *.plugin ]]; then
-	BINARY_PATH=$(find_bundle_binary "$PLUGIN_PATH" || true)
-	PLUGIN_NAME=$(basename "$PLUGIN_PATH")
-	if [ -z "$BINARY_PATH" ]; then
-		printf "Error: No plugin binary found under %s/Contents/MacOS\n" "$PLUGIN_PATH" >&2
-		exit 1
-	fi
-else
+	printf "Creating macOS .plugin bundle from %s\n" "$PLUGIN_PATH"
+	PLUGIN_PATH=$(create_plugin_bundle "$PLUGIN_PATH")
+elif ! { [ -d "$PLUGIN_PATH" ] && [[ "$PLUGIN_PATH" == *.plugin ]]; }; then
 	printf "Error: Invalid plugin format. Expected a .so/.dylib file or .plugin bundle.\n" >&2
 	exit 1
 fi
 
-if ! command -v install_name_tool >/dev/null 2>&1; then
-	printf "Error: Xcode Command Line Tools not installed\n" >&2
-	printf "Run: xcode-select --install\n" >&2
+BINARY_PATH=$(find_bundle_binary "$PLUGIN_PATH" || true)
+if [ -z "$BINARY_PATH" ]; then
+	printf "Error: No plugin binary found under %s/Contents/MacOS\n" "$PLUGIN_PATH" >&2
 	exit 1
 fi
 
-for command in otool codesign; do
+for command in install_name_tool otool codesign; do
 	if ! command -v "$command" >/dev/null 2>&1; then
-		printf "Error: Required command not found: %s\n" "$command" >&2
+		printf "Error: Required Xcode command not found: %s\n" "$command" >&2
+		printf "Run: xcode-select --install\n" >&2
 		exit 1
 	fi
 done
 
-printf "Fixing plugin: %s\n" "$PLUGIN_NAME"
+if command -v plutil >/dev/null 2>&1; then
+	plutil -lint "$PLUGIN_PATH/Contents/Info.plist" >/dev/null
+fi
+
+printf "Fixing plugin bundle: %s\n" "$PLUGIN_PATH"
 printf "Binary path: %s\n\n" "$BINARY_PATH"
 
-install_name_tool -id "@loader_path/$(basename "$BINARY_PATH")" "$BINARY_PATH"
-
-otool -L "$BINARY_PATH" | grep opencv | awk '{print $1}' | while IFS= read -r lib; do
+while IFS= read -r lib; do
+	[ -n "$lib" ] || continue
 	if [[ "$lib" == /opt/homebrew/* ]] || [[ "$lib" == /usr/local/* ]] || [[ "$lib" == /opt/local/* ]]; then
 		lib_name=$(basename "$lib")
 		install_name_tool -change "$lib" "@rpath/$lib_name" "$BINARY_PATH"
 	fi
-done
+done < <(otool -L "$BINARY_PATH" | awk '/opencv/ {print $1}')
 
-install_name_tool -add_rpath "/opt/homebrew/opt/opencv/lib" "$BINARY_PATH" 2>/dev/null || true
-install_name_tool -add_rpath "/usr/local/lib" "$BINARY_PATH" 2>/dev/null || true
-install_name_tool -add_rpath "/opt/local/lib" "$BINARY_PATH" 2>/dev/null || true
+for rpath in \
+	/opt/homebrew/opt/opencv@4/lib \
+	/opt/homebrew/opt/opencv/lib \
+	/usr/local/opt/opencv@4/lib \
+	/usr/local/opt/opencv/lib \
+	/usr/local/lib \
+	/opt/local/lib; do
+	[ -d "$rpath" ] || continue
+	install_name_tool -add_rpath "$rpath" "$BINARY_PATH" 2>/dev/null || true
+done
 
 if [ -d "/Applications/OBS.app/Contents/Frameworks" ]; then
 	install_name_tool -add_rpath "/Applications/OBS.app/Contents/Frameworks" "$BINARY_PATH" 2>/dev/null || true
 fi
 
-if [[ "$PLUGIN_PATH" == *.plugin ]]; then
-	codesign --force --deep --sign - "$PLUGIN_PATH"
-else
-	codesign --force --sign - "$BINARY_PATH"
-fi
+codesign --force --deep --sign - "$PLUGIN_PATH"
 
 printf "\nVerifying fixes...\n"
-otool -L "$BINARY_PATH" | head -5
+otool -L "$BINARY_PATH" | head -10
+codesign --verify --deep --strict "$PLUGIN_PATH"
 
 USER_PLUGIN_DIR="$HOME/Library/Application Support/obs-studio/plugins"
-printf "\nPlugin fixed. Install with:\n"
+printf "\nPlugin bundle is ready: %s\n" "$PLUGIN_PATH"
+printf "Install with:\n"
 printf "  mkdir -p '%s'\n" "$USER_PLUGIN_DIR"
-if [[ "$PLUGIN_PATH" == *.plugin ]]; then
-	printf "  cp -R '%s' '%s/'\n" "$PLUGIN_PATH" "$USER_PLUGIN_DIR"
-else
-	printf "  cp '%s' '%s/'\n" "$PLUGIN_PATH" "$USER_PLUGIN_DIR"
-fi
-
-printf "\nRestart OBS and enable the plugin in Filters.\n"
+printf "  rm -rf '%s/obs-stabilizer.plugin'\n" "$USER_PLUGIN_DIR"
+printf "  cp -R '%s' '%s/'\n" "$PLUGIN_PATH" "$USER_PLUGIN_DIR"
+printf "\nRestart OBS, add/open a source, and choose Filters to enable OBS Stabilizer.\n"
