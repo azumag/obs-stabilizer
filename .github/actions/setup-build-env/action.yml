@@ -83,8 +83,13 @@ runs:
       if: inputs.platform == 'windows'
       shell: powershell
       run: |
-        if (Test-Path "C:\vcpkg\installed\x64-windows\include\opencv4") {
-          Write-Host "OpenCV vcpkg cache found, skipping installation"
+        $opencvCalib3d = Get-ChildItem -Path "C:\vcpkg\installed\x64-windows\lib" -Filter "opencv_calib3d*.lib" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $openCvReady = (Test-Path "C:\vcpkg\installed\x64-windows\include\opencv4") -and $opencvCalib3d
+        $gTestReady = Test-Path "C:\vcpkg\installed\x64-windows\include\gtest\gtest.h"
+        $jsonReady = Test-Path "C:\vcpkg\installed\x64-windows\include\nlohmann\json.hpp"
+
+        if ($openCvReady -and $gTestReady -and $jsonReady) {
+          Write-Host "Required vcpkg packages found, skipping installation"
         } else {
           Write-Host "Installing vcpkg..."
           if (-not (Test-Path "C:\vcpkg")) {
@@ -99,7 +104,7 @@ runs:
             }
           }
           
-          Write-Host "Installing OpenCV, GTest, and nlohmann-json via vcpkg (this may take a while)..."
-          .\vcpkg install opencv:x64-windows gtest:x64-windows nlohmann-json:x64-windows
+          Write-Host "Installing OpenCV calib3d, GTest, and nlohmann-json via vcpkg..."
+          .\vcpkg install "opencv[calib3d]:x64-windows" gtest:x64-windows nlohmann-json:x64-windows
           Write-Host "OpenCV, GTest, and nlohmann-json installed successfully"
         }
