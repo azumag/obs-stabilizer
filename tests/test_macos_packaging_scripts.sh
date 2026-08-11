@@ -127,5 +127,6 @@ assert_contains "${REPO_ROOT}/scripts/bundle_opencv.sh" "executable-relative bun
 assert_contains "${REPO_ROOT}/.github/workflows/build.yml" './scripts/bundle_opencv.sh build/obs-stabilizer.plugin'
 assert_contains "${REPO_ROOT}/.github/workflows/build.yml" 'build/obs-stabilizer-macos.zip'
 assert_contains "${REPO_ROOT}/src/stabilizer_opencv.cpp" 'OBS_DECLARE_MODULE()'
+assert_contains "${REPO_ROOT}/.github/workflows/build.yml" 'if-no-files-found: error'
 
 printf '%s\n' "macOS packaging script tests passed"
