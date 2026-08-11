@@ -76,6 +76,32 @@ namespace FRAME_UTILS {
             }
         }
 
+        /**
+         * Convert an OBS frame for immediate synchronous processing.
+         *
+         * Packed BGRA/BGRX/BGR3 frames use a borrowed zero-copy view. Planar
+         * formats still use the owning conversion path because color conversion
+         * requires new storage. The returned borrowed Mat must not escape the
+         * lifetime of the source OBS frame.
+         *
+         * Keeping this policy here prevents plugin integration code from duplicating
+         * format checks and gives the hot path one conversion entry point.
+         */
+        inline cv::Mat obs_to_cv_for_processing(const obs_source_frame* frame) {
+            if (!frame) {
+                return cv::Mat();
+            }
+
+            switch (frame->format) {
+                case VIDEO_FORMAT_BGRA:
+                case VIDEO_FORMAT_BGRX:
+                case VIDEO_FORMAT_BGR3:
+                    return obs_to_cv_view(frame);
+                default:
+                    return obs_to_cv(frame);
+            }
+        }
+
         // Convert OpenCV Mat to OBS frame
         obs_source_frame* cv_to_obs(const cv::Mat& mat, const obs_source_frame* reference_frame);
 
@@ -102,7 +128,8 @@ namespace FRAME_UTILS {
         static void copy_frame_metadata(const obs_source_frame* src, obs_source_frame* dst);
 
         // RAII wrapper for obs_source_frame to ensure proper memory management
-        // This addresses the code review Issue #2: Manual Memory Management
+        // This addresses code review Issue #2: Manual Memory Management
+        // The wrapper ensures automatic cleanup on any exception or early return
         class OBSFrameRAII {
         private:
             obs_source_frame* frame_;
