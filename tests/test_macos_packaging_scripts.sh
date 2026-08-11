@@ -93,7 +93,9 @@ chmod +x "${MOCK_BIN}/otool" "${MOCK_BIN}/install_name_tool" \
 
 assert_contains "${TEST_ROOT}/fix-output.log" "Binary path: build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer"
 assert_contains "${MOCK_LOG}" "codesign --force --deep --sign - build/obs-stabilizer.plugin"
-assert_contains "${MOCK_LOG}" "install_name_tool -add_rpath @executable_path/../Frameworks"
+assert_contains "${MOCK_LOG}" "install_name_tool -delete_rpath @executable_path/../Frameworks"
+assert_contains "${MOCK_LOG}" "install_name_tool -add_rpath @loader_path/../Frameworks"
+assert_not_contains "${MOCK_LOG}" "install_name_tool -add_rpath @executable_path/../Frameworks"
 assert_not_contains "${MOCK_LOG}" "install_name_tool -id"
 assert_not_contains "${MOCK_LOG}" "install_name_tool -add_rpath /opt/homebrew"
 
@@ -113,5 +115,8 @@ assert_not_contains "${REPO_ROOT}/CMakeLists.txt" 'OPENCV_LIBS_TO_FIX'
 assert_contains "${REPO_ROOT}/cmake/Info.plist.in" '@OBS_STABILIZER_BUNDLE_EXECUTABLE@'
 assert_not_contains "${REPO_ROOT}/cmake/Info.plist.in" "test-stabilizer"
 assert_contains "${REPO_ROOT}/.github/workflows/build.yml" './scripts/bundle_opencv.sh build/obs-stabilizer.plugin'
+assert_contains "${REPO_ROOT}/cmake/BundledOpenCV.cmake" 'set(replacement "@loader_path/../Frameworks/${dependency_name}")'
+assert_not_contains "${REPO_ROOT}/cmake/BundledOpenCV.cmake" 'set(replacement "@executable_path/../Frameworks/${dependency_name}")'
+assert_contains "${REPO_ROOT}/scripts/bundle_opencv.sh" "executable-relative bundled dependency remains"
 
 printf '%s\n' "macOS packaging script tests passed"
