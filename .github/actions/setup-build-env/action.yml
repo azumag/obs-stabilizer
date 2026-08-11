@@ -52,7 +52,8 @@ runs:
       if: inputs.platform == 'macos'
       shell: bash
       run: |
-        brew install cmake ninja opencv pkg-config googletest nlohmann-json || brew upgrade cmake ninja opencv pkg-config googletest nlohmann-json
+        brew install cmake ninja opencv@4 pkg-config googletest nlohmann-json
+        echo "OpenCV_DIR=$(brew --prefix opencv@4)/lib/cmake/opencv4" >> "$GITHUB_ENV"
 
     - name: Setup MSVC (Windows)
       if: inputs.platform == 'windows'

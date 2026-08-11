@@ -24,8 +24,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pull-requests: write
-  checks: write
 
 jobs:
   feature-implementation-flow:
@@ -241,7 +241,7 @@ jobs:
           retention-days: 30
       
       - name: Comment PR with implementation report
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
@@ -281,7 +281,7 @@ jobs:
           cat tmp/checklist.md
       
       - name: Mark PR as ready for review
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
@@ -290,21 +290,4 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: '✅ **Feature Implementation Flow Complete**\n\nAll automated checks passed. The PR is ready for review.\n\nPlease review the implementation report and checklist above.'
-            });
-      
-      - name: Set check status
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.checks.create({
-              name: 'Feature Implementation Flow',
-              head_sha: context.sha,
-              status: 'completed',
-              conclusion: 'success',
-              output: {
-                title: 'Feature Implementation Flow',
-                summary: 'All automated checks passed successfully',
-                text: '✅ Code style checks\n✅ Static analysis\n✅ Unit tests\n✅ Security review\n✅ Documentation review'
-              }
             });
