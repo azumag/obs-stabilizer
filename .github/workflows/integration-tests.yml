@@ -1,0 +1,59 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  integration-tests:
+    name: Integration and Edge Case Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup build environment
+        uses: ./.github/actions/setup-build-env
+        with:
+          platform: ubuntu
+
+      - name: Install GoogleTest
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y googletest libgtest-dev
+          cd /usr/src/googletest
+          sudo cmake CMakeLists.txt
+          sudo make -j2
+          sudo cp lib/*.a /usr/lib
+
+      - name: Configure tests
+        run: |
+          cmake -S . -B tmp/builds/integration -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build test executable
+        run: cmake --build tmp/builds/integration --target stabilizer_tests --parallel 2
+
+      - name: Run integration and edge-case suites
+        run: |
+          mkdir -p tmp/reports/integration
+          set -o pipefail
+          tmp/builds/integration/stabilizer_tests \
+            --gtest_filter='IntegrationTest.*:EdgeCaseTest.*:OBSIntegrationTest.*' \
+            --gtest_output=xml:tmp/reports/integration/results.xml \
+            2>&1 | tee tmp/reports/integration/output.log
+
+      - name: Upload integration test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports-${{ github.run_number }}
+          retention-days: 14
+          if-no-files-found: error
+          path: tmp/reports/integration/
