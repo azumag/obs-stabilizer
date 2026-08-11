@@ -1,0 +1,27 @@
+name: GPU Backend Policy
+
+on:
+  pull_request:
+    paths:
+      - 'src/core/gpu_backend_policy.hpp'
+      - 'tests/gpu_backend_policy_test.cpp'
+      - '.github/workflows/gpu-backend-policy.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: gpu-backend-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror -Isrc \
+            tests/gpu_backend_policy_test.cpp \
+            -o gpu_backend_policy_test
+      - name: Run
+        run: ./gpu_backend_policy_test
