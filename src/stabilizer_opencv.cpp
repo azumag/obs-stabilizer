@@ -60,23 +60,29 @@ static void params_to_settings(const StabilizerCore::StabilizerParams& params, o
 // Frame conversion functions
 static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame);
 
-// Plugin structure definition
-static struct obs_source_info stabilizer_filter_info = {
-    .id = "stabilizer_filter",
-    .type = OBS_SOURCE_TYPE_FILTER,
+// Build the C registration structure with assignments so the same source is
+// valid under the C++17 mode used by the standalone MSVC test target.
+static struct obs_source_info make_stabilizer_filter_info()
+{
+    struct obs_source_info info = {};
+    info.id = "stabilizer_filter";
+    info.type = OBS_SOURCE_TYPE_FILTER;
     // filter_video receives raw frames only when the filter is marked async.
     // Without OBS_SOURCE_ASYNC OBS lists this as an effect filter but never
     // invokes the OpenCV processing callback.
-    .output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC,
-    .get_name = stabilizer_filter_name,
-    .create = stabilizer_filter_create,
-    .destroy = stabilizer_filter_destroy,
-    .get_defaults = stabilizer_filter_get_defaults,
-    .get_properties = stabilizer_filter_properties,
-    .update = stabilizer_filter_update,
-    .video_render = NULL,
-    .filter_video = stabilizer_filter_video,
-};
+    info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC;
+    info.get_name = stabilizer_filter_name;
+    info.create = stabilizer_filter_create;
+    info.destroy = stabilizer_filter_destroy;
+    info.get_defaults = stabilizer_filter_get_defaults;
+    info.get_properties = stabilizer_filter_properties;
+    info.update = stabilizer_filter_update;
+    info.video_render = nullptr;
+    info.filter_video = stabilizer_filter_video;
+    return info;
+}
+
+static struct obs_source_info stabilizer_filter_info = make_stabilizer_filter_info();
 #endif
 
 // Plugin implementation functions
