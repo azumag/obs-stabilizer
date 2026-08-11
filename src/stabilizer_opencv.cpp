@@ -172,9 +172,9 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
             blog(LOG_INFO, "[obs-stabilizer] Stabilizer initialized for %dx%d", frame->width, frame->height);
         }
 
-        // Use the shared conversion API directly so all format handling, validation,
-        // conversion metrics, and buffer ownership stay centralized in FrameUtils.
-        cv::Mat cv_frame = FRAME_UTILS::Conversion::obs_to_cv(frame);
+        // Use the shared processing conversion policy. Packed frames borrow OBS
+        // storage without a copy; planar formats fall back to an owning conversion.
+        cv::Mat cv_frame = FRAME_UTILS::Conversion::obs_to_cv_for_processing(frame);
         if (cv_frame.empty()) {
             blog(LOG_ERROR, "[obs-stabilizer] Failed to convert OBS frame to OpenCV Mat");
             return frame;
