@@ -18,6 +18,7 @@ OBS_MODULE_AUTHOR("azumag")
 #include "core/stabilizer_wrapper.hpp"
 #include "core/parameter_validation.hpp"
 #include <memory>
+#include <mutex>
 #include <cstring>
 #include <chrono>
 
@@ -28,8 +29,10 @@ OBS_MODULE_AUTHOR("azumag")
 struct stabilizer_filter {
     obs_source_t *source;
     StabilizerWrapper stabilizer;  // Using RAII wrapper for memory safety
-    bool initialized;
+    std::mutex params_mutex;
     StabilizerCore::StabilizerParams params;
+    uint32_t frame_width;
+    uint32_t frame_height;
 
     // Performance monitoring
     uint64_t frame_count;
@@ -56,13 +59,15 @@ static void params_to_settings(const StabilizerCore::StabilizerParams& params, o
 
 // Frame conversion functions
 static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame);
-static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame);
 
 // Plugin structure definition
 static struct obs_source_info stabilizer_filter_info = {
     .id = "stabilizer_filter",
     .type = OBS_SOURCE_TYPE_FILTER,
-    .output_flags = OBS_SOURCE_VIDEO,
+    // filter_video receives raw frames only when the filter is marked async.
+    // Without OBS_SOURCE_ASYNC OBS lists this as an effect filter but never
+    // invokes the OpenCV processing callback.
+    .output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC,
     .get_name = stabilizer_filter_name,
     .create = stabilizer_filter_create,
     .destroy = stabilizer_filter_destroy,
@@ -83,19 +88,14 @@ static const char *stabilizer_filter_name(void *unused)
     return "Video Stabilizer";
 }
 
-static const char *stabilizer_filter_id(void *unused)
-{
-    UNUSED_PARAMETER(unused);
-    return "stabilizer_filter";
-}
-
 static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source)
 {
     try {
         auto context = std::make_unique<struct stabilizer_filter>();
 
         context->source = source;
-        context->initialized = false;
+        context->frame_width = 0;
+        context->frame_height = 0;
         context->frame_count = 0;
         context->avg_processing_time = 0.0;
 
@@ -139,16 +139,16 @@ static void stabilizer_filter_update(void *data, obs_data_t *settings)
         // Note: settings_to_params() already calls VALIDATION::validate_parameters() at line 346
         StabilizerCore::StabilizerParams new_params = settings_to_params(settings);
 
-        // Direct assignment - validation already done in settings_to_params()
-        context->params = new_params;
+        // The properties callback runs on the UI thread while filter_video
+        // runs on a video thread. Protect the pending first-frame parameters,
+        // then use StabilizerWrapper's own lock for an already active engine.
+        {
+            std::lock_guard<std::mutex> lock(context->params_mutex);
+            context->params = new_params;
+        }
 
-        if (context->initialized) {
-            // Re-initialize with new parameters
-            uint32_t width = obs_source_get_width(context->source);
-            uint32_t height = obs_source_get_height(context->source);
-            if (width > 0 && height > 0) {
-                context->stabilizer.initialize(width, height, new_params);
-            }
+        if (context->stabilizer.is_initialized()) {
+            context->stabilizer.update_parameters(new_params);
         }
 
     } catch (const std::exception& e) {
@@ -160,19 +160,28 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
 {
     try {
         struct stabilizer_filter *context = (struct stabilizer_filter *)data;
-        if (!context || !context->stabilizer.is_initialized() || !frame) {
+        if (!context || !frame) {
             return frame;
         }
 
-        // Initialize stabilizer on first frame
-        if (!context->initialized) {
-            if (!context->stabilizer.initialize(frame->width, frame->height, context->params)) {
+        // Initialize on the first real frame, and rebuild if an async source
+        // changes resolution while active.
+        const bool dimensions_changed = context->frame_width != frame->width ||
+                                        context->frame_height != frame->height;
+        if (!context->stabilizer.is_initialized() || dimensions_changed) {
+            // Keep the parameter lock through initialization. This makes a
+            // concurrent UI update run after the new engine exists instead of
+            // applying settings to the engine that is about to be replaced.
+            std::lock_guard<std::mutex> lock(context->params_mutex);
+            if (!context->stabilizer.initialize(frame->width, frame->height,
+                                                context->params)) {
                 blog(LOG_ERROR, "[obs-stabilizer] Failed to initialize stabilizer: %s",
                          context->stabilizer.get_last_error().c_str());
                 return frame;
             }
 
-            context->initialized = true;
+            context->frame_width = frame->width;
+            context->frame_height = frame->height;
             blog(LOG_INFO, "[obs-stabilizer] Stabilizer initialized for %dx%d", frame->width, frame->height);
         }
 
@@ -196,10 +205,13 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
         context->frame_count++;
         context->avg_processing_time = (context->avg_processing_time * (context->frame_count - 1) + processing_time) / context->frame_count;
 
-        // Convert back to OBS frame
-        obs_source_frame* result = cv_mat_to_obs_frame(stabilized_frame, frame);
-
-        return result ? result : frame;
+        // OBS owns and reference-counts the frame passed to an async filter.
+        // Replacing that pointer with a plugin allocation breaks OBS's async
+        // frame queue, so copy stabilized pixels back into the same frame.
+        if (!FRAME_UTILS::Conversion::cv_to_obs_in_place(stabilized_frame, frame)) {
+            blog(LOG_ERROR, "[obs-stabilizer] Failed to copy stabilized pixels to OBS frame");
+        }
+        return frame;
 
     } catch (const std::exception& e) {
         blog(LOG_ERROR, "[obs-stabilizer] Exception in video processing: %s", e.what());
@@ -444,31 +456,6 @@ static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
     }
 }
 
-/**
- * Converts an OpenCV Mat to an OBS source frame using centralized utilities.
- *
- * This function creates a complete copy of frame data and does NOT modify the reference frame.
- * Uses FRAME_UTILS::FrameBuffer for thread-safe buffer management.
- *
- * @param mat The OpenCV matrix to convert
- * @param reference_frame The reference frame to copy metadata from
- * @return Pointer to internal buffer with the converted data, or nullptr on error
- */
-static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame)
-{
-    if (mat.empty() || !reference_frame) {
-        return nullptr;
-    }
-    
-    try {
-        // Use centralized frame conversion utility with thread-safe buffer management
-        return FRAME_UTILS::FrameBuffer::create(mat, reference_frame);
-        
-    } catch (const std::exception& e) {
-        blog(LOG_ERROR, "[obs-stabilizer] Exception in cv_mat_to_obs_frame: %s", e.what());
-        return nullptr;
-    }
-}
 #endif // HAVE_OBS_HEADERS
 
 #ifdef HAVE_OBS_HEADERS
