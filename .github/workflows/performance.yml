@@ -7,11 +7,17 @@ on:
       - 'src/core/**'
       - 'tests/**'
       - 'CMakeLists.txt'
+      - '.github/actions/configure-cmake/**'
+      - '.github/actions/setup-build-env/**'
+      - '.github/workflows/performance.yml'
   pull_request:
     paths:
       - 'src/core/**'
       - 'tests/**'
       - 'CMakeLists.txt'
+      - '.github/actions/configure-cmake/**'
+      - '.github/actions/setup-build-env/**'
+      - '.github/workflows/performance.yml'
   workflow_dispatch:
     inputs:
       run_full_benchmark:
