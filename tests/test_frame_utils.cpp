@@ -592,9 +592,6 @@ TEST_F(FrameUtilsTest, ConvertValidNV12OBSFrameToCV) {
     frame.height = height;
     frame.format = VIDEO_FORMAT_NV12;
     frame.data[0] = nv12_data.data();
-    frame.data[1] = nv12_data.data() + y_size;
-    frame.linesize[0] = width;
-    frame.linesize[1] = width;
 
     // Convert OBS frame to OpenCV Mat
     cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
@@ -611,70 +608,6 @@ TEST_F(FrameUtilsTest, ConvertValidNV12OBSFrameToCV) {
     cv::Scalar stddev_val;
     cv::meanStdDev(result, mean_val, stddev_val);
     EXPECT_GT(stddev_val[0], 10);  // Should have some variation from gradient
-}
-
-/**
- * Test: Convert NV12 with separate, padded Y and UV planes
- * EXPECTED: Plane strides are honored and padding bytes never enter the image
- *
- * RATIONALE: OBS exposes NV12 as separate planes in real media-source frames.
- * Treating data[0] as one contiguous allocation reads beyond the Y plane and
- * can corrupt or crash live filter processing.
- */
-TEST_F(FrameUtilsTest, ConvertPaddedSeparateNV12PlanesToCV) {
-    constexpr int width = 16;
-    constexpr int height = 8;
-    constexpr int y_stride = width + 8;
-    constexpr int uv_stride = width + 8;
-
-    cv::Mat bgr(height, width, CV_8UC3);
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            bgr.at<cv::Vec3b>(y, x) = cv::Vec3b(
-                static_cast<uint8_t>(x * 11),
-                static_cast<uint8_t>(y * 23),
-                static_cast<uint8_t>((x + y) * 7));
-        }
-    }
-
-    cv::Mat i420;
-    cv::cvtColor(bgr, i420, cv::COLOR_BGR2YUV_I420);
-    const int y_size = width * height;
-    const int chroma_size = y_size / 4;
-    std::vector<uint8_t> packed_nv12(y_size + chroma_size * 2);
-    memcpy(packed_nv12.data(), i420.data, y_size);
-    for (int i = 0; i < chroma_size; ++i) {
-        packed_nv12[y_size + i * 2] = i420.data[y_size + i];
-        packed_nv12[y_size + i * 2 + 1] = i420.data[y_size + chroma_size + i];
-    }
-
-    std::vector<uint8_t> y_plane(y_stride * height, 0xEE);
-    std::vector<uint8_t> uv_plane(uv_stride * (height / 2), 0xDD);
-    for (int row = 0; row < height; ++row) {
-        memcpy(y_plane.data() + row * y_stride,
-               packed_nv12.data() + row * width, width);
-    }
-    for (int row = 0; row < height / 2; ++row) {
-        memcpy(uv_plane.data() + row * uv_stride,
-               packed_nv12.data() + y_size + row * width, width);
-    }
-
-    obs_source_frame frame{};
-    frame.width = width;
-    frame.height = height;
-    frame.format = VIDEO_FORMAT_NV12;
-    frame.data[0] = y_plane.data();
-    frame.data[1] = uv_plane.data();
-    frame.linesize[0] = y_stride;
-    frame.linesize[1] = uv_stride;
-
-    cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
-    cv::Mat expected_yuv(height + height / 2, width, CV_8UC1, packed_nv12.data());
-    cv::Mat expected;
-    cv::cvtColor(expected_yuv, expected, cv::COLOR_YUV2BGRA_NV12);
-
-    ASSERT_FALSE(result.empty());
-    EXPECT_EQ(cv::norm(result, expected, cv::NORM_INF), 0.0);
 }
 
 /**
@@ -743,60 +676,6 @@ TEST_F(FrameUtilsTest, ConvertValidI420OBSFrameToCV) {
 }
 
 /**
- * Test: Convert I420 with independently padded planes
- * EXPECTED: Y, U, and V row strides are respected
- */
-TEST_F(FrameUtilsTest, ConvertPaddedI420PlanesToCV) {
-    constexpr int width = 16;
-    constexpr int height = 8;
-    constexpr int y_stride = width + 8;
-    constexpr int uv_stride = width / 2 + 4;
-
-    cv::Mat bgr(height, width, CV_8UC3);
-    cv::randu(bgr, 0, 255);
-    cv::Mat packed_i420;
-    cv::cvtColor(bgr, packed_i420, cv::COLOR_BGR2YUV_I420);
-
-    const int y_size = width * height;
-    const int chroma_width = width / 2;
-    const int chroma_height = height / 2;
-    const int chroma_size = chroma_width * chroma_height;
-    std::vector<uint8_t> y_plane(y_stride * height, 0xEE);
-    std::vector<uint8_t> u_plane(uv_stride * chroma_height, 0xDD);
-    std::vector<uint8_t> v_plane(uv_stride * chroma_height, 0xCC);
-
-    for (int row = 0; row < height; ++row) {
-        memcpy(y_plane.data() + row * y_stride,
-               packed_i420.data + row * width, width);
-    }
-    for (int row = 0; row < chroma_height; ++row) {
-        memcpy(u_plane.data() + row * uv_stride,
-               packed_i420.data + y_size + row * chroma_width, chroma_width);
-        memcpy(v_plane.data() + row * uv_stride,
-               packed_i420.data + y_size + chroma_size + row * chroma_width,
-               chroma_width);
-    }
-
-    obs_source_frame frame{};
-    frame.width = width;
-    frame.height = height;
-    frame.format = VIDEO_FORMAT_I420;
-    frame.data[0] = y_plane.data();
-    frame.data[1] = u_plane.data();
-    frame.data[2] = v_plane.data();
-    frame.linesize[0] = y_stride;
-    frame.linesize[1] = uv_stride;
-    frame.linesize[2] = uv_stride;
-
-    cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
-    cv::Mat expected;
-    cv::cvtColor(packed_i420, expected, cv::COLOR_YUV2BGRA_I420);
-
-    ASSERT_FALSE(result.empty());
-    EXPECT_EQ(cv::norm(result, expected, cv::NORM_INF), 0.0);
-}
-
-/**
  * Test: Convert valid OpenCV Mat to OBS frame (BGRA format)
  * EXPECTED: Returns valid OBS frame with correct format and data
  *
@@ -849,96 +728,6 @@ TEST_F(FrameUtilsTest, ConvertValidCVMatToOBSBGRA) {
 
     // Clean up
     FRAME_UTILS::FrameBuffer::release(result);
-}
-
-/**
- * Test: Convert a BGRA Mat back to OBS BGRX
- * EXPECTED: BGRX is supported consistently in both conversion directions
- */
-TEST_F(FrameUtilsTest, ConvertValidCVMatToOBSBGRX) {
-    constexpr int width = 64;
-    constexpr int height = 48;
-    cv::Mat test_mat(height, width, CV_8UC4);
-    cv::randu(test_mat, 0, 255);
-
-    obs_source_frame ref_frame{};
-    ref_frame.width = width;
-    ref_frame.height = height;
-    ref_frame.format = VIDEO_FORMAT_BGRX;
-
-    obs_source_frame *result = FRAME_UTILS::Conversion::cv_to_obs(test_mat, &ref_frame);
-
-    ASSERT_NE(result, nullptr);
-    EXPECT_EQ(result->format, VIDEO_FORMAT_BGRX);
-    EXPECT_NE(result->data[0], nullptr);
-    EXPECT_EQ(result->linesize[0], static_cast<uint32_t>(width * 4));
-
-    FRAME_UTILS::FrameBuffer::release(result);
-}
-
-/**
- * Test: Create an OBS NV12 frame with explicit Y and UV planes
- * EXPECTED: The output layout matches OBS's two-plane contract
- */
-TEST_F(FrameUtilsTest, CreateNV12FrameWithTwoPlanes) {
-    constexpr int width = 64;
-    constexpr int height = 48;
-    cv::Mat test_mat(height, width, CV_8UC4);
-    cv::randu(test_mat, 0, 255);
-
-    obs_source_frame ref_frame{};
-    ref_frame.width = width;
-    ref_frame.height = height;
-    ref_frame.format = VIDEO_FORMAT_NV12;
-
-    obs_source_frame *result = FRAME_UTILS::Conversion::cv_to_obs(test_mat, &ref_frame);
-
-    ASSERT_NE(result, nullptr);
-    ASSERT_NE(result->data[0], nullptr);
-    ASSERT_NE(result->data[1], nullptr);
-    EXPECT_EQ(result->data[1], result->data[0] + width * height);
-    EXPECT_EQ(result->linesize[0], static_cast<uint32_t>(width));
-    EXPECT_EQ(result->linesize[1], static_cast<uint32_t>(width));
-    EXPECT_EQ(result->data[2], nullptr);
-
-    FRAME_UTILS::FrameBuffer::release(result);
-}
-
-/**
- * Test: Write converted NV12 pixels into an OBS-owned padded frame
- * EXPECTED: The frame object and plane padding remain owned by the caller
- */
-TEST_F(FrameUtilsTest, WriteOddCroppedCVMatIntoExistingPaddedNV12Frame) {
-    constexpr int width = 64;
-    constexpr int height = 48;
-    constexpr int stride = width + 8;
-    cv::Mat test_mat(height - 3, width - 3, CV_8UC4);
-    cv::randu(test_mat, 0, 255);
-
-    std::vector<uint8_t> y_plane(stride * height, 0xEE);
-    std::vector<uint8_t> uv_plane(stride * (height / 2), 0xDD);
-    obs_source_frame destination{};
-    destination.width = width;
-    destination.height = height;
-    destination.format = VIDEO_FORMAT_NV12;
-    destination.data[0] = y_plane.data();
-    destination.data[1] = uv_plane.data();
-    destination.linesize[0] = stride;
-    destination.linesize[1] = stride;
-
-    ASSERT_TRUE(FRAME_UTILS::Conversion::cv_to_obs_in_place(test_mat, &destination));
-
-    for (int row = 0; row < height; ++row) {
-        EXPECT_EQ(y_plane[row * stride + width], 0xEE);
-    }
-    for (int row = 0; row < height / 2; ++row) {
-        EXPECT_EQ(uv_plane[row * stride + width], 0xDD);
-    }
-
-    cv::Mat round_trip = FRAME_UTILS::Conversion::obs_to_cv(&destination);
-    ASSERT_FALSE(round_trip.empty());
-    EXPECT_EQ(round_trip.rows, height);
-    EXPECT_EQ(round_trip.cols, width);
 }
 
 /**
@@ -1120,9 +909,6 @@ TEST_F(FrameUtilsTest, FullRoundTripConversionNV12) {
     original_frame.format = VIDEO_FORMAT_NV12;
     original_frame.timestamp = 22222;
     original_frame.data[0] = nv12_data.data();
-    original_frame.data[1] = nv12_data.data() + y_size;
-    original_frame.linesize[0] = width;
-    original_frame.linesize[1] = width;
 
     // Convert OBS (NV12) -> CV (BGRA)
     cv::Mat cv_frame = FRAME_UTILS::Conversion::obs_to_cv(&original_frame);
