@@ -62,7 +62,6 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     first_frame_ = true;
     prev_gray_ = cv::Mat();
     prev_pts_.clear();
-    trajectory_ = cv::Mat::eye(3, 3, CV_64F);
     transforms_.clear();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
@@ -163,69 +162,17 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         return frame;
     }
 
-    // Accumulate the estimated previous-to-current camera motion. Smoothing
-    // incremental transforms does not stabilize a sequence because their
-    // average is still applied in the observed motion direction. Instead,
-    // smooth the camera trajectory and correct the current trajectory toward
-    // that causal moving average.
-    cv::Mat incremental = cv::Mat::eye(3, 3, CV_64F);
-    cv::Mat transform_64;
-    transform.convertTo(transform_64, CV_64F);
-    transform_64.copyTo(incremental(cv::Rect(0, 0, 3, 2)));
-    cv::Mat candidate_trajectory = incremental * trajectory_;
-
-    cv::Mat inverse_trajectory;
-    if (!cv::invert(candidate_trajectory, inverse_trajectory, cv::DECOMP_SVD)) {
-        CORE_LOG_WARNING("Camera trajectory inversion failed, returning original frame");
-        update_metrics(start_time);
-        return frame;
-    }
-
-    cv::Mat current_trajectory = candidate_trajectory(cv::Rect(0, 0, 3, 2)).clone();
-    transforms_.push_back(current_trajectory);
-    while (transforms_.size() > static_cast<size_t>(params_.smoothing_radius)) {
+    transforms_.push_back(transform);
+    if (transforms_.size() > params_.smoothing_radius) {
         transforms_.pop_front();
     }
 
-    cv::Mat smoothed_trajectory = smooth_transforms();
-    cv::Mat smoothed_homogeneous = cv::Mat::eye(3, 3, CV_64F);
-    smoothed_trajectory.copyTo(smoothed_homogeneous(cv::Rect(0, 0, 3, 2)));
-
-    trajectory_ = candidate_trajectory;
-
-    cv::Mat correction_homogeneous = smoothed_homogeneous * inverse_trajectory;
-    cv::Mat correction = correction_homogeneous(cv::Rect(0, 0, 3, 2)).clone();
-
-    // Bound the accumulated correction using the same public percentage limit
-    // as individual motion estimates. This preserves protection against a bad
-    // track or an extended intentional camera move.
-    const double max_correction_ratio = params_.max_correction / 100.0;
-    const double max_translation_x = max_correction_ratio * width_;
-    const double max_translation_y = max_correction_ratio * height_;
-    double *correction_ptr = correction.ptr<double>(0);
-    correction_ptr[0] = std::clamp(correction_ptr[0],
-                                   1.0 - max_correction_ratio,
-                                   1.0 + max_correction_ratio);
-    correction_ptr[1] = std::clamp(correction_ptr[1],
-                                   -max_correction_ratio,
-                                   max_correction_ratio);
-    correction_ptr[2] = std::clamp(correction_ptr[2],
-                                   -max_translation_x,
-                                   max_translation_x);
-    correction_ptr[3] = std::clamp(correction_ptr[3],
-                                   -max_correction_ratio,
-                                   max_correction_ratio);
-    correction_ptr[4] = std::clamp(correction_ptr[4],
-                                   1.0 - max_correction_ratio,
-                                   1.0 + max_correction_ratio);
-    correction_ptr[5] = std::clamp(correction_ptr[5],
-                                   -max_translation_y,
-                                   max_translation_y);
+    cv::Mat smoothed_transform = smooth_transforms();
 
     gray.copyTo(prev_gray_);
     prev_pts_ = curr_pts;
 
-    cv::Mat result = apply_transform(frame, correction);
+    cv::Mat result = apply_transform(frame, smoothed_transform);
 
     // Apply edge handling
     result = apply_edge_handling(result, params_.edge_mode);
@@ -631,7 +578,6 @@ void StabilizerCore::reset() {
     first_frame_ = true;
     prev_gray_ = cv::Mat::zeros(height_, width_, CV_8UC1);
     prev_pts_.clear();
-    trajectory_ = cv::Mat::eye(3, 3, CV_64F);
     transforms_.clear();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;

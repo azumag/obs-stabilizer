@@ -51,49 +51,16 @@ namespace FRAME_UTILS {
 
                 case VIDEO_FORMAT_NV12:
                     {
-                        if (!frame->data[1] || frame->width % 2 != 0 ||
-                            frame->height % 2 != 0 ||
-                            frame->linesize[0] < frame->width ||
-                            frame->linesize[1] < frame->width) {
-                            blog(LOG_ERROR, "[obs-stabilizer] Invalid NV12 plane layout");
-                            Performance::track_conversion_failure();
-                            return cv::Mat();
-                        }
-
-                        // OBS supplies Y and interleaved UV as independent
-                        // planes whose row strides may include padding. OpenCV
-                        // expects one tightly packed height*3/2 matrix.
-                        const size_t y_size = static_cast<size_t>(frame->width) * frame->height;
-                        const size_t uv_size = y_size / 2;
-                        std::vector<uint8_t> yuv_buffer(y_size + uv_size);
-                        for (uint32_t row = 0; row < frame->height; ++row) {
-                            memcpy(yuv_buffer.data() + static_cast<size_t>(row) * frame->width,
-                                   frame->data[0] + static_cast<size_t>(row) * frame->linesize[0],
-                                   frame->width);
-                        }
-                        for (uint32_t row = 0; row < frame->height / 2; ++row) {
-                            memcpy(yuv_buffer.data() + y_size + static_cast<size_t>(row) * frame->width,
-                                   frame->data[1] + static_cast<size_t>(row) * frame->linesize[1],
-                                   frame->width);
-                        }
-
-                        cv::Mat yuv(frame->height + frame->height / 2, frame->width,
-                                   CV_8UC1, yuv_buffer.data());
+                        cv::Mat yuv(frame->height + frame->height/2, frame->width,
+                                   CV_8UC1, frame->data[0]);
                         cv::cvtColor(yuv, mat, cv::COLOR_YUV2BGRA_NV12);
                     }
                     break;
 
                 case VIDEO_FORMAT_I420:
                     {
-                        const uint32_t chroma_width = frame->width / 2;
-                        const uint32_t chroma_height = frame->height / 2;
-                        if (!frame->data[1] || !frame->data[2] ||
-                            frame->width % 2 != 0 || frame->height % 2 != 0 ||
-                            frame->linesize[0] < frame->width ||
-                            frame->linesize[1] < chroma_width ||
-                            frame->linesize[2] < chroma_width) {
-                            blog(LOG_ERROR, "[obs-stabilizer] Invalid I420 plane layout");
-                            Performance::track_conversion_failure();
+                        if (!frame->data[1] || !frame->data[2]) {
+                            blog(LOG_ERROR, "[obs-stabilizer] I420 format missing U/V plane data");
                             return cv::Mat();
                         }
 
@@ -127,27 +94,13 @@ namespace FRAME_UTILS {
 
                         uint8_t* yuv_ptr = yuv_buffer.data();
 
-                        // Pack each plane row-by-row so decoder padding never
-                        // becomes visible pixel data.
-                        for (uint32_t row = 0; row < frame->height; ++row) {
-                            memcpy(yuv_ptr + static_cast<size_t>(row) * frame->width,
-                                   frame->data[0] + static_cast<size_t>(row) * frame->linesize[0],
-                                   frame->width);
-                        }
+                        memcpy(yuv_ptr, frame->data[0], y_size);
                         yuv_ptr += y_size;
 
-                        for (uint32_t row = 0; row < chroma_height; ++row) {
-                            memcpy(yuv_ptr + static_cast<size_t>(row) * chroma_width,
-                                   frame->data[1] + static_cast<size_t>(row) * frame->linesize[1],
-                                   chroma_width);
-                        }
+                        memcpy(yuv_ptr, frame->data[1], uv_size);
                         yuv_ptr += uv_size;
 
-                        for (uint32_t row = 0; row < chroma_height; ++row) {
-                            memcpy(yuv_ptr + static_cast<size_t>(row) * chroma_width,
-                                   frame->data[2] + static_cast<size_t>(row) * frame->linesize[2],
-                                   chroma_width);
-                        }
+                        memcpy(yuv_ptr, frame->data[2], uv_size);
 
                         cv::Mat yuv(frame->height + frame->height / 2, frame->width,
                                    CV_8UC1, yuv_buffer.data());
@@ -173,95 +126,6 @@ namespace FRAME_UTILS {
     obs_source_frame* Conversion::cv_to_obs(const cv::Mat& mat, 
                                            const obs_source_frame* reference_frame) {
         return FrameBuffer::create(mat, reference_frame);
-    }
-
-    bool Conversion::cv_to_obs_in_place(const cv::Mat& mat,
-                                        obs_source_frame* destination_frame) {
-        if (mat.empty() || !destination_frame) {
-            Performance::track_conversion_failure();
-            return false;
-        }
-
-        // Edge handling may crop a stabilized image to a smaller, occasionally
-        // odd-sized ROI. An OBS async source frame has fixed dimensions, and
-        // subsampled NV12/I420 output additionally requires even dimensions.
-        // Scale the processed image back to the OBS-owned frame contract before
-        // performing the target pixel-format conversion.
-        cv::Mat output_mat = mat;
-        if (mat.cols != static_cast<int>(destination_frame->width) ||
-            mat.rows != static_cast<int>(destination_frame->height)) {
-            cv::resize(mat, output_mat,
-                       cv::Size(destination_frame->width, destination_frame->height),
-                       0.0, 0.0, cv::INTER_LINEAR);
-        }
-
-        std::unique_ptr<obs_source_frame, decltype(&FrameBuffer::release)> converted(
-            FrameBuffer::create(output_mat, destination_frame), &FrameBuffer::release);
-        if (!converted) {
-            return false;
-        }
-
-        uint32_t plane_count = 0;
-        uint32_t row_counts[3] = {0, 0, 0};
-        uint32_t row_bytes[3] = {0, 0, 0};
-        switch (destination_frame->format) {
-            case VIDEO_FORMAT_BGRA:
-            case VIDEO_FORMAT_BGRX:
-                plane_count = 1;
-                row_counts[0] = destination_frame->height;
-                row_bytes[0] = destination_frame->width * 4;
-                break;
-            case VIDEO_FORMAT_BGR3:
-                plane_count = 1;
-                row_counts[0] = destination_frame->height;
-                row_bytes[0] = destination_frame->width * 3;
-                break;
-            case VIDEO_FORMAT_NV12:
-                plane_count = 2;
-                row_counts[0] = destination_frame->height;
-                row_counts[1] = destination_frame->height / 2;
-                row_bytes[0] = destination_frame->width;
-                row_bytes[1] = destination_frame->width;
-                break;
-            case VIDEO_FORMAT_I420:
-                plane_count = 3;
-                row_counts[0] = destination_frame->height;
-                row_counts[1] = destination_frame->height / 2;
-                row_counts[2] = destination_frame->height / 2;
-                row_bytes[0] = destination_frame->width;
-                row_bytes[1] = destination_frame->width / 2;
-                row_bytes[2] = destination_frame->width / 2;
-                break;
-            default:
-                Performance::track_conversion_failure();
-                return false;
-        }
-
-        // Validate every plane before writing any pixels. If a malformed frame
-        // arrives, this leaves the original frame intact for OBS to display.
-        for (uint32_t plane = 0; plane < plane_count; ++plane) {
-            if (!destination_frame->data[plane] || !converted->data[plane] ||
-                destination_frame->linesize[plane] < row_bytes[plane] ||
-                converted->linesize[plane] < row_bytes[plane]) {
-                blog(LOG_ERROR, "[obs-stabilizer] Invalid destination plane %u layout", plane);
-                Performance::track_conversion_failure();
-                return false;
-            }
-        }
-
-        // Raw filter callbacks receive frames owned and reference-counted by
-        // OBS. Preserve that frame object and copy only its pixel planes.
-        for (uint32_t plane = 0; plane < plane_count; ++plane) {
-            for (uint32_t row = 0; row < row_counts[plane]; ++row) {
-                memcpy(destination_frame->data[plane] +
-                           static_cast<size_t>(row) * destination_frame->linesize[plane],
-                       converted->data[plane] +
-                           static_cast<size_t>(row) * converted->linesize[plane],
-                       row_bytes[plane]);
-            }
-        }
-
-        return true;
     }
 
     std::string Conversion::get_format_name(uint32_t obs_format) {
@@ -398,22 +262,13 @@ namespace FRAME_UTILS {
                     memcpy(raii_frame.get()->data[2], src_v, uv_size);
                     raii_frame.get()->linesize[1] = linesizes[1];
                     raii_frame.get()->linesize[2] = linesizes[2];
-                } else if (reference_frame->format == VIDEO_FORMAT_NV12) {
-                    // NV12 is two planes in OBS even though OpenCV stores the
-                    // packed conversion in one allocation.
-                    const size_t y_size = static_cast<size_t>(mat.cols) * mat.rows;
-                    memcpy(raii_frame.get()->data[0], converted.data, required_size);
-                    raii_frame.get()->data[1] = raii_frame.get()->data[0] + y_size;
-                    raii_frame.get()->linesize[1] = static_cast<uint32_t>(mat.cols);
                 } else {
                     // All other formats: single plane copy
                     memcpy(raii_frame.get()->data[0], converted.data, required_size);
                 }
 
-                // Clear planes after the last one used by the target format.
-                const int used_planes = reference_frame->format == VIDEO_FORMAT_I420 ? 3 :
-                                        reference_frame->format == VIDEO_FORMAT_NV12 ? 2 : 1;
-                for (int i = used_planes; i < DATA_PLANES_COUNT; i++) {
+                // Clear other data planes
+                for (int i = 3; i < DATA_PLANES_COUNT; i++) {
                     raii_frame.get()->data[i] = nullptr;
                     raii_frame.get()->linesize[i] = 0;
                 }
@@ -484,7 +339,6 @@ namespace FRAME_UTILS {
 
         switch (target_format) {
             case VIDEO_FORMAT_BGRA:
-            case VIDEO_FORMAT_BGRX:
                 if (mat.channels() == 4) {
                     converted = mat;
                 } else {
