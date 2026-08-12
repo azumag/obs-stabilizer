@@ -140,6 +140,7 @@ set(SOURCES
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
     src/core/preset_manager.cpp
+    src/core/kalman_transform_filter.cpp
     src/ui/stabilizer_properties.cpp
 )
 
