@@ -506,6 +506,10 @@ disabled on the left and `Video Stabilizer` enabled on the right. The shaking
 edges of the grid and the outlined rectangles are visibly steadier on the
 right.
 
+The GIFs are regenerated from fresh OBS recordings with
+`docs/examples/make_comparison_gifs.sh` (pass the six recordings as
+baseline/filtered pairs for fine, large, and mixed in that order).
+
 ![fine-shake: no filter vs stabilizer](docs/examples/fine-comparison.gif)
 
 ![large-shake: no filter vs stabilizer](docs/examples/large-comparison.gif)

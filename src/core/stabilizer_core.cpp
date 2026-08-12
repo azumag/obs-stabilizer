@@ -214,8 +214,9 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     // The correction is estimated from the previous frame, so applying it
     // directly leaves a one-frame-lag residual that is nearly as large as the
     // shake itself at high frequencies. Smooth the correction over time so
-    // the per-frame warp does not oscillate; alpha = 0.6 keeps the 9-12 Hz
-    // micro-jitter band while suppressing the one-frame lag residual.
+    // the per-frame warp does not oscillate; alpha = 0.6 attenuates the
+    // high-frequency micro-jitter (a 30 fps EMA cutoff around 4.7 Hz) while
+    // also suppressing the one-frame lag residual.
     if (correction_smooth_.empty()) {
         correction_smooth_ = correction.clone();
     } else {
@@ -223,12 +224,15 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         // estimate is unreliable (tracking failure during a fast pan or a
         // scene change). Limit how fast the correction may move so one bad
         // estimate cannot jerk the frame, then EMA the bounded correction.
+        constexpr double kMaxCorrectionDeltaRatio = 0.02;
+        constexpr double kMaxCorrectionDeltaAngleDeg = 0.75;
+        constexpr double kMaxCorrectionDeltaScale = 0.02;
         cv::Vec4f bounded = transform_to_components(correction);
         const cv::Vec4f previous = transform_to_components(correction_smooth_);
-        const double max_dx = 0.02 * width_;
-        const double max_dy = 0.02 * height_;
-        constexpr double max_angle = 0.75 * CV_PI / 180.0;
-        constexpr double max_scale = 0.02;
+        const double max_dx = kMaxCorrectionDeltaRatio * width_;
+        const double max_dy = kMaxCorrectionDeltaRatio * height_;
+        constexpr double max_angle = kMaxCorrectionDeltaAngleDeg * CV_PI / 180.0;
+        constexpr double max_scale = kMaxCorrectionDeltaScale;
         bounded[0] = static_cast<float>(std::clamp(static_cast<double>(bounded[0]),
                                     previous[0] - max_dx, previous[0] + max_dx));
         bounded[1] = static_cast<float>(std::clamp(static_cast<double>(bounded[1]),
