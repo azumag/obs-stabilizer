@@ -105,6 +105,23 @@ TEST(FuzzRegression, RandomizedSupportedFramesStayWithinAnalyzerBounds)
     }
 }
 
+TEST(FuzzRegression, FrameAnalyzerHandlesBoundaryAndBlackFrames)
+{
+    const cv::Mat empty;
+    EXPECT_FALSE(FrameAnalyzer::is_valid_frame(empty));
+    EXPECT_EQ(FrameAnalyzer::detect_content_bounds(empty), cv::Rect());
+
+    const cv::Mat too_small(31, 64, CV_8UC1, cv::Scalar(0));
+    EXPECT_FALSE(FrameAnalyzer::is_valid_frame(too_small));
+
+    const cv::Mat unsupported_channels(64, 64, CV_8UC2, cv::Scalar(0));
+    EXPECT_FALSE(FrameAnalyzer::is_valid_frame(unsupported_channels));
+
+    const cv::Mat black(64, 96, CV_8UC3, cv::Scalar(0, 0, 0));
+    ASSERT_TRUE(FrameAnalyzer::is_valid_frame(black));
+    EXPECT_EQ(FrameAnalyzer::detect_content_bounds(black), cv::Rect(0, 0, 96, 64));
+}
+
 TEST(FuzzRegression, FeaturePointValidationRejectsNonFiniteAndOutOfBoundsInputs)
 {
     constexpr int width = 1920;
@@ -120,6 +137,26 @@ TEST(FuzzRegression, FeaturePointValidationRejectsNonFiniteAndOutOfBoundsInputs)
         {std::numeric_limits<float>::quiet_NaN(), 10.0f}, width, height));
     EXPECT_FALSE(VALIDATION::is_valid_feature_point(
         {10.0f, std::numeric_limits<float>::infinity()}, width, height));
+}
+
+TEST(FuzzRegression, TransformValidationCoversShapeAndFiniteValueContracts)
+{
+    EXPECT_FALSE(VALIDATION::is_valid_transform(cv::Mat()));
+    EXPECT_FALSE(VALIDATION::is_valid_transform(cv::Mat::eye(2, 2, CV_64F)));
+
+    cv::Mat affine = cv::Mat::zeros(2, 3, CV_64F);
+    affine.at<double>(0, 0) = 1.0;
+    affine.at<double>(1, 1) = 1.0;
+    EXPECT_TRUE(VALIDATION::is_valid_transform(affine));
+
+    cv::Mat perspective = cv::Mat::eye(3, 3, CV_64F);
+    EXPECT_TRUE(VALIDATION::is_valid_transform(perspective));
+
+    affine.at<double>(0, 2) = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_FALSE(VALIDATION::is_valid_transform(affine));
+
+    perspective.at<double>(2, 2) = std::numeric_limits<double>::infinity();
+    EXPECT_FALSE(VALIDATION::is_valid_transform(perspective));
 }
 
 } // namespace
