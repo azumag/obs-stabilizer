@@ -269,6 +269,214 @@ TEST_F(VisualStabilizationTest, ShakeReductionForCameraShake) {
 }
 
 /**
+ * Regression: the tracker and trajectory smoother must visibly reduce a
+ * deterministic signal that mirrors the README's mixed hand-held sample: a
+ * slow sway plus faster jitter. Comparing the known frame offsets avoids
+ * optical-flow measurement noise in the input baseline.
+ */
+TEST_F(VisualStabilizationTest, MixedFrequencyShakeIsVisiblyReduced) {
+    constexpr int kFrameCount = 180;
+    constexpr double kPi = 3.14159265358979323846;
+    cv::Mat base = TestDataGenerator::generate_frame_with_corners(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 3);
+
+    std::vector<cv::Mat> frames;
+    std::vector<cv::Point2d> offsets;
+    frames.reserve(kFrameCount);
+    offsets.reserve(kFrameCount);
+    for (int i = 0; i < kFrameCount; ++i) {
+        const double t = static_cast<double>(i) / 30.0;
+        const double dx = 8.0 * std::sin(2.0 * kPi * 0.6 * t) +
+                          3.0 * std::sin(2.0 * kPi * 7.0 * t);
+        const double dy = 7.0 * std::sin(2.0 * kPi * 0.6 * t + 0.8) +
+                          3.0 * std::sin(2.0 * kPi * 7.0 * t + 0.4);
+        offsets.emplace_back(dx, dy);
+        frames.push_back(TestDataGenerator::create_motion_frame(
+            base, static_cast<float>(dx), static_cast<float>(dy), 0.0f));
+    }
+
+    StabilizerCore::StabilizerParams params =
+        StabilizerCore::get_preset_streaming();
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    ASSERT_TRUE(stabilizer->initialize(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    std::vector<cv::Mat> outputs;
+    outputs.reserve(frames.size());
+    for (const auto& frame : frames) {
+        cv::Mat output = stabilizer->process_frame(frame);
+        ASSERT_FALSE(output.empty());
+        outputs.push_back(output);
+    }
+
+    std::vector<double> input_motion;
+    std::vector<double> output_motion;
+    for (size_t i = 45; i < frames.size(); ++i) {
+        input_motion.push_back(cv::norm(offsets[i] - offsets[i - 1]));
+
+        cv::Mat previous_gray;
+        cv::Mat current_gray;
+        cv::cvtColor(outputs[i - 1], previous_gray, cv::COLOR_BGRA2GRAY);
+        cv::cvtColor(outputs[i], current_gray, cv::COLOR_BGRA2GRAY);
+        output_motion.push_back(calculate_shake_magnitude(
+            calculate_motion_vectors(previous_gray, current_gray)));
+    }
+
+    const double input_mean = std::accumulate(
+        input_motion.begin(), input_motion.end(), 0.0) / input_motion.size();
+    const double output_mean = std::accumulate(
+        output_motion.begin(), output_motion.end(), 0.0) / output_motion.size();
+    EXPECT_LT(output_mean, input_mean * 0.55)
+        << "Mixed-frequency shake should be reduced by at least 45%, got input "
+        << input_mean << " px and output " << output_mean << " px";
+}
+
+/**
+ * Regression: Lucas-Kanade must estimate the initial next-point positions.
+ * Supplying zero-filled points with OPTFLOW_USE_INITIAL_FLOW made otherwise
+ * valid motion fail repeatedly and caused most OBS frames to pass through.
+ */
+TEST_F(VisualStabilizationTest, OpticalFlowTracksSustainedMotionWithoutRecovery) {
+    constexpr int kFrameCount = 90;
+    constexpr double kPi = 3.14159265358979323846;
+    cv::Mat base = TestDataGenerator::generate_frame_with_corners(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 3);
+
+    StabilizerCore::StabilizerParams params =
+        StabilizerCore::get_preset_streaming();
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    ASSERT_TRUE(stabilizer->initialize(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    for (int i = 0; i < kFrameCount; ++i) {
+        const double t = static_cast<double>(i) / 30.0;
+        const float dx = static_cast<float>(
+            10.0 * std::sin(2.0 * kPi * 0.7 * t) +
+            4.0 * std::sin(2.0 * kPi * 6.0 * t));
+        const float dy = static_cast<float>(
+            8.0 * std::sin(2.0 * kPi * 0.7 * t + 0.5) +
+            4.0 * std::sin(2.0 * kPi * 6.0 * t + 0.2));
+        const cv::Mat frame = TestDataGenerator::create_motion_frame(
+            base, dx, dy, 0.0f);
+        ASSERT_FALSE(stabilizer->process_frame(frame).empty());
+    }
+
+    const StabilizerCore::PerformanceMetrics metrics =
+        stabilizer->get_performance_metrics();
+    EXPECT_EQ(metrics.tracking_failures, 0u)
+        << "Trackable sustained motion should not enter recovery";
+    EXPECT_EQ(metrics.successful_frames, static_cast<uint64_t>(kFrameCount));
+}
+
+/**
+ * Regression: a sustained intentional pan must leave the frame at the new
+ * camera position after the moving-average history catches up. This guards
+ * against both runaway accumulated correction and a trajectory rebase that
+ * mixes coordinate systems with the existing history.
+ */
+TEST_F(VisualStabilizationTest, IntentionalPanSettlesWithoutRunawayCorrection) {
+    constexpr int kFrameCount = 240;
+    constexpr int kPanFrames = 120;
+    constexpr double kFinalOffset = 48.0;
+    cv::Mat base = TestDataGenerator::generate_realistic_frame(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 1);
+
+    StabilizerCore::StabilizerParams params =
+        StabilizerCore::get_preset_streaming();
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    ASSERT_TRUE(stabilizer->initialize(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat final_output;
+    for (int i = 0; i < kFrameCount; ++i) {
+        const double progress = std::min(i, kPanFrames) /
+                                static_cast<double>(kPanFrames);
+        const cv::Mat frame = TestDataGenerator::create_motion_frame(
+            base, static_cast<float>(kFinalOffset * progress), 0.0f, 0.0f);
+        final_output = stabilizer->process_frame(frame);
+        ASSERT_FALSE(final_output.empty());
+    }
+
+    cv::Mat base_gray;
+    cv::Mat output_gray;
+    cv::cvtColor(base, base_gray, cv::COLOR_BGRA2GRAY);
+    cv::cvtColor(final_output, output_gray, cv::COLOR_BGRA2GRAY);
+    const std::vector<cv::Point2f> motion =
+        calculate_motion_vectors(base_gray, output_gray);
+    ASSERT_FALSE(motion.empty());
+
+    std::vector<float> horizontal_motion;
+    horizontal_motion.reserve(motion.size());
+    for (const auto& vector : motion) {
+        horizontal_motion.push_back(vector.x);
+    }
+    const size_t middle = horizontal_motion.size() / 2;
+    std::nth_element(horizontal_motion.begin(),
+                     horizontal_motion.begin() + middle,
+                     horizontal_motion.end());
+    const double settled_offset = horizontal_motion[middle];
+
+    EXPECT_NEAR(settled_offset, kFinalOffset, 4.0)
+        << "A completed pan should settle at its intended camera position";
+    const StabilizerCore::PerformanceMetrics metrics =
+        stabilizer->get_performance_metrics();
+    EXPECT_EQ(metrics.tracking_failures, 0u);
+}
+
+/**
+ * Regression: the bounded optical-flow image used at HD resolutions must
+ * preserve full-resolution motion units when its affine estimate is mapped
+ * back to the source frame.
+ */
+TEST_F(VisualStabilizationTest, HighResolutionTrackingPreservesSourcePixelMotion) {
+    constexpr int kFrameCount = 150;
+    constexpr int kPanFrames = 75;
+    constexpr double kFinalOffset = 72.0;
+    cv::Mat base = TestDataGenerator::generate_realistic_frame(
+        Resolution::HD720_WIDTH, Resolution::HD720_HEIGHT, 1);
+
+    StabilizerCore::StabilizerParams params =
+        StabilizerCore::get_preset_streaming();
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    ASSERT_TRUE(stabilizer->initialize(
+        Resolution::HD720_WIDTH, Resolution::HD720_HEIGHT, params));
+
+    cv::Mat final_output;
+    for (int i = 0; i < kFrameCount; ++i) {
+        const double progress = std::min(i, kPanFrames) /
+                                static_cast<double>(kPanFrames);
+        const cv::Mat frame = TestDataGenerator::create_motion_frame(
+            base, static_cast<float>(kFinalOffset * progress), 0.0f, 0.0f);
+        final_output = stabilizer->process_frame(frame);
+        ASSERT_FALSE(final_output.empty());
+    }
+
+    cv::Mat base_gray;
+    cv::Mat output_gray;
+    cv::cvtColor(base, base_gray, cv::COLOR_BGRA2GRAY);
+    cv::cvtColor(final_output, output_gray, cv::COLOR_BGRA2GRAY);
+    const std::vector<cv::Point2f> motion =
+        calculate_motion_vectors(base_gray, output_gray);
+    ASSERT_FALSE(motion.empty());
+
+    std::vector<float> horizontal_motion;
+    horizontal_motion.reserve(motion.size());
+    for (const auto& vector : motion) {
+        horizontal_motion.push_back(vector.x);
+    }
+    const size_t middle = horizontal_motion.size() / 2;
+    std::nth_element(horizontal_motion.begin(),
+                     horizontal_motion.begin() + middle,
+                     horizontal_motion.end());
+
+    EXPECT_NEAR(horizontal_motion[middle], kFinalOffset, 5.0)
+        << "HD tracking coordinates must map back to source pixels";
+    const StabilizerCore::PerformanceMetrics metrics =
+        stabilizer->get_performance_metrics();
+    EXPECT_EQ(metrics.tracking_failures, 0u);
+}
+
+/**
  * Test: Shake reduction for hand tremor motion
  * Simulates natural hand tremor (small, high-frequency movements)
  */

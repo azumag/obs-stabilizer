@@ -83,7 +83,7 @@ def main():
         "fine-shake": dict(seed=11, amp_px=2.0, low_hz=1.5, high_hz=9.0, rot_deg=0.15),
         # Large low-frequency shake: strong sway, camera-like drift.
         "large-shake": dict(seed=22, amp_px=22.0, low_hz=0.7, high_hz=3.0, rot_deg=0.8),
-        # Mixed: both fine jitter and large sway plus a slow pan.
+        # Mixed: both fine jitter and large low-frequency sway.
         "mixed-shake": dict(seed=33, amp_px=10.0, low_hz=0.5, high_hz=7.0, rot_deg=0.4),
     }
 

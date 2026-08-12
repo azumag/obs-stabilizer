@@ -20,12 +20,13 @@ def percentile(values, amount):
     return float(np.percentile(np.asarray(values), amount)) if values else 0.0
 
 
-def analyze(video_path):
+def collect_motion(video_path):
+    """Return decoded count, per-frame motion series, and pixel differences."""
     capture = cv2.VideoCapture(video_path)
     if not capture.isOpened():
         raise RuntimeError(f"Cannot open video: {video_path}")
 
-    translations = []
+    translation_series = []
     pixel_diffs = []
     frame_index = 0
     previous = None
@@ -45,6 +46,7 @@ def analyze(video_path):
             diff = cv2.absdiff(previous, gray)
             pixel_diffs.append(float(diff.mean()))
 
+            translation = math.nan
             points = cv2.goodFeaturesToTrack(
                 previous,
                 maxCorners=500,
@@ -71,10 +73,17 @@ def analyze(video_path):
                     if transform is not None and inliers is not None and int(inliers.sum()) >= 8:
                         dx = float(transform[0, 2])
                         dy = float(transform[1, 2])
-                        translations.append(math.hypot(dx, dy))
+                        translation = math.hypot(dx, dy)
+            translation_series.append(translation)
         previous = gray
 
     capture.release()
+    return frame_index, translation_series, pixel_diffs
+
+
+def analyze(video_path):
+    frame_index, translation_series, pixel_diffs = collect_motion(video_path)
+    translations = [value for value in translation_series if math.isfinite(value)]
     if not translations:
         raise RuntimeError(f"No usable motion samples: {video_path}")
 
@@ -98,26 +107,37 @@ def analyze(video_path):
     }
 
 
-if len(sys.argv) != 3:
-    raise SystemExit("usage: measure_motion_v2.py BASELINE FILTERED")
+def calculate_reductions(baseline, filtered):
+    """Return the summary percentages shared by CLI and chart tooling."""
+    baseline_rms = baseline["translation_pixels"]["rms"]
+    filtered_rms = filtered["translation_pixels"]["rms"]
+    baseline_median = baseline["translation_pixels"]["median"]
+    filtered_median = filtered["translation_pixels"]["median"]
+    baseline_diff = baseline["pixel_diff_0_255"]["mean"]
+    filtered_diff = filtered["pixel_diff_0_255"]["mean"]
+    return {
+        "translation_rms_reduction_percent":
+            round(100.0 * (baseline_rms - filtered_rms) / baseline_rms, 2),
+        "translation_median_reduction_percent":
+            round(100.0 * (baseline_median - filtered_median) / baseline_median, 2)
+            if baseline_median > 0 else None,
+        "pixel_diff_reduction_percent":
+            round(100.0 * (baseline_diff - filtered_diff) / baseline_diff, 2),
+    }
 
-baseline = analyze(sys.argv[1])
-filtered = analyze(sys.argv[2])
-baseline_rms = baseline["translation_pixels"]["rms"]
-filtered_rms = filtered["translation_pixels"]["rms"]
-baseline_median = baseline["translation_pixels"]["median"]
-filtered_median = filtered["translation_pixels"]["median"]
-baseline_diff = baseline["pixel_diff_0_255"]["mean"]
-filtered_diff = filtered["pixel_diff_0_255"]["mean"]
 
-print(json.dumps({
-    "baseline": baseline,
-    "filtered": filtered,
-    "translation_rms_reduction_percent":
-        round(100.0 * (baseline_rms - filtered_rms) / baseline_rms, 2),
-    "translation_median_reduction_percent":
-        round(100.0 * (baseline_median - filtered_median) / baseline_median, 2)
-        if baseline_median > 0 else None,
-    "pixel_diff_reduction_percent":
-        round(100.0 * (baseline_diff - filtered_diff) / baseline_diff, 2),
-}, indent=2))
+def main():
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: measure_motion_v2.py BASELINE FILTERED")
+
+    baseline = analyze(sys.argv[1])
+    filtered = analyze(sys.argv[2])
+    print(json.dumps({
+        "baseline": baseline,
+        "filtered": filtered,
+        **calculate_reductions(baseline, filtered),
+    }, indent=2))
+
+
+if __name__ == "__main__":
+    main()

@@ -74,6 +74,9 @@ namespace Harris {
 namespace OpticalFlow {
     constexpr int MAX_ITERATIONS = 30;
     constexpr float CONVERGENCE_EPSILON = 0.01f;
+    // Bounding the tracking image keeps optical flow real-time at HD and 4K;
+    // the final correction is still applied to the full-resolution frame.
+    constexpr int MAX_TRACKING_DIMENSION = 640;
 }
 
 // Content Detection Parameters

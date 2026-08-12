@@ -490,7 +490,7 @@ pattern with `docs/examples/generate_shake_samples.py`:
 |---|---|---|
 | `fine-shake` | 2 px, 9 Hz micro-jitter | Streaming preset, smoothing 30, max correction 30%, edge padding |
 | `large-shake` | 22 px, 3 Hz camera sway | Streaming preset, smoothing 30, max correction 30%, edge padding |
-| `mixed-shake` | 10 px, 7 Hz jitter + slow pan | Streaming preset, smoothing 30, max correction 30%, edge padding |
+| `mixed-shake` | 10 px, 7 Hz jitter + 0.5 Hz sway | Streaming preset, smoothing 30, max correction 30%, edge padding |
 
 Each sample is recorded twice in OBS: once with the filter disabled and once
 with `Video Stabilizer` enabled. `docs/examples/measure_motion_v2.py` then
@@ -509,6 +509,8 @@ right.
 The GIFs are regenerated from fresh OBS recordings with
 `docs/examples/make_comparison_gifs.sh` (pass the six recordings as
 baseline/filtered pairs for fine, large, and mixed in that order).
+The motion chart uses the same six arguments with
+`docs/examples/make_motion_chart.py`.
 
 ![fine-shake: no filter vs stabilizer](docs/examples/fine-comparison.gif)
 
@@ -520,9 +522,9 @@ baseline/filtered pairs for fine, large, and mixed in that order).
 
 | Sample | Frame-to-frame motion (median) | Reduction | Pixel diff (mean) | Reduction |
 |---|---|---:|---:|---:|
-| `fine-shake` | 1.27 px -> 0.62 px | 51% | 9.0 -> 5.5 | 39% |
-| `large-shake` | 7.81 px -> 5.45 px | 30% | 23.2 -> 21.1 | 9% |
-| `mixed-shake` | 5.04 px -> 2.99 px | 41% | 20.0 -> 16.3 | 18% |
+| `fine-shake` | 1.29 px -> 0.62 px | 52% | 9.1 -> 5.1 | 44% |
+| `large-shake` | 7.88 px -> 4.72 px | 40% | 23.3 -> 18.7 | 20% |
+| `mixed-shake` | 5.02 px -> 2.77 px | 45% | 20.0 -> 15.1 | 25% |
 
 Notes on reading these numbers:
 

@@ -117,15 +117,40 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         return cv::Mat();
     }
 
+    // Optical flow scales with pixel count, while the final warp must retain
+    // the full source resolution. Track on a bounded working image, then map
+    // the tracked points back before estimating motion in source pixels.
+    // Keeping the working dimensions even avoids half-pixel asymmetry in
+    // video formats.
+    const double tracking_scale = std::min(
+        1.0, static_cast<double>(OpticalFlow::MAX_TRACKING_DIMENSION) /
+                 static_cast<double>(std::max(gray.cols, gray.rows)));
+    cv::Mat tracking_gray;
+    double tracking_scale_x = 1.0;
+    double tracking_scale_y = 1.0;
+    if (tracking_scale < 1.0) {
+        const int tracking_width = std::max(
+            2, static_cast<int>(std::lround(gray.cols * tracking_scale)) & ~1);
+        const int tracking_height = std::max(
+            2, static_cast<int>(std::lround(gray.rows * tracking_scale)) & ~1);
+        cv::resize(gray, tracking_gray,
+                   cv::Size(tracking_width, tracking_height),
+                   0.0, 0.0, cv::INTER_AREA);
+        tracking_scale_x = static_cast<double>(tracking_width) / gray.cols;
+        tracking_scale_y = static_cast<double>(tracking_height) / gray.rows;
+    } else {
+        tracking_gray = gray;
+    }
+
     if (first_frame_) {
         CORE_LOG_INFO("Processing first frame, initializing feature tracking");
-        detect_features(gray, prev_pts_);
+        detect_features(tracking_gray, prev_pts_);
         if (prev_pts_.empty()) {
             CORE_LOG_WARNING("No features detected in first frame, using original frame");
             update_metrics(start_time);
             return frame;
         }
-        prev_gray_ = gray.clone();
+        prev_gray_ = tracking_gray.clone();
         first_frame_ = false;
         transforms_.push_back(cv::Mat::eye(2, 3, CV_64F));
         CORE_LOG_DEBUG("First frame processed, %zu features detected", prev_pts_.size());
@@ -143,23 +168,20 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     }
 
     std::vector<cv::Point2f> curr_pts;
-    // Pre-resize curr_pts to match prev_pts_ size - required by cv::calcOpticalFlowPyrLK()
-    // The function expects nextPts (curr_pts) to have the same size as prevPts (prev_pts_)
-    // Even though calcOpticalFlowPyrLK writes to curr_pts, it still needs proper sizing
-    curr_pts.resize(prev_pts_.size());
     float tracking_success_rate = 0.0f;
-    if (!track_features(prev_gray_, gray, prev_pts_, curr_pts, tracking_success_rate)) {
+    if (!track_features(prev_gray_, tracking_gray, prev_pts_, curr_pts,
+                        tracking_success_rate)) {
         consecutive_tracking_failures_++;
         metrics_.tracking_failures++;  // Track tracking failures for metrics
         CORE_LOG_WARNING("Feature tracking failed (attempt %d/5), success rate: %.2f",
                         consecutive_tracking_failures_, tracking_success_rate);
         if (consecutive_tracking_failures_ >= 5) {
             CORE_LOG_INFO("Tracking failed 5 times consecutively, re-detecting features");
-            detect_features(gray, prev_pts_);
+            detect_features(tracking_gray, prev_pts_);
             // CRITICAL FIX: Update prev_gray_ to match the new features
             // Without this, there's a mismatch between feature points (from current frame)
             // and the previous grayscale image (from old frame), causing OpenCV pyramid errors
-            prev_gray_ = gray.clone();
+            prev_gray_ = tracking_gray.clone();
             consecutive_tracking_failures_ = 0;
         }
         update_metrics(start_time);
@@ -168,19 +190,35 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
 
     consecutive_tracking_failures_ = 0;
 
-    cv::Mat transform = estimate_transform(prev_pts_, curr_pts);
+    std::vector<cv::Point2f> transform_prev_pts = prev_pts_;
+    std::vector<cv::Point2f> transform_curr_pts = curr_pts;
+    if (tracking_scale < 1.0) {
+        // Estimate in source coordinates so RANSAC thresholds, translation
+        // clamps, and rotation all retain their public full-resolution units.
+        for (auto& point : transform_prev_pts) {
+            point.x /= static_cast<float>(tracking_scale_x);
+            point.y /= static_cast<float>(tracking_scale_y);
+        }
+        for (auto& point : transform_curr_pts) {
+            point.x /= static_cast<float>(tracking_scale_x);
+            point.y /= static_cast<float>(tracking_scale_y);
+        }
+    }
+
+    cv::Mat transform = estimate_transform(transform_prev_pts,
+                                           transform_curr_pts);
     if (transform.empty()) {
         CORE_LOG_WARNING("Transform estimation failed, returning original frame");
         update_metrics(start_time);
         return frame;
     }
 
-    // Camera-trajectory correction. Accumulate the estimated motion and
-    // correct the current trajectory toward its smoothed position. After the
-    // correction we reset the trajectory to the smoothed position so
-    // estimation bias cannot accumulate into a runaway drift; the correction
-    // then targets the shake (deviation from the smoothed position) instead
-    // of an ever-growing accumulated offset.
+    // Camera-trajectory correction. Accumulate the estimated motion, smooth
+    // that trajectory over a finite history, and correct the current camera
+    // position toward the smoothed position. Keeping both the current value
+    // and history in the same fixed coordinate system is essential: rebasing
+    // only trajectory_ would make the next sample incomparable with the
+    // existing transforms_ entries and progressively weaken stabilization.
     cv::Mat incremental = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat transform_64;
     transform.convertTo(transform_64, CV_64F);
@@ -207,9 +245,10 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     cv::Mat correction_homogeneous = smoothed_homogeneous * inverse_trajectory;
     cv::Mat correction = correction_homogeneous(cv::Rect(0, 0, 3, 2)).clone();
 
-    // Reset the trajectory to the smoothed position so estimation bias does
-    // not accumulate into a runaway drift over time.
-    trajectory_ = smoothed_homogeneous;
+    // Keep the trajectory in its original camera coordinate system so every
+    // entry in transforms_ remains comparable. The bounded correction below
+    // prevents a bad track from producing an unbounded visible warp.
+    trajectory_ = candidate_trajectory;
 
     // The correction is estimated from the previous frame, so applying it
     // directly leaves a one-frame-lag residual that is nearly as large as the
@@ -273,7 +312,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
                                    -max_translation_y,
                                    max_translation_y);
 
-    gray.copyTo(prev_gray_);
+    tracking_gray.copyTo(prev_gray_);
     prev_pts_ = curr_pts;
 
     cv::Mat result = apply_transform(frame, correction);
@@ -315,11 +354,20 @@ bool StabilizerCore::detect_features(const cv::Mat& gray, std::vector<cv::Point2
         // Pre-allocate memory to avoid reallocations
         points.reserve(params_.feature_count);
 
+        // min_distance is exposed in source-frame pixels. Preserve that
+        // meaning when detection runs on the bounded optical-flow image.
+        const double tracking_scale = std::min(
+            static_cast<double>(gray.cols) / width_,
+            static_cast<double>(gray.rows) / height_);
+        const double tracking_min_distance = std::max(
+            static_cast<double>(Distance::MIN),
+            params_.min_distance * tracking_scale);
+
         // Standard OpenCV feature detection using Shi-Tomasi corner detection
         // This algorithm is well-suited for optical flow tracking and provides good
         // performance for real-time video stabilization without requiring custom NEON code
         cv::goodFeaturesToTrack(gray, points, params_.feature_count, params_.quality_level,
-                               params_.min_distance, cv::Mat(), params_.block_size,
+                               tracking_min_distance, cv::Mat(), params_.block_size,
                                params_.use_harris, params_.k);
 
         // Trim to actual count if fewer features found
@@ -371,14 +419,13 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
                                   OpticalFlow::MAX_ITERATIONS,
                                   OpticalFlow::CONVERGENCE_EPSILON);
 
-        // Pre-resize curr_pts to match prev_pts size - required by cv::calcOpticalFlowPyrLK()
-        // The function expects nextPts (curr_pts) to have the same size as prevPts (prev_pts)
-        // Even though calcOpticalFlowPyrLK writes to curr_pts, it still needs proper sizing
-        curr_pts.resize(prev_pts.size());
-
+        // Let Lucas-Kanade calculate the initial position. Passing a resized
+        // vector filled with (0, 0) together with OPTFLOW_USE_INITIAL_FLOW
+        // makes every track start at the top-left corner and causes repeated
+        // tracking failures on real movement.
         cv::calcOpticalFlowPyrLK(prev_gray, curr_gray, prev_pts, curr_pts, status, err,
                                    winSize, 3, termcrit,  // Fixed pyramid levels: 3
-                                   cv::OPTFLOW_USE_INITIAL_FLOW);
+                                   0);
 
         // Optimized filtering with branch prediction hints
         size_t i = 0;
@@ -579,10 +626,16 @@ inline void StabilizerCore::update_metrics(const std::chrono::high_resolution_cl
 cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& transform) {
     try {
         cv::Mat warped_frame;
-        // Cubic interpolation keeps edges sharp under the per-frame warp;
-        // linear interpolation visibly softens the stabilized output.
+        // Cubic interpolation keeps edges sharp in the small sources used by
+        // the README examples. At HD resolutions its single-threaded cost can
+        // exceed a frame budget, while a source pixel is already visually
+        // smaller, so use linear interpolation above VGA pixel count.
+        constexpr int kCubicInterpolationMaxPixels = 640 * 480;
+        const int interpolation = frame.total() <= kCubicInterpolationMaxPixels
+                                      ? cv::INTER_CUBIC
+                                      : cv::INTER_LINEAR;
         cv::warpAffine(frame, warped_frame, transform, frame.size(),
-                       cv::INTER_CUBIC);
+                       interpolation);
         return warped_frame;
     } catch (const cv::Exception& e) {
         last_error_ = std::string("OpenCV exception in apply_transform: ") + e.what();
@@ -730,7 +783,7 @@ void StabilizerCore::reset() {
     // DESIGN NOTE: No mutex is used in StabilizerCore (single-threaded design)
     // Thread safety is provided by StabilizerWrapper layer (caller's responsibility)
     first_frame_ = true;
-    prev_gray_ = cv::Mat::zeros(height_, width_, CV_8UC1);
+    prev_gray_.release();
     prev_pts_.clear();
     transforms_.clear();
     trajectory_ = cv::Mat::eye(3, 3, CV_64F);
