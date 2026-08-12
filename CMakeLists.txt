@@ -374,6 +374,7 @@ endif()
           set(PERF_SOURCES
               ${CMAKE_CURRENT_SOURCE_DIR}/src/core/benchmark.cpp
               ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/core/kalman_transform_filter.cpp
               ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data_generator.cpp
               ${CMAKE_CURRENT_SOURCE_DIR}/tools/performance_benchmark.cpp
           )
@@ -385,6 +386,7 @@ endif()
               tools/singlerun.cpp
               src/core/benchmark.cpp
               src/core/stabilizer_core.cpp
+              src/core/kalman_transform_filter.cpp
               tests/test_data_generator.cpp
           )
 
