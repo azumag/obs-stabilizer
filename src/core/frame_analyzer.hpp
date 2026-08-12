@@ -16,11 +16,15 @@
 class FrameAnalyzer {
 public:
     /**
-     * Validate dimensions and channel layout accepted by the stabilization
-     * pipeline.
+     * Validate dimensions, depth, and channel layout accepted by the
+     * stabilization pipeline.
      */
     static bool is_valid_frame(const cv::Mat& frame) noexcept {
-        if (frame.empty()) {
+        // Preserve the shared frame policy first. In particular, the
+        // stabilization pipeline accepts only CV_8U input; allowing 16-bit or
+        // floating-point Mats through here would defer failure into OpenCV
+        // feature/color-conversion routines.
+        if (!FRAME_UTILS::Validation::validate_cv_mat(frame)) {
             return false;
         }
 
@@ -31,8 +35,7 @@ public:
             return false;
         }
 
-        const int channels = frame.channels();
-        return channels == 1 || channels == 3 || channels == 4;
+        return true;
     }
 
     /**

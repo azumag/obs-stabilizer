@@ -51,5 +51,17 @@ int main() {
     passed &= expect(!FrameAnalyzer::is_valid_frame(too_small),
                      "frames below the minimum dimensions must be rejected");
 
+    cv::Mat sixteen_bit(64, 96, CV_16UC4, cv::Scalar(0, 0, 0, 0));
+    passed &= expect(!FrameAnalyzer::is_valid_frame(sixteen_bit),
+                     "16-bit frames must be rejected before OpenCV processing");
+
+    cv::Mat float_frame(64, 96, CV_32FC4, cv::Scalar(0, 0, 0, 0));
+    passed &= expect(!FrameAnalyzer::is_valid_frame(float_frame),
+                     "32-bit floating-point frames must be rejected");
+
+    cv::Mat double_frame(64, 96, CV_64FC4, cv::Scalar(0, 0, 0, 0));
+    passed &= expect(!FrameAnalyzer::is_valid_frame(double_frame),
+                     "64-bit floating-point frames must be rejected");
+
     return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
