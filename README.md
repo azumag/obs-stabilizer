@@ -516,9 +516,9 @@ right.
 
 | Sample | Frame-to-frame motion (median) | Reduction | Pixel diff (mean) | Reduction |
 |---|---|---:|---:|---:|
-| `fine-shake` | 1.27 px -> 0.62 px | 51% | 9.0 -> 5.7 | 37% |
-| `large-shake` | 7.81 px -> 5.53 px | 29% | 23.2 -> 21.6 | 7% |
-| `mixed-shake` | 5.02 px -> 2.96 px | 41% | 20.0 -> 18.0 | 10% |
+| `fine-shake` | 1.27 px -> 0.62 px | 51% | 9.0 -> 5.5 | 39% |
+| `large-shake` | 7.81 px -> 5.45 px | 30% | 23.2 -> 21.1 | 9% |
+| `mixed-shake` | 5.04 px -> 2.99 px | 41% | 20.0 -> 16.3 | 18% |
 
 Notes on reading these numbers:
 

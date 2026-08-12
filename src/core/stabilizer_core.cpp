@@ -18,6 +18,15 @@
 using namespace StabilizerConstants;
 using namespace StabilizerLogging;
 
+namespace {
+
+// Partial-affine 2x3 transform component helpers shared by the Kalman
+// smoothing path and the motion-smoothing correction path.
+cv::Vec4f transform_to_components(const cv::Mat& transform);
+cv::Mat components_to_transform(const cv::Vec4f& components);
+
+} // namespace
+
 #define STAB_LOG_ERROR(...) CORE_LOG_ERROR(__VA_ARGS__)
 #define STAB_LOG_WARNING(...) CORE_LOG_WARNING(__VA_ARGS__)
 #define STAB_LOG_INFO(...) CORE_LOG_INFO(__VA_ARGS__)
@@ -210,6 +219,26 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     if (correction_smooth_.empty()) {
         correction_smooth_ = correction.clone();
     } else {
+        // Jump guard: a large per-frame correction change means the motion
+        // estimate is unreliable (tracking failure during a fast pan or a
+        // scene change). Limit how fast the correction may move so one bad
+        // estimate cannot jerk the frame, then EMA the bounded correction.
+        cv::Vec4f bounded = transform_to_components(correction);
+        const cv::Vec4f previous = transform_to_components(correction_smooth_);
+        const double max_dx = 0.02 * width_;
+        const double max_dy = 0.02 * height_;
+        constexpr double max_angle = 0.75 * CV_PI / 180.0;
+        constexpr double max_scale = 0.02;
+        bounded[0] = static_cast<float>(std::clamp(static_cast<double>(bounded[0]),
+                                    previous[0] - max_dx, previous[0] + max_dx));
+        bounded[1] = static_cast<float>(std::clamp(static_cast<double>(bounded[1]),
+                                    previous[1] - max_dy, previous[1] + max_dy));
+        bounded[2] = static_cast<float>(std::clamp(static_cast<double>(bounded[2]),
+                                    previous[2] - max_angle, previous[2] + max_angle));
+        bounded[3] = static_cast<float>(std::clamp(static_cast<double>(bounded[3]),
+                                    previous[3] / (1.0 + max_scale),
+                                    previous[3] * (1.0 + max_scale)));
+        correction = components_to_transform(bounded);
         const double alpha = 0.6;
         correction_smooth_ = alpha * correction +
                              (1.0 - alpha) * correction_smooth_;
