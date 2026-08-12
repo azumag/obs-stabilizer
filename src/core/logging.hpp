@@ -8,7 +8,6 @@
 #include <stdexcept>
 #include <string>
 #include <typeinfo>
-#include <unordered_map>
 
 // OpenCV exception support (only include when available)
 // CMake find_package(OpenCV) ensures OpenCV headers are available for the build
@@ -202,17 +201,16 @@ enum class ExceptionCategory {
 };
 
 /**
- * Immutable snapshot of the exception counters collected by the logging layer.
+ * Immutable snapshot of low-cardinality exception counters.
  *
- * `by_type` keeps the concrete exception identifiers so repeated failures can
- * be correlated without retaining exception objects or frame data.
+ * Concrete implementation-defined exception type names are intentionally not
+ * used as telemetry labels. They are emitted only in diagnostic logs.
  */
 struct ExceptionTelemetrySnapshot {
     uint64_t total = 0;
     uint64_t opencv = 0;
     uint64_t standard = 0;
     uint64_t unknown = 0;
-    std::unordered_map<std::string, uint64_t> by_type;
 };
 
 namespace detail {
@@ -223,7 +221,6 @@ struct ExceptionTelemetryState {
     uint64_t opencv = 0;
     uint64_t standard = 0;
     uint64_t unknown = 0;
-    std::unordered_map<std::string, uint64_t> by_type;
 };
 
 inline ExceptionTelemetryState& exception_telemetry_state() {
@@ -231,7 +228,7 @@ inline ExceptionTelemetryState& exception_telemetry_state() {
     return state;
 }
 
-inline void record_exception(ExceptionCategory category, const char* type_name) {
+inline void record_exception(ExceptionCategory category) {
     ExceptionTelemetryState& state = exception_telemetry_state();
     std::lock_guard<std::mutex> lock(state.mutex);
 
@@ -247,9 +244,6 @@ inline void record_exception(ExceptionCategory category, const char* type_name) 
             ++state.unknown;
             break;
     }
-
-    const char* key = (type_name && type_name[0] != '\0') ? type_name : "unknown";
-    ++state.by_type[key];
 }
 
 } // namespace detail
@@ -264,7 +258,6 @@ inline ExceptionTelemetrySnapshot get_exception_telemetry() {
     snapshot.opencv = state.opencv;
     snapshot.standard = state.standard;
     snapshot.unknown = state.unknown;
-    snapshot.by_type = state.by_type;
     return snapshot;
 }
 
@@ -277,18 +270,18 @@ inline void reset_exception_telemetry() {
     state.opencv = 0;
     state.standard = 0;
     state.unknown = 0;
-    state.by_type.clear();
 }
 
 /**
- * Log exception details with consistent formatting and record the concrete type.
+ * Log standard-exception details and update the stable telemetry category.
  * @param location Location where the exception occurred (e.g., function name)
  * @param e The exception that was caught
  */
 inline void log_exception(const char* location, const std::exception& e) {
     const char* type_name = typeid(e).name();
-    detail::record_exception(ExceptionCategory::Standard, type_name);
-    CORE_LOG_ERROR("Exception in %s (%s): %s", location, type_name, e.what());
+    detail::record_exception(ExceptionCategory::Standard);
+    CORE_LOG_ERROR("operation=%s category=standard_exception type=%s message=%s",
+                   location, type_name, e.what());
 }
 
 /**
@@ -296,18 +289,19 @@ inline void log_exception(const char* location, const std::exception& e) {
  * @param location Location where the exception occurred (e.g., function name)
  */
 inline void log_unknown_exception(const char* location) {
-    detail::record_exception(ExceptionCategory::Unknown, "unknown");
-    CORE_LOG_ERROR("Unknown exception in %s", location);
+    detail::record_exception(ExceptionCategory::Unknown);
+    CORE_LOG_ERROR("operation=%s category=unknown_exception message=unknown non-standard exception",
+                   location);
 }
 
 /**
- * Log OpenCV exception with additional details and record it for telemetry.
+ * Log OpenCV exception with additional details and update stable telemetry.
  * @param location Location where the exception occurred
  * @param e The OpenCV exception that was caught
  */
 inline void log_opencv_exception(const char* location, const cv::Exception& e) {
-    detail::record_exception(ExceptionCategory::OpenCV, "cv::Exception");
-    CORE_LOG_ERROR("OpenCV exception in %s: %s (code: %d, func: %s, line: %d)",
+    detail::record_exception(ExceptionCategory::OpenCV);
+    CORE_LOG_ERROR("operation=%s category=opencv_exception type=cv::Exception message=%s code=%d func=%s line=%d",
                    location, e.what(), e.code, e.func.c_str(), e.line);
 }
 
