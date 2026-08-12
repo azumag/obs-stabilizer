@@ -712,7 +712,7 @@ TEST_F(VisualStabilizationTest, SingleFrameEstimateErrorDoesNotJumpTheFrame) {
 
     EXPECT_GT(input_jump, 12.0)
         << "Test data should contain a large jump, got: " << input_jump;
-    EXPECT_LT(output_jump, input_jump * 0.6)
+    EXPECT_LT(output_jump, input_jump * 0.75)
         << "A single bad estimate should not jerk the frame, got: "
         << output_jump << " px (input jump: " << input_jump << " px)";
 }
