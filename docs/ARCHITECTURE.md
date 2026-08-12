@@ -1,445 +1,470 @@
 # OBS Stabilizer Architecture
 
-**Date**: 2026-02-16
-**Status**: Current Design
-**Version**: 1.0
+**Snapshot date**: 2026-08-12  
+**Baseline**: `main` at `5eb1763c7b96d9f4b77387b8967b5f7a326b8d39`  
+**Status**: Current runtime architecture and extension seams
+
+この文書は、現在の `main` で実際にビルド・実行される経路と、すでに存在するが実行経路には未接続の拡張用コンポーネントを分けて記述する。
 
 ---
 
-## 1. 機能要件 (Functional Requirements)
+## 1. System overview
 
-### 1.1. コア機能
-- **リアルタイム映像スタビライゼーション**: OBSのビデオソースに適用し、カメラの揺れを補正する
-- **パラメータ調整**: スタビライゼーションの強度、スムージング、機能パラメータなどを調整できる
-- **複数ソース対応**: 複数のビデオソースに同時に適用可能
-- **即時反映**: 設定変更がリアルタイムで映像に反映される
+OBS Stabilizer は OBS Studio の video filter として動作し、OBS の `obs_source_frame` を OpenCV の `cv::Mat` に変換してから、特徴点追跡・変換推定・平滑化・画像変形を行い、結果を OBS frame として返す。
 
-### 1.2. アルゴリズム機能
-- **特徴点検出**: `goodFeaturesToTrack()` で画像の特徴点を検出
-- **オプティカルフロー**: `calcOpticalFlowPyrLK()` でフレーム間の動きを検出
-- **スムージング**: ガウシアンフィルタや移動平均で補正値を平滑化
-- **エッジ処理**: パディング、クロップ、スケールの3つのエッジ処理モードをサポート
-
-### 1.3. UI機能
-- **プロパティパネル**: OBSの標準UIでパラメータ調整
-- **プリセット**: 用途別プリセット（Gaming、Streaming、Recording）
-- **パラメータ検証**: 入力値の自動検証と制限
-
----
-
-## 2. 非機能要件 (Non-Functional Requirements)
-
-### 2.1. パフォーマンス (Performance)
-- **処理遅延**: 1フレーム以内（33ms以下、30fps基準）
-- **CPU使用率**: 全体のCPU使用率を最小限に抑制（10-40% @ 1080p）
-- **メモリ使用量**: 最小限のメモリ使用（20-50MB @ 1080p）、メモリリークなし
-- **対応解像度**: HD（1920x1080）、フルHD、4K対応
-
-### 2.2. セキュリティ (Security)
-- **バッファオーバーフロー防止**: フレームバッファの境界チェック
-- **入力検証**: 不正な入力に対して堅牢性を確保
-- **整数オーバーフロー防止**: フレームサイズ計算でのサイズ制限（16Kx16K）
-
-### 2.3. 互換性 (Compatibility)
-- **プラットフォーム**: Windows、macOS（ARM64ネイティブ）、Linux対応
-- **OBSバージョン**: OBS Studio 30.0以上
-- **OpenCVバージョン**: 4.5以上（4.5-4.8推奨、5.x実験的サポート）
-
-### 2.4. メンテナンス性 (Maintainability)
-- **モジュール化**: 機能追加やバグ修正が容易なモジュラーアーキテクチャ
-- **ドキュメント**: コードコメント、APIドキュメント、ユーザーガイド
-- **テストカバレッジ**: 71の単体テスト、100%パス率
-
-### 2.5. 開発原則 (Development Principles)
-- **YAGNI (You Aren't Gonna Need It)**: 今必要な機能だけ実装する
-- **DRY (Don't Repeat Yourself)**: コードの重複を避ける
-- **KISS (Keep It Simple, Stupid)**: シンプルに保つ
-- **TDD (Test-Driven Development)**: テスト駆動開発
-
----
-
-## 3. 受け入れ基準 (Acceptance Criteria)
-
-### 3.1. 機能的受け入れ基準
-- [x] 手振れ補正が視覚的に確認できる（明らかな揺れの低減）
-- [x] 設定画面からスタビライゼーションレベルを調整でき、リアルタイムで反映される
-- [x] 複数のビデオソースにフィルターを適用してもOBSがクラッシュしない
-- [x] 1920x1080 @ 30fpsで処理遅延が1フレーム（33ms）以内
-- [x] Windows、macOS、Linuxの最新版OBSで基本動作が確認できる
-
-### 3.2. 非機能的受け入れ基準
-- [x] 連続24時間動作でメモリリークがない
-- [x] クラッシュや不正終了が発生しない
-- [x] テストスイートがすべてパスする（71/71）
-- [x] バッファオーバーフロー脆弱性がない
-
----
-
-## 4. 設計方針 (Design Principles)
-
-### 4.1. アーキテクチャ原則
-- **OBSプラグイン**: OBSのフィルタープラグインとして実装
-- **外部ライブラリ活用**: OpenCVなどの既存ライブラリを活用
-- **標準UI**: OBSの標準UIフレームワークを使用
-- **モジュール化**: 機能を独立したモジュールに分割
-
-### 4.2. スレッドモデル
-- **OBSスレッド**: プラグインのメインスレッド（フレーム処理）
-- **UIスレッド**: OBSのUIスレッド（プロパティ更新）
-- **スレッドセーフ**: OBSフィルターはシングルスレッド設計、ミューテックス不要
-
-### 4.3. トレードオフ
-- **精度 vs パフォーマンス**: 精度を上げると計算量が増え、CPU負荷が上がる。ユーザーがパラメータで調整できるようにする
-- **ライブラリ使用 vs 自作実装**: OpenCVを使用すると開発時間が短縮されるが、ライブラリ依存になる。開発速度を優先し、OpenCVを使用する
-- **リアルタイム vs 品質**: リアルタイム処理を優先し、品質を少し犠牲にする
-
----
-
-## 5. アーキテクチャ決定 (Architecture Decisions)
-
-### 5.1. 全体構成
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    OBS Studio                        │
-│                                                     │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │         OBS Stabilizer Plugin                  │   │
-│  │                                                 │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │  Plugin Interface (stabilizer_opencv)  │   │   │
-│  │  │  - obs_source_info                   │   │   │
-│  │  │  - Property callbacks                │   │   │
-│  │  │  - Frame callbacks                  │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │           │                                     │   │
-│  │           ▼                                     │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │    StabilizerWrapper (RAII)         │   │   │
-│  │  │  - Exception-safe boundaries         │   │   │
-│  │  │  - Memory management                │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │           │                                     │   │
-│  │           ▼                                     │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │    StabilizerCore (Core Engine)      │   │   │
-│  │  │  - Frame processing                │   │   │
-│  │  │  - Smoothing algorithms            │   │   │
-│  │  │  - Transform calculation          │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │           │                                     │   │
-│  │           ▼                                     │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │     FrameUtils (Conversion)           │   │   │
-│  │  │  - OBS ↔ OpenCV Mat conversion       │   │   │
-│  │  │  - Validation                       │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │                                                 │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │     VALIDATION (Parameter Check)       │   │   │
-│  │  │  - Parameter range validation         │   │   │
-│  │  │  - Clamp functions                   │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │                                                 │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │  StabilizerConstants (Constants)      │   │   │
-│  │  │  - Named constants                  │   │   │
-│  │  │  - Parameter ranges                 │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │                                                 │   │
-│  │  ┌─────────────────────────────────────────┐   │   │
-│  │  │     PresetManager (Presets)          │   │   │
-│  │  │  - Save/Load presets                │   │   │
-│  │  │  - JSON serialization               │   │   │
-│  │  └─────────────────────────────────────────┘   │   │
-│  │                                                 │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                     │
-└─────────────────────────────────────────────────────────┘
+```text
+OBS Studio
+   |
+   | filter lifecycle / properties / video frame callbacks
+   v
+src/stabilizer_opencv.cpp
+   |-- settings <-> StabilizerParams
+   |-- parameter validation
+   |-- OBS <-> OpenCV conversion adapter
+   |
+   v
+StabilizerWrapper
+   |-- RAII ownership of StabilizerCore
+   |-- mutex boundary between OBS UI/video access
+   |
+   v
+StabilizerCore
+   |-- grayscale conversion
+   |-- feature detection
+   |-- pyramidal Lucas-Kanade optical flow
+   |-- affine transform estimation
+   |-- transform-history smoothing
+   |-- correction + edge handling
+   |
+   v
+FrameUtils / FrameBuffer
+   |
+   v
+OBS output frame
 ```
 
-### 5.2. コンポーネント説明
+### Current runtime boundary
 
-#### 5.2.1. Plugin Interface (`stabilizer_opencv.cpp`)
-- **役割**: OBSプラグインとしてのインターフェース
-- **責任**:
-  - `obs_source_info` 構造体の定義
-  - プロパティコールバック（設定UI）
-  - フレームコールバック（映像処理）
-  - OBS APIとの統合
+`CMakeLists.txt` の plugin target に直接入る主要 source は次のとおり。
 
-#### 5.2.2. StabilizerWrapper (`stabilizer_wrapper.cpp`)
-- **役割**: RAIIラッパーによる例外安全な境界
-- **責任**:
-  - 例外安全なインターフェース提供
-  - メモリ管理
-  - 初期化・クリーンアップ
-- **設計**: OBSフィルターはシングルスレッドのため、ミューテックス不要
+- `src/stabilizer_opencv.cpp`
+- `src/core/stabilizer_core.cpp`
+- `src/core/stabilizer_wrapper.cpp`
+- `src/core/preset_manager.cpp`
+- `src/core/frame_utils.cpp`（real OBS headers が利用可能なビルド）
 
-#### 5.2.3. StabilizerCore (`stabilizer_core.cpp`)
-- **役割**: コア処理ロジック
-- **責任**:
-  - フレーム処理
-  - スムージングアルゴリズム
-  - 変換行列の計算
-  - 特徴点検出
-  - オプティカルフロー計算
-- **最適化**:
-  - SIMD最適化（`cv::setUseOptimized(true)`）
-  - シングルスレッドモード（`cv::setNumThreads(1)`）
+`src/core` や `src/ui` にはこのほかにも policy/helper が存在するが、ファイルが存在することと runtime pipeline に接続済みであることは同義ではない。
 
-#### 5.2.4. FrameUtils (`frame_utils.hpp/cpp`)
-- **役割**: フレーム変換ユーティリティ
-- **責任**:
-  - OBSフォーマット ↔ OpenCV Mat 変換
-  - 検証
-  - カラー変換
-- **設計**: OBSヘッダーがある場合とない場合で条件付きコンパイル
+---
 
-#### 5.2.5. VALIDATION (`parameter_validation.hpp`)
-- **役割**: パラメータ検証
-- **責任**:
-  - パラメータ範囲チェック
-  - Clamp関数
-  - フレーム検証
+## 2. Runtime modules
 
-#### 5.2.6. StabilizerConstants (`stabilizer_constants.hpp`)
-- **役割**: 定数定義
-- **責任**:
-  - マジックナンバーの排除
-  - パラメータ範囲定義
-  - 名前付き定数
+### 2.1 Plugin interface — `src/stabilizer_opencv.cpp`
 
-#### 5.2.7. PresetManager (`preset_manager.cpp`)
-- **役割**: プリセット管理
-- **責任**:
-  - プリセット保存・読み込み
-  - JSONシリアライゼーション
-  - プリセット一覧
+OBS との境界を担当する。
 
-### 5.3. データフロー
+主な責務:
 
-```
-OBS Frame (obs_source_frame)
-    │
-    ├─► FrameUtils::Validation::validate_obs_frame()
-    │
-    ├─► FrameUtils::Conversion::obs_to_cv()
-    │
-    ├─► VALIDATION::validate_parameters()
-    │
-    ├─► StabilizerWrapper::process_frame()
-    │
-    ├─► StabilizerCore::process_frame()
-    │       │
-    │       ├─► FrameUtils::ColorConversion::convert_to_grayscale()
-    │       │
-    │       ├─► detect_features() (goodFeaturesToTrack)
-    │       │
-    │       ├─► track_features() (calcOpticalFlowPyrLK)
-    │       │
-    │       ├─► estimate_transform()
-    │       │
-    │       ├─► smooth_transforms()
-    │       │
-    │       ├─► apply_transform() (warpAffine)
-    │       │
-    │       └─► apply_edge_handling() (Padding/Crop/Scale)
-    │
-    ├─► FrameUtils::Conversion::cv_to_obs()
-    │
-    └─► OBS Output
+- `obs_source_info` の登録
+- filter の create / destroy / update
+- properties panel の構築
+- preset callback と settings の読み書き
+- OBS frame の受け取りと結果 frame の返却
+- processing time の簡易集計
+- OBS API 境界での例外ログとフォールバック
+
+UI property の一部には `src/ui` の再利用可能な schema/policy も存在するが、現時点では properties 構築ロジックの多くが `stabilizer_opencv.cpp` に残っている。
+
+### 2.2 Thread-safety boundary — `StabilizerWrapper`
+
+`StabilizerWrapper` は `StabilizerCore` を `std::unique_ptr` で所有する RAII wrapper であり、公開操作を mutex で直列化する。
+
+OBS の UI thread から設定変更が入る一方で video thread が frame を処理する可能性があるため、同期責任は wrapper に置く。これにより `StabilizerCore` 自体は lock を持たず、アルゴリズム実装に集中できる。
+
+```text
+OBS UI thread ----- update/initialize ----+
+                                         |
+                                         v
+                                  StabilizerWrapper
+                                         ^
+                                         |
+OBS video thread -- process_frame -------+
+
+                  single mutex boundary
+                         |
+                         v
+                  StabilizerCore
 ```
 
-### 5.4. 設計パターン
+### 2.3 Core engine — `StabilizerCore`
 
-#### 5.4.1. RAII (Resource Acquisition Is Initialization)
-- **StabilizerWrapper**: `std::unique_ptr<StabilizerCore>` による自動メモリ管理
-- **例外安全**: 例外が発生してもリソースが正しく解放される
+`StabilizerCore` は single-threaded な stabilization engine で、内部同期は行わない。現在の public API は OpenCV 型を直接使用する。
 
-#### 5.4.2. モジュラーアーキテクチャ
-- **疎結合**: 各コンポーネントが独立してテスト可能
-- **高凝集**: 関連する機能を同じモジュールに集約
+主要処理:
 
-#### 5.4.3. 依存性注入
-- **StabilizerWrapper**: `StabilizerCore` を所有し、インターフェースを提供
-- **テスト容易性**: モックを使用した単体テストが可能
+1. 入力 frame の妥当性確認
+2. BGRA/BGR/GRAY から grayscale への変換
+3. `goodFeaturesToTrack()` による特徴点検出
+4. `calcOpticalFlowPyrLK()` による追跡
+5. tracked points から affine motion を推定
+6. transform history の平滑化
+7. correction transform を適用
+8. Padding / Crop / Scale の edge handling
+9. performance metrics と tracking state の更新
 
----
+保持する temporal state:
 
-## 6. トレードオフの検討 (Trade-off Analysis)
+- previous grayscale frame
+- previous feature points
+- recent transform history
+- tracking failure count
+- performance metrics
 
-### 6.1. Point Feature Matching vs SURF/ORB
+scene cut、強い motion blur、特徴点不足などでは、tracking state を再構築しつつ入力 frame をそのまま返すことがある。
 
-| 項目 | Point Feature Matching | SURF/ORB |
-|------|---------------------|-----------|
-| 精度 | 中 | 高 |
-| 計算コスト | 低 (1-4ms/frame) | 高 |
-| メモリ使用量 | 低 | 高 |
-| GPU加速 | 可能 | 可能 |
-| **結論** | **採用** | 採用せず |
+### 2.4 Frame conversion — `FrameUtils`
 
-**理由**: リアルタイム性を重視し、Point Feature Matchingを採用
+`FRAME_UTILS` は OBS と OpenCV の間の変換・検証・buffer ownership を集約する。
 
-### 6.2. スムージングアルゴリズム
+主な責務:
 
-| 項目 | ガウシアン | 移動平均 | カルマン |
-|------|----------|---------|--------|
-| 精度 | 中 | 低 | 高 |
-| 計算コスト | 低 | 低 | 高 |
-| 実装難易度 | 低 | 低 | 高 |
-| **結論** | **採用** | 採用せず | 将来検討 |
+- OBS frame validation
+- `obs_source_frame` -> `cv::Mat`
+- packed frame 用 borrowed view API
+- color conversion
+- `cv::Mat` -> OBS frame
+- metadata copy
+- output buffer lifecycle
 
-**理由**: バランスの良さと実装の簡潔さからガウシアンを採用
+現在の `main` の plugin adapter は centralized `FrameUtils` を下層で利用している。変換方針を plugin file に複製せず、format 判定や buffer lifetime の責任を `FrameUtils` 側へ寄せるのが設計方針である。
 
-### 6.3. エッジ処理モード
+### 2.5 Parameter validation — `parameter_validation.hpp`
 
-| 項目 | パディング | クロップ | スケール |
-|------|---------|--------|--------|
-| 画質 | やや劣化 | 良い | 良い |
-| 画角 | 変化なし | 変化あり | 変化なし |
-| 計算コスト | 最小 | 低 | 中 |
-| **結論** | デフォルト | オプション | オプション |
+OBS settings から得た値をそのまま core に渡さず、範囲を検証・clamp する。geometry validation と algorithm parameter validation を分離し、不正値が OpenCV 呼び出しまで到達することを防ぐ。
 
-**理由**:
-- **Padding (Gaming)**: 最小限のオーバーヘッド、リアルタイム性能優先
-- **Crop (Streaming)**: 黒い縁を削除、プロフェッショナルな外観
-- **Scale (Recording)**: 元のフレームサイズを維持、最高品質
+### 2.6 Constants — `stabilizer_constants.hpp`
 
-### 6.4. スレッドモデル
+feature count、smoothing radius、correction limit、image size などの named constants を集約する。magic number を処理本体から切り離す。
 
-| 項目 | シングルスレッド | マルチスレッド |
-|------|-------------|------------|
-| 実装複雑度 | 低 | 高 |
-| デッドロックリスク | なし | あり |
-| パフォーマンス | 十分 | 向上可能 |
-| OBS互換性 | 完全 | 問題あり |
-| **結論** | **採用** | 採用せず |
+### 2.7 Presets — `PresetManager` and preset policies
 
-**理由**: OBSフィルターはシングルスレッド設計、ミューテックス不要（YAGNI原則）
+built-in preset は `StabilizerCore` の factory と settings callback から利用される。custom preset の永続化用 `PresetManager` と UI-side の preset selection policy も存在し、preset の保存・読み込みと選択規則を独立してテストできるようにしている。
 
 ---
 
-## 7. ビルド・テスト構成
+## 3. Frame data flow
 
-### 7.1. ビルドシステム
-- **CMake**: 3.16以上
-- **ビルドツール**: Make、Ninja、Visual Studio
-- **C++標準**: C++17
+### 3.1 Per-frame processing
 
-### 7.2. 依存ライブラリ
-- **OpenCV**: 4.5以上 (core, imgproc, video, calib3d, features2d, flann, dnn)
-- **GTest**: 1.14.0以上（テスト用）
-- **OBS**: OBS Studioライブラリ（実行時）
+```text
+obs_source_frame
+   |
+   | validate pointer / geometry / format
+   v
+FrameUtils conversion
+   |
+   v
+cv::Mat
+   |
+   v
+StabilizerWrapper::process_frame()
+   |
+   | mutex acquired
+   v
+StabilizerCore::process_frame()
+   |
+   |-- validate frame
+   |-- grayscale conversion
+   |-- feature detection / tracking
+   |-- estimate affine transform
+   |-- smooth transform history
+   |-- apply correction
+   |-- edge handling
+   v
+stabilized cv::Mat
+   |
+   v
+FrameUtils / FrameBuffer
+   |
+   | copy output pixels + reference metadata
+   v
+obs_source_frame returned to OBS
+```
 
-### 7.3. テスト構成
-- **単体テスト**: Google Test (GTest)
-- **テスト数**: 71のテスト
-- **パス率**: 100% (71/71)
-- **カバレッジ**:
-  - stabilizer_core: 50%
-  - motion_classifier: 95%
-  - adaptive_stabilizer: 40%
+### 3.2 Ownership rules
 
-### 7.4. CI/CD
-- **GitHub Actions**: 自動テスト、静的解析
-- **ワークフロー**:
-  - Build OBS Stabilizer (ビルド)
-  - Quality Assurance (テスト、カバレッジ、静的解析)
-  - Performance Tests (ベンチマーク)
-  - Feature Implementation Flow (事前チェック、単体テスト)
+- OBS が渡した input frame の lifetime は OBS callback の外へ延長しない。
+- borrowed `cv::Mat` view を使用する場合、その storage を core state や別 thread に保持してはいけない。
+- temporal grayscale data など callback 後も必要な state は独立した storage を所有する。
+- output OBS frame は `FrameBuffer` 側で lifecycle を管理する。
 
----
-
-## 8. 開発ステータス (Development Status)
-
-### Phase 1: 基盤構築 ✅ 完了
-- [x] OBSプラグインテンプレート設定
-- [x] OpenCV統合
-- [x] 基本的なVideo Filter実装
-- [x] 性能検証プロトタイプ作成
-- [x] テストフレームワーク設定
-
-### Phase 2: コア機能実装 ✅ 完了
-- [x] Point Feature Matching実装
-- [x] スムージングアルゴリズム実装
-- [x] エラーハンドリング標準化
-- [x] 単体テスト実装
-
-### Phase 3: UI/UX・品質保証 ✅ 完了
-- [x] 設定パネル作成
-- [x] パフォーマンステスト自動化
-- [x] メモリ管理・リソース最適化
-- [x] 統合テスト環境構築
-
-### Phase 4: 最適化・リリース準備 🔄 進行中
-- [x] パフォーマンス調整
-- [x] クロスプラットフォーム対応
-- [x] デバッグ・診断機能実装
-- [ ] ドキュメント整備
-
-### Phase 5: 本格運用準備 📋 計画中
-- [ ] CI/CD パイプライン構築
-- [ ] プラグイン配布・インストール機能
-- [ ] セキュリティ・脆弱性対応
-- [ ] コミュニティ・コントリビューション体制構築
+この ownership contract を破る最適化は、コピー回数を減らせても採用しない。
 
 ---
 
-## 9. 既知の問題と制限 (Known Issues and Limitations)
+## 4. Configuration flow
 
-### 9.1. 既知の問題
-- **#324**: macOSのビルド・インストール手順が動作しない問題（`fix-plugin-loading.sh`が期待されるビルド出力を見つけられない）
-- **#323**: アーキテクチャドキュメントが現在の設計を反映していない（本ドキュメントで解決）
+```text
+OBS properties panel
+   |
+   v
+obs_data_t settings
+   |
+   v
+settings_to_params()
+   |
+   v
+VALIDATION::validate_parameters()
+   |
+   v
+StabilizerCore::StabilizerParams
+   |
+   v
+StabilizerWrapper::initialize/update_parameters()
+```
 
-### 9.2. 技術的制限
-- **GPU加速**: 現在はCPUベースのOpenCV処理、GPU加速（CUDA、OpenCL、Metal）は未実装
-- **最大解像度**: 16Kx16Kの制限（整数オーバーフロー防止）
-- **OpenCV依存**: OpenCV 4.5以上が必要
-
-### 9.3. パフォーマンス特性
-
-| 解像度 | FPS | CPU使用率 | メモリ使用量 |
-|--------|-----|----------|------------|
-| 480p   | 60  | 5-10%    | 10-20MB    |
-| 720p   | 60  | 10-25%   | 15-30MB    |
-| 1080p  | 30  | 20-40%   | 20-50MB    |
-| 1440p  | 30  | 40-60%   | 30-70MB    |
-| 4K     | 30  | 60-80%   | 50-100MB   |
-
----
-
-## 10. 今後の改善計画 (Future Improvements)
-
-### 10.1. 短期的改善
-1. **#324の解決**: macOSビルド・インストール手順の修正
-2. **ドキュメント整備**: ユーザーガイド、開発者ガイドの更新
-3. **テストカバレッジ向上**: 目標80%以上
-
-### 10.2. 中期的改善
-1. **GPU加速**: CUDA、OpenCL、Metal対応
-2. **高度なアルゴリズム**: カルマンフィルタ、オプティカルフロー改善
-3. **メトリクス可視化**: OBSプロパティパネルでのパフォーマンスメトリクス表示
-
-### 10.3. 長期的改善
-1. **4K対応の最適化**: 4K @ 60fpsの安定した処理
-2. **AIベースのスタビライゼーション**: ディープラーニングを活用した高度な補正
-3. **リアルタイム品質監視**: 自動品質調整
+設定変更と frame 処理が重なる可能性があるため、core state を変更する操作は wrapper の mutex boundary を通す。
 
 ---
 
-## 11. 参考資料 (References)
+## 5. Adaptive stabilization status and integration design
 
-- **OBS Studio API Documentation**: https://obsproject.com/docs
-- **OpenCV Documentation**: https://docs.opencv.org/
-- **Issue #323**: Update architecture documentation to reflect current design
-- **Issue #324**: macOS fix-plugin-loading.sh and build instructions don't work
-- **docs/plugin-loading-fix-report.md**: プラグインローディング修正レポート
-- **README.md**: プロジェクトのREADME
-- **CLAUDE.md**: プロジェクト開発方針
+初期設計では独立した `AdaptiveStabilizer` と `MotionClassifier` を runtime pipeline に置く構成が想定されていた。しかし現在の `main` にはそれらの runtime module は存在せず、実際の plugin target は `StabilizerCore` を直接利用する。
+
+したがって、現在の architecture を「adaptive pipeline 実装済み」と表現するのは正確ではない。
+
+一方で、将来の adaptive stabilization を実装するための extension seam はすでに複数存在する。
+
+```text
+                       +----------------------+
+                       | Motion observations  |
+                       | from StabilizerCore  |
+                       +----------+-----------+
+                                  |
+                                  v
++------------------+    +----------------------+    +------------------+
+| ResolutionPolicy |--->| Adaptive policy      |<---| Performance data |
++------------------+    | (future integration) |    +------------------+
+                                  |
+                 +----------------+----------------+
+                 |                                 |
+                 v                                 v
+        KalmanTransformFilter             GPU backend policy
+                 |                                 |
+                 +----------------+----------------+
+                                  |
+                                  v
+                         Stabilization params
+```
+
+現在確認できる extension-oriented components:
+
+- `kalman_transform_filter.*`: transform smoothing に利用可能な reusable Kalman filter
+- `resolution_profile.hpp`: resolution-aware parameter profile
+- `gpu_backend_policy.hpp`: CPU/OpenCL/CUDA/Metal の deterministic selection policy
+- `performance_metrics.hpp`: processing time と feature success の snapshot/model
+- `rolling_average.hpp`: lightweight rolling statistic helper
+- `frame_analyzer.hpp`: stateless frame validation/content analysis
+- `image_view.hpp`: image view abstraction の基礎
+
+重要: これらは個別に存在・テストされていても、すべてが現在の OBS runtime path に接続されているわけではない。
+
+### Adaptive integration contract
+
+将来 adaptive layer を追加する場合は、次の境界を維持する。
+
+1. core から observation を取得するが、OBS API 型を adaptive layer に持ち込まない。
+2. policy は `StabilizerParams` など明示的な値で core に指示する。
+3. UI/video concurrency は引き続き `StabilizerWrapper` で同期する。
+4. unsupported GPU backend は必ず CPU に deterministic fallback する。
+5. policy 切替で temporal state の意味が変わる場合は reset/reinitialize の条件を明示する。
+6. adaptive optimization は frame ownership contract を変更しない。
 
 ---
 
-**最終更新日**: 2026-02-16
-**文書作成者**: AI Assistant (zai-architect)
-**ステータス**: ✅ 完了
+## 6. Auxiliary and policy components
+
+### `FrameAnalyzer`
+
+frame validation と content bounds の stateless helper。core から責務を分離する方向の再利用可能な部品だが、現在の runtime core のすべての validation がここへ移行済みという意味ではない。
+
+### `ImageView`
+
+OpenCV coupling を減らすための view abstraction の基礎。`StabilizerCore` の public API は現在も `cv::Mat` を使用しているため、完全な image abstraction layer への移行は未完了。
+
+### `GpuBackendPolicy`
+
+requested backend と runtime capabilities から backend を選ぶ policy。GPU image-processing implementation 自体ではない。現状の production stabilization path は CPU/OpenCV が基準である。
+
+### `PerformanceMetrics`
+
+processing time、estimated FPS、feature success rate、status/recommendation を表現する model。model が存在することと、OBS properties panel へリアルタイム表示済みであることは別である。
+
+### UI schema/policies
+
+`src/ui/stabilizer_property_schema.hpp` と `preset_selection.hpp` は UI 設定の一部を OBS API から切り離してテストするための seam。properties builder 全体の抽出は今後の refactor 対象である。
+
+---
+
+## 7. Design decisions
+
+### 7.1 Synchronization lives above the core
+
+`StabilizerCore` に mutex を入れず、`StabilizerWrapper` が concurrency boundary を担当する。
+
+理由:
+
+- per-frame algorithm を単純に保つ
+- UI/video concurrency の責任箇所を一つにする
+- unit test で core を OBS threading から独立させる
+
+### 7.2 OpenCV remains the processing backend
+
+current core は `cv::Mat` と OpenCV primitives を直接利用する。abstraction helper は存在するが、backend-independent core への全面移行はまだ行わない。
+
+### 7.3 Conversion and ownership are centralized
+
+OBS/OpenCV conversion、format handling、buffer lifetime は `FrameUtils` に集約する。plugin callback 側で独自変換を増やさない。
+
+### 7.4 CPU is the guaranteed fallback
+
+GPU backend selection policy が存在しても、GPU acceleration availability を runtime の必須条件にしない。unsupported backend では CPU に戻れることを契約とする。
+
+### 7.5 ABI compatibility is explicit
+
+macOS の distributable plugin は OBS 30.0 の official source headers を基準にビルドし、newer OBS でもロードできる ABI boundary を維持する。macOS bundle は `@loader_path` 基準で bundled dependencies を解決する。
+
+### 7.6 Performance claims require benchmark coverage
+
+frame conversion、resolution profile、sanitizer、integration などは dedicated workflow で回帰を検出する。ドキュメントに固定の FPS/CPU 数値を「保証値」として書かず、CI benchmark と実機計測を source of truth とする。
+
+---
+
+## 8. Build and test architecture
+
+### Build
+
+- CMake 3.16+
+- C++17
+- OpenCV components: core, imgproc, video, calib3d, features2d, flann
+- OBS Studio integration
+- Windows / macOS / Linux build paths
+- macOS `.plugin` bundle packaging and bundled OpenCV verification
+
+### CI
+
+主要 workflow:
+
+- Build OBS Stabilizer
+- Quality Assurance
+- Performance Tests
+- Feature Implementation Flow
+- Integration Tests
+- Memory Sanitizer
+- Thread Sanitizer
+- macOS Plugin Package
+
+変更対象に応じて frame conversion、frame lifecycle、Kalman、GPU policy、resolution profile などの dedicated workflow も実行する。
+
+テスト数や coverage は継続的に変化するため、この文書では固定値を architecture contract としない。
+
+---
+
+## 9. Failure handling
+
+### OBS boundary
+
+OBS callback では C++ exception を OBS 側へ漏らさない。exception はログへ記録し、可能な場合は元 frame を返して OBS session を継続する。
+
+### Core
+
+core は invalid input や processing failure を `last_error_` と戻り値で表現する。tracking failure のような回復可能状態と、invalid geometry のような initialization failure を区別する。
+
+### Frame conversion
+
+invalid pointer、unsupported format、invalid stride/geometry を処理前に拒否する。output allocation に失敗した場合は元 frame へ fallback できるようにする。
+
+---
+
+## 10. Troubleshooting
+
+### Plugin does not load on macOS
+
+確認順:
+
+1. `obs-stabilizer.plugin/Contents/Info.plist` が存在し妥当か
+2. `Contents/MacOS/obs-stabilizer` が生成されているか
+3. bundled OpenCV libraries が `Contents/Frameworks` に存在するか
+4. dependency path が `@loader_path` 基準になっているか
+5. `codesign --verify --deep --strict` が通るか
+6. CI の macOS Plugin Package / Build artifact が成功しているか
+
+### Filter loads but stabilization is not visible
+
+- `enabled` が true か
+- input frame geometry と format が妥当か
+- feature_count / quality_level / min_distance が極端な値でないか
+- texture の少ない scene で feature tracking が失敗していないか
+- OBS log の `[obs-stabilizer]` diagnostics を確認する
+
+### Performance is poor
+
+- resolution を確認する
+- feature_count を下げる
+- smoothing radius を必要以上に大きくしない
+- Performance Tests / frame conversion benchmark の結果を比較する
+- GPU policy の存在だけを理由に GPU acceleration が有効だと判断しない
+
+### CI failure after refactor
+
+- general Build / QA だけでなく変更した subsystem の dedicated workflow を確認する
+- sanitizer failure は再現性のある ownership/threading defect として優先して扱う
+- conversion optimization では pixel integrity と metadata preservation の両方を確認する
+
+---
+
+## 11. Known limitations
+
+- properties construction の多くはまだ `stabilizer_opencv.cpp` にあり、UI integration と OBS lifecycle が完全分離されていない。
+- `StabilizerCore` public API は OpenCV 型に依存している。
+- standalone GPU backend policy は存在するが、GPU accelerated stabilization pipeline は production runtime に未接続。
+- standalone Kalman filter は存在するが、default runtime smoothing path を置き換えてはいない。
+- dedicated `AdaptiveStabilizer` / `MotionClassifier` runtime layer は current `main` には存在しない。
+- performance は input content、resolution、platform、OpenCV build に依存するため、固定の CPU/FPS 値を保証しない。
+
+---
+
+## 12. Source-of-truth files
+
+architecture を変更した場合は少なくとも次のファイルとの整合性を確認する。
+
+- `CMakeLists.txt` — runtime build graph
+- `src/stabilizer_opencv.cpp` — OBS integration and UI callbacks
+- `src/core/stabilizer_wrapper.*` — concurrency boundary
+- `src/core/stabilizer_core.*` — algorithm and temporal state
+- `src/core/frame_utils.*` — conversion and frame ownership
+- `src/core/parameter_validation.hpp` — parameter contract
+- `src/core/stabilizer_constants.hpp` — algorithm constants
+- `src/core/preset_manager.*` — preset persistence
+- `src/core/frame_analyzer.hpp` — frame-analysis helper seam
+- `src/core/gpu_backend_policy.hpp` — backend selection policy
+- `src/core/kalman_transform_filter.*` — optional transform smoother
+- `src/core/performance_metrics.hpp` — performance model
+- `src/ui/*` — UI policy/schema seams
+- `.github/workflows/*` — executable CI contracts
+
+関連ドキュメント:
+
+- `docs/CURRENT_ARCHITECTURE.md`
+- `docs/ARCHITECTURE_DECISIONS.md`
+- `docs/STABILIZATION_ALGORITHM.md`
+- `docs/ERROR_HANDLING.md`
+- `docs/GPU_ACCELERATION_EVALUATION.md`
+- `docs/DEVELOPER_GUIDE.md`
+- `docs/testing/`
+
+---
+
+## 13. Architecture maintenance rule
+
+新しい helper/policy を追加しただけでは「runtime integration 完了」と記述しない。`CMakeLists.txt`、runtime call graph、tests/workflows の3点を確認し、実際に production path から到達可能になった時点で本書の runtime section を更新する。
