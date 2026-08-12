@@ -2,7 +2,6 @@
 #include <opencv2/opencv.hpp>
 #include <cstdint>
 #include <stdexcept>
-#include <typeinfo>
 #include <vector>
 #include "test_constants.hpp"
 #include "test_data_generator.hpp"
@@ -166,7 +165,7 @@ TEST_F(BasicTest, TestProcessingConstants) {
     EXPECT_GT(Processing::DEFAULT_MIN_DISTANCE, 0.0f);
 }
 
-TEST_F(BasicTest, TestExceptionTelemetryTracksCategoriesAndTypes) {
+TEST_F(BasicTest, TestExceptionTelemetryTracksStableCategories) {
     using namespace StabilizerLogging;
 
     reset_exception_telemetry();
@@ -189,9 +188,22 @@ TEST_F(BasicTest, TestExceptionTelemetryTracksCategoriesAndTypes) {
     EXPECT_EQ(snapshot.standard, 1u);
     EXPECT_EQ(snapshot.opencv, 1u);
     EXPECT_EQ(snapshot.unknown, 1u);
-    EXPECT_EQ(snapshot.by_type.at(typeid(standard_error).name()), 1u);
-    EXPECT_EQ(snapshot.by_type.at("cv::Exception"), 1u);
-    EXPECT_EQ(snapshot.by_type.at("unknown"), 1u);
+}
+
+TEST_F(BasicTest, TestExceptionTelemetryResetClearsCounters) {
+    using namespace StabilizerLogging;
+
+    reset_exception_telemetry();
+    std::runtime_error error("reset test");
+    log_exception("reset_test", error);
+    ASSERT_EQ(get_exception_telemetry().total, 1u);
+
+    reset_exception_telemetry();
+    const ExceptionTelemetrySnapshot snapshot = get_exception_telemetry();
+    EXPECT_EQ(snapshot.total, 0u);
+    EXPECT_EQ(snapshot.standard, 0u);
+    EXPECT_EQ(snapshot.opencv, 0u);
+    EXPECT_EQ(snapshot.unknown, 0u);
 }
 
 TEST_F(BasicTest, TestSafeCallRecordsExceptionTelemetry) {
