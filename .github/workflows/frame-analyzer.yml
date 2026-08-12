@@ -5,11 +5,7 @@ on:
     branches: [main]
     paths:
       - 'src/core/frame_analyzer.hpp'
-      - 'src/core/frame_utils.cpp'
       - 'src/core/frame_utils.hpp'
-      - 'src/core/kalman_transform_filter.cpp'
-      - 'src/core/stabilizer_core.cpp'
-      - 'src/core/stabilizer_core.hpp'
       - 'src/core/stabilizer_constants.hpp'
       - 'tests/frame_analyzer_regression.cpp'
       - '.github/workflows/frame-analyzer.yml'
@@ -34,16 +30,10 @@ jobs:
       - name: Build regression test
         run: |
           mkdir -p tmp/builds/frame-analyzer
-          # StabilizerCore still contains two legacy signed/unsigned comparisons.
-          # Keep every other warning fatal while allowing those pre-existing
-          # warnings to remain visible until they are corrected separately.
-          c++ -std=c++17 -Wall -Wextra -Werror -Wno-error=sign-compare \
+          c++ -std=c++17 -Wall -Wextra -Werror \
             -DBUILD_STANDALONE -DSTANDALONE_TEST \
             -Isrc -Iinclude \
             tests/frame_analyzer_regression.cpp \
-            src/core/stabilizer_core.cpp \
-            src/core/frame_utils.cpp \
-            src/core/kalman_transform_filter.cpp \
             $(pkg-config --cflags --libs opencv4) \
             -o tmp/builds/frame-analyzer/frame_analyzer_regression
 
