@@ -2,7 +2,6 @@
 
 #ifdef HAVE_OBS_HEADERS
 #include "obs_compat.h"
-#endif
 
 #include "ui/stabilizer_filter_context.hpp"
 
@@ -27,3 +26,4 @@ obs_properties_t *build_stabilizer_properties(struct stabilizer_filter *context)
  * Populate OBS settings defaults for the stabilizer filter.
  */
 void set_stabilizer_defaults(obs_data_t *settings);
+#endif // HAVE_OBS_HEADERS

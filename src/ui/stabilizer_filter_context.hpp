@@ -8,7 +8,6 @@
 
 #ifdef HAVE_OBS_HEADERS
 #include "obs_compat.h"
-#endif
 
 /**
  * Shared filter runtime state used by both the OBS integration layer and the
@@ -25,3 +24,4 @@ struct stabilizer_filter {
     double avg_processing_time;
     STABILIZER_METRICS::RollingAverage processing_time_average;
 };
+#endif // HAVE_OBS_HEADERS
