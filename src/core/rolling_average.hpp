@@ -14,6 +14,7 @@ namespace STABILIZER_METRICS {
  */
 class RollingAverage {
 public:
+    /** Add a non-negative sample to the running mean. */
     void add(double sample)
     {
         if (sample < 0.0) {
@@ -24,22 +25,26 @@ public:
         average_ += (sample - average_) / static_cast<double>(sample_count_);
     }
 
+    /** Clear all accumulated samples and reset the mean to zero. */
     void reset() noexcept
     {
         sample_count_ = 0;
         average_ = 0.0;
     }
 
+    /** Return the number of samples included in the mean. */
     [[nodiscard]] std::size_t sample_count() const noexcept
     {
         return sample_count_;
     }
 
+    /** Return the current arithmetic mean, or zero when empty. */
     [[nodiscard]] double value() const noexcept
     {
         return average_;
     }
 
+    /** Return true when no samples have been recorded. */
     [[nodiscard]] bool empty() const noexcept
     {
         return sample_count_ == 0;
