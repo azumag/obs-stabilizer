@@ -1,10 +1,14 @@
 #pragma once
 
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <iostream>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+#include <typeinfo>
+#include <unordered_map>
 
 // OpenCV exception support (only include when available)
 // CMake find_package(OpenCV) ensures OpenCV headers are available for the build
@@ -190,29 +194,119 @@ static inline void core_log_debug(const char* fmt, ...) {
 
 namespace StabilizerLogging {
 
+/** Categories used to summarize exception failures across filter instances. */
+enum class ExceptionCategory {
+    OpenCV,
+    Standard,
+    Unknown,
+};
+
 /**
- * Log exception details with consistent formatting
+ * Immutable snapshot of the exception counters collected by the logging layer.
+ *
+ * `by_type` keeps the concrete exception identifiers so repeated failures can
+ * be correlated without retaining exception objects or frame data.
+ */
+struct ExceptionTelemetrySnapshot {
+    uint64_t total = 0;
+    uint64_t opencv = 0;
+    uint64_t standard = 0;
+    uint64_t unknown = 0;
+    std::unordered_map<std::string, uint64_t> by_type;
+};
+
+namespace detail {
+
+struct ExceptionTelemetryState {
+    std::mutex mutex;
+    uint64_t total = 0;
+    uint64_t opencv = 0;
+    uint64_t standard = 0;
+    uint64_t unknown = 0;
+    std::unordered_map<std::string, uint64_t> by_type;
+};
+
+inline ExceptionTelemetryState& exception_telemetry_state() {
+    static ExceptionTelemetryState state;
+    return state;
+}
+
+inline void record_exception(ExceptionCategory category, const char* type_name) {
+    ExceptionTelemetryState& state = exception_telemetry_state();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    ++state.total;
+    switch (category) {
+        case ExceptionCategory::OpenCV:
+            ++state.opencv;
+            break;
+        case ExceptionCategory::Standard:
+            ++state.standard;
+            break;
+        case ExceptionCategory::Unknown:
+            ++state.unknown;
+            break;
+    }
+
+    const char* key = (type_name && type_name[0] != '\0') ? type_name : "unknown";
+    ++state.by_type[key];
+}
+
+} // namespace detail
+
+/** Return a thread-safe copy of the accumulated exception telemetry. */
+inline ExceptionTelemetrySnapshot get_exception_telemetry() {
+    detail::ExceptionTelemetryState& state = detail::exception_telemetry_state();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    ExceptionTelemetrySnapshot snapshot;
+    snapshot.total = state.total;
+    snapshot.opencv = state.opencv;
+    snapshot.standard = state.standard;
+    snapshot.unknown = state.unknown;
+    snapshot.by_type = state.by_type;
+    return snapshot;
+}
+
+/** Reset exception telemetry. Primarily useful for tests and explicit diagnostics windows. */
+inline void reset_exception_telemetry() {
+    detail::ExceptionTelemetryState& state = detail::exception_telemetry_state();
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    state.total = 0;
+    state.opencv = 0;
+    state.standard = 0;
+    state.unknown = 0;
+    state.by_type.clear();
+}
+
+/**
+ * Log exception details with consistent formatting and record the concrete type.
  * @param location Location where the exception occurred (e.g., function name)
  * @param e The exception that was caught
  */
 inline void log_exception(const char* location, const std::exception& e) {
-    CORE_LOG_ERROR("Exception in %s: %s", location, e.what());
+    const char* type_name = typeid(e).name();
+    detail::record_exception(ExceptionCategory::Standard, type_name);
+    CORE_LOG_ERROR("Exception in %s (%s): %s", location, type_name, e.what());
 }
 
 /**
- * Log unknown exception details
+ * Log unknown exception details and increment the unknown failure counter.
  * @param location Location where the exception occurred (e.g., function name)
  */
 inline void log_unknown_exception(const char* location) {
+    detail::record_exception(ExceptionCategory::Unknown, "unknown");
     CORE_LOG_ERROR("Unknown exception in %s", location);
 }
 
 /**
- * Log OpenCV exception with additional details
+ * Log OpenCV exception with additional details and record it for telemetry.
  * @param location Location where the exception occurred
  * @param e The OpenCV exception that was caught
  */
 inline void log_opencv_exception(const char* location, const cv::Exception& e) {
+    detail::record_exception(ExceptionCategory::OpenCV, "cv::Exception");
     CORE_LOG_ERROR("OpenCV exception in %s: %s (code: %d, func: %s, line: %d)",
                    location, e.what(), e.code, e.func.c_str(), e.line);
 }
