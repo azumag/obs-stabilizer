@@ -499,6 +499,19 @@ instead of the RMS because a small number of bad optical-flow tracks can
 dominate the RMS; the median is stable and still drops sharply when jitter is
 removed.
 
+### Before / after videos
+
+The animated comparisons below show the same 4-second segment with the filter
+disabled on the left and `Video Stabilizer` enabled on the right. The shaking
+edges of the grid and the outlined rectangles are visibly steadier on the
+right.
+
+![fine-shake: no filter vs stabilizer](docs/examples/fine-comparison.gif)
+
+![large-shake: no filter vs stabilizer](docs/examples/large-comparison.gif)
+
+![mixed-shake: no filter vs stabilizer](docs/examples/mixed-comparison.gif)
+
 ![Frame-to-frame motion with and without the stabilizer](docs/examples/motion-comparison.png)
 
 | Sample | Frame-to-frame motion (median) | Reduction | Pixel diff (mean) | Reduction |
