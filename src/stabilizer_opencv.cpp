@@ -41,7 +41,6 @@ static obs_properties_t *stabilizer_filter_properties(void *data);
 
 // Frame conversion functions
 static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame);
-static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame);
 
 // Plugin structure definition
 static struct obs_source_info stabilizer_filter_info = {
@@ -189,10 +188,13 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
         context->processing_time_average.add(processing_time);
         context->avg_processing_time = context->processing_time_average.value();
 
-        // Convert back to OBS frame
-        obs_source_frame* result = cv_mat_to_obs_frame(stabilized_frame, frame);
-
-        return result ? result : frame;
+        // OBS owns and reference-counts the frame passed to an async filter.
+        // Replacing that pointer with a plugin allocation breaks OBS's async
+        // frame queue, so copy stabilized pixels back into the same frame.
+        if (!FRAME_UTILS::Conversion::cv_to_obs_in_place(stabilized_frame, frame)) {
+            blog(LOG_ERROR, "[obs-stabilizer] Failed to copy stabilized pixels to OBS frame");
+        }
+        return frame;
 
     } catch (const std::exception& e) {
         blog(LOG_ERROR, "[obs-stabilizer] Exception in video processing: %s", e.what());
@@ -243,31 +245,6 @@ static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame)
     }
 }
 
-/**
- * Converts an OpenCV Mat to an OBS source frame using centralized utilities.
- *
- * This function creates a complete copy of frame data and does NOT modify the reference frame.
- * Uses FRAME_UTILS::FrameBuffer for thread-safe buffer management.
- *
- * @param mat The OpenCV matrix to convert
- * @param reference_frame The reference frame to copy metadata from
- * @return Pointer to internal buffer with the converted data, or nullptr on error
- */
-static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_source_frame *reference_frame)
-{
-    if (mat.empty() || !reference_frame) {
-        return nullptr;
-    }
-    
-    try {
-        // Use centralized frame conversion utility with thread-safe buffer management
-        return FRAME_UTILS::FrameBuffer::create(mat, reference_frame);
-        
-    } catch (const std::exception& e) {
-        blog(LOG_ERROR, "[obs-stabilizer] Exception in cv_mat_to_obs_frame: %s", e.what());
-        return nullptr;
-    }
-}
 #endif // HAVE_OBS_HEADERS
 
 #ifdef HAVE_OBS_HEADERS

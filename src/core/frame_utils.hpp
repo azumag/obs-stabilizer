@@ -79,6 +79,9 @@ namespace FRAME_UTILS {
         // Convert OpenCV Mat to OBS frame
         obs_source_frame* cv_to_obs(const cv::Mat& mat, const obs_source_frame* reference_frame);
 
+        // Convert and copy pixels into an existing OBS-owned frame
+        bool cv_to_obs_in_place(const cv::Mat& mat, obs_source_frame* destination_frame);
+
         // Get format name for logging
         std::string get_format_name(uint32_t obs_format);
 
