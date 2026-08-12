@@ -5,6 +5,7 @@
 
 namespace STABILIZER_UI {
 
+/** OBS property control type used to render one stabilizer setting. */
 enum class PropertyKind {
     Boolean,
     IntegerSlider,
@@ -12,12 +13,17 @@ enum class PropertyKind {
     StringList,
 };
 
+/** Declarative metadata for one OBS stabilizer property. */
 struct PropertyDescriptor {
+    /** Stable settings key used for persistence and lookup. */
     std::string_view key;
+    /** Human-readable label displayed in the OBS properties panel. */
     std::string_view label;
+    /** Control type used to represent the property. */
     PropertyKind kind;
 };
 
+/** Complete schema for the built-in stabilizer property panel. */
 inline constexpr std::array<PropertyDescriptor, 11> kStabilizerProperties{{
     {"enabled", "Enable Stabilization", PropertyKind::Boolean},
     {"preset", "Preset", PropertyKind::StringList},
@@ -32,6 +38,7 @@ inline constexpr std::array<PropertyDescriptor, 11> kStabilizerProperties{{
     {"debug_mode", "Debug Mode", PropertyKind::Boolean},
 }};
 
+/** Find a property descriptor by its stable settings key. */
 constexpr const PropertyDescriptor* find_property(std::string_view key) noexcept
 {
     for (const auto& property : kStabilizerProperties) {
@@ -42,6 +49,7 @@ constexpr const PropertyDescriptor* find_property(std::string_view key) noexcept
     return nullptr;
 }
 
+/** Return true when every property descriptor has a unique settings key. */
 constexpr bool has_unique_property_keys() noexcept
 {
     for (std::size_t left = 0; left < kStabilizerProperties.size(); ++left) {
