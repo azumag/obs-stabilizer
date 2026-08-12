@@ -11,18 +11,28 @@
  */
 class KalmanTransformFilter {
 public:
+    /** Noise covariance parameters used to initialize the Kalman model. */
     struct NoiseConfig {
+        /** Process-noise covariance applied to the motion model. */
         float process_noise = 1e-3f;
+        /** Measurement-noise covariance applied to observed transforms. */
         float measurement_noise = 1e-1f;
+        /** Initial posterior error covariance. */
         float initial_error = 1.0f;
     };
 
+    /** Construct a filter with default noise parameters. */
     KalmanTransformFilter();
+    /** Construct a filter with explicit noise parameters. */
     explicit KalmanTransformFilter(const NoiseConfig& config);
 
+    /** Incorporate a transform measurement and return the filtered state. */
     cv::Vec4f update(const cv::Vec4f& measurement, float delta_time = 1.0f);
+    /** Predict the next transform without incorporating a measurement. */
     cv::Vec4f predict(float delta_time = 1.0f);
+    /** Clear filter state so the next measurement initializes the model. */
     void reset();
+    /** Return true after the model has been initialized by a measurement. */
     bool is_initialized() const noexcept;
 
 private:
