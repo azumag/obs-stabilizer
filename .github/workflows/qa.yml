@@ -32,15 +32,41 @@ jobs:
           mkdir -p tmp/builds/coverage tmp/reports/coverage
 
       - name: Configure and build with coverage
-        run: cd tmp/builds/coverage && cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage" && ninja
+        run: cd tmp/builds/coverage && cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TEST_COVERAGE=ON && ninja
 
       - name: Run tests with coverage
-        run: cd tmp/builds/coverage && if [ -f "stabilizer_tests" ]; then ./stabilizer_tests || echo "Tests completed with failures, continuing with coverage report generation"; else echo "Test executable not found, skipping test run" && ls -la; fi
+        run: cd tmp/builds/coverage && ./stabilizer_tests
+
+      - name: Run deterministic fuzz regression
+        run: |
+          c++ -std=c++17 --coverage \
+            -DBUILD_STANDALONE -DSTANDALONE_TEST -DHAVE_OBS_HEADERS=1 \
+            -Isrc -Iinclude \
+            tests/test_fuzz_regression.cpp src/core/frame_utils.cpp \
+            $(pkg-config --cflags --libs opencv4) \
+            -lgtest -lgtest_main -pthread \
+            -o tmp/builds/coverage/fuzz_regression
+          tmp/builds/coverage/fuzz_regression
 
       - name: Generate coverage report
-        run: gcovr --root . --html --html-details -o tmp/reports/coverage/coverage-report.html || echo "gcovr HTML generation failed, continuing" && gcovr --root . --xml -o tmp/reports/coverage/coverage.xml || echo "gcovr XML generation failed, continuing" && lcov --capture --directory . --output-file tmp/reports/coverage/coverage.info --ignore-errors mismatch --ignore-errors empty || echo "lcov capture failed, continuing" && lcov --remove tmp/reports/coverage/coverage.info '/usr/*' --output-file tmp/reports/coverage/coverage.info --ignore-errors empty || echo "lcov filtering failed, continuing"
+        run: |
+          gcovr --root . --filter 'src/core/' \
+            --html --html-details \
+            -o tmp/reports/coverage/coverage-report.html
+          gcovr --root . --filter 'src/core/' \
+            --xml -o tmp/reports/coverage/coverage.xml
+          lcov --capture --directory tmp/builds/coverage \
+            --output-file tmp/reports/coverage/coverage.info \
+            --ignore-errors mismatch --ignore-errors empty
+          lcov --remove tmp/reports/coverage/coverage.info '/usr/*' '*/tests/*' \
+            --output-file tmp/reports/coverage/coverage.info \
+            --ignore-errors empty
+
+      - name: Enforce 80 percent core coverage floor
+        run: gcovr --root . --filter 'src/core/' --print-summary --fail-under-line 80
 
       - name: Upload coverage reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports-${{ github.run_number }}
