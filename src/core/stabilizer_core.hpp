@@ -20,6 +20,7 @@
 #include <vector>
 #include <chrono>
 #include "stabilizer_constants.hpp"
+#include "kalman_transform_filter.hpp"
 
 /**
  * @brief Core single-threaded video stabilization engine.
@@ -56,6 +57,12 @@ public:
         Scale    ///< Scale corrected content to fill the original frame.
     };
 
+    /** @brief Trajectory smoothing strategy. */
+    enum class SmoothingMode {
+        MovingAverage, ///< Classic windowed average of recent transforms.
+        Kalman         ///< Constant-velocity Kalman filter over transform components.
+    };
+
     /** @brief Runtime parameters controlling feature detection and correction. */
     struct StabilizerParams {
         bool enabled = true;                  ///< Disable processing while preserving configuration.
@@ -74,6 +81,7 @@ public:
         float min_point_spread = 10.0f;        ///< Minimum spatial spread required from tracked points.
         float max_coordinate = 100000.0f;      ///< Absolute coordinate limit used to reject invalid points.
         EdgeMode edge_mode = EdgeMode::Padding; ///< Border handling strategy.
+        SmoothingMode smoothing_mode = SmoothingMode::MovingAverage; ///< Trajectory smoothing strategy.
     };
 
     /** @brief Cumulative processing counters for the current initialized state. */
@@ -194,6 +202,7 @@ private:
     cv::Mat estimate_transform(const std::vector<cv::Point2f>& prev_pts,
                               std::vector<cv::Point2f>& curr_pts);
     cv::Mat smooth_transforms();
+    cv::Mat smooth_transforms_kalman();
     cv::Mat apply_transform(const cv::Mat& frame, const cv::Mat& transform);
 
     inline cv::Mat smooth_transforms_optimized();
@@ -219,6 +228,9 @@ private:
     cv::Mat prev_gray_;
     std::vector<cv::Point2f> prev_pts_;
     std::deque<cv::Mat> transforms_;
+    // Created lazily only when Kalman smoothing is selected so the default
+    // moving-average path never constructs a cv::KalmanFilter instance.
+    std::unique_ptr<KalmanTransformFilter> kalman_filter_;
 
     PerformanceMetrics metrics_;
     std::string last_error_;

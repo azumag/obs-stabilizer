@@ -140,6 +140,7 @@ set(SOURCES
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
     src/core/preset_manager.cpp
+    src/ui/stabilizer_properties.cpp
 )
 
 # Frame utils is only needed when OBS headers are available
@@ -319,6 +320,7 @@ endif()
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_wrapper.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/preset_manager.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/frame_utils.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/core/kalman_transform_filter.cpp
             )
 
         add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
