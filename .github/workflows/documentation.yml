@@ -1,0 +1,49 @@
+name: Documentation
+
+on:
+  pull_request:
+    paths:
+      - 'src/**/*.hpp'
+      - 'docs/**'
+      - 'Doxyfile'
+      - '.github/workflows/documentation.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**/*.hpp'
+      - 'docs/**'
+      - 'Doxyfile'
+      - '.github/workflows/documentation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  doxygen:
+    name: Doxygen public API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends doxygen
+
+      - name: Generate documentation with warnings as errors
+        run: doxygen Doxyfile
+
+      - name: Verify generated API index
+        run: test -s build/docs/doxygen/html/index.html
+
+      - name: Upload generated reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: doxygen-public-api
+          path: build/docs/doxygen/html
+          if-no-files-found: error
+          retention-days: 7
