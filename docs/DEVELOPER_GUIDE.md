@@ -68,6 +68,22 @@ cmake --build build --parallel
 
 Platform setup details are also encoded in `.github/actions/setup-build-env` and the build workflows.
 
+### Build troubleshooting
+
+**`CMAKE_C_COMPILER not set`**: install a toolchain — `xcode-select --install` on macOS, `sudo apt install build-essential` on Ubuntu/Linux, or the Visual Studio Build Tools on Windows.
+
+**OBS headers**: on macOS, configure always fetches OBS's own headers (a pinned 30.0.0 source tarball) over the network via `FetchContent` and links against them; there is no standalone fallback there. To build against a local OBS checkout instead, pass `-DOBS_SOURCE_DIR=/path/to/obs-studio`. On Linux and Windows, CMake searches standard OBS install locations and, if it finds none, falls back to a standalone build (`BUILD_STANDALONE`) with a warning instead of failing. For a full plugin build, install OBS development headers (Ubuntu/Linux: `sudo apt install libobs-dev`) or point CMake at them directly:
+
+```bash
+cmake -DOBS_INCLUDE_PATH=/path/to/obs/include \
+      -DOBS_LIBRARY_PATH=/path/to/obs/lib \
+      -B build
+```
+
+**OpenCV not found**: on macOS, `brew install opencv` and, if CMake still can't locate it, pass `-DOpenCV_DIR=/opt/homebrew/lib/cmake/opencv4` (Intel Homebrew: `/usr/local/lib/cmake/opencv4`). On Ubuntu/Linux, `sudo apt install libopencv-dev pkg-config`. On Windows, `vcpkg install opencv[core,imgproc,video,calib3d,features2d,flann]`.
+
+**GoogleTest not found**: `find_package(GTest REQUIRED)` runs unconditionally, so it must be installed even for a plugin-only build — `brew install googletest` on macOS, `sudo apt install libgtest-dev` on Ubuntu/Linux, or `vcpkg install gtest` on Windows.
+
 ## Testing
 
 Run the test executable directly:

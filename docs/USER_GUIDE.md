@@ -84,6 +84,15 @@ Enables Harris corner scoring and configures its sensitivity. Leave the preset d
 - **Crop Borders**: crops unstable edges.
 - **Scale to Fit**: enlarges the image to reduce visible borders.
 
+### Smoothing Mode
+
+- **Moving Average**: a windowed average of recent transforms; the default and the more predictable of the two.
+- **Kalman**: a constant-velocity filter over the transform components; can track sustained motion with less lag at the cost of more tuning sensitivity.
+
+### Debug Mode
+
+Enables additional diagnostic logging in the OBS log. Leave off in normal use.
+
 ## Presets
 
 ### Gaming
@@ -100,7 +109,7 @@ Prioritizes smoothness over responsiveness. Suitable when minor latency is accep
 
 ### Custom
 
-Keeps manually selected values instead of applying a built-in preset.
+Keeps manually selected values instead of applying a built-in preset. Custom parameter sets can be saved and reloaded by name from the filter's properties panel.
 
 ## Scene recommendations
 
@@ -156,4 +165,4 @@ Filter settings are intended to apply during operation. Large changes may cause 
 
 ## Reporting problems
 
-Include the operating system, OBS version, source resolution, selected preset, relevant settings, and a reproducible sequence. Attach OBS logs when possible.
+Include the operating system, OBS version, source resolution, selected preset, relevant settings, and a reproducible sequence. Attach OBS logs when possible — filter lines with `[obs-stabilizer]` in `%APPDATA%\obs-studio\logs\` (Windows), `~/Library/Application Support/obs-studio/logs/` (macOS), or `~/.config/obs-studio/logs/` (Linux).
