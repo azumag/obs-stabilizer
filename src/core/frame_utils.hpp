@@ -216,8 +216,9 @@ namespace FRAME_UTILS {
         // Track conversion failures
         void track_conversion_failure();
 
-        // Get performance statistics
+        /** Cumulative diagnostic counters for frame-conversion failures. */
         struct ConversionStats {
+            /** Number of conversion attempts that failed validation or conversion. */
             size_t failed_conversions;
         };
 
