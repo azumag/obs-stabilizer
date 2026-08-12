@@ -55,6 +55,8 @@ jobs:
             -o tmp/reports/coverage/coverage-report.html
           gcovr --root . --filter 'src/core/' \
             --xml -o tmp/reports/coverage/coverage.xml
+          gcovr --root . --filter 'src/core/' \
+            --json-summary-pretty -o tmp/reports/coverage/coverage-summary.json
           lcov --capture --directory tmp/builds/coverage \
             --output-file tmp/reports/coverage/coverage.info \
             --ignore-errors mismatch --ignore-errors empty
@@ -63,7 +65,18 @@ jobs:
             --ignore-errors empty
 
       - name: Enforce 80 percent core coverage floor
-        run: gcovr --root . --filter 'src/core/' --print-summary --fail-under-line 80
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path('tmp/reports/coverage/coverage-summary.json').read_text())
+          coverage = float(summary['line_percent'])
+          print(f'Core line coverage: {coverage:.2f}%')
+          if coverage < 80.0:
+              print(f'::error title=Core coverage below 80%::Core line coverage is {coverage:.2f}%; required minimum is 80.00%')
+              raise SystemExit(1)
+          PY
 
       - name: Upload coverage reports
         if: always()
