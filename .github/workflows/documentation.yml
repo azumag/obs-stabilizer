@@ -34,6 +34,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends doxygen
 
+      - name: Prepare documentation output
+        run: mkdir -p build/docs/doxygen
+
       - name: Generate documentation with warnings as errors
         run: doxygen Doxyfile
 
