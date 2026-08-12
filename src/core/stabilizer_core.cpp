@@ -8,6 +8,7 @@
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_constants.hpp"
 #include "core/parameter_validation.hpp"
+#include "core/frame_analyzer.hpp"
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
@@ -63,6 +64,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     prev_gray_ = cv::Mat();
     prev_pts_.clear();
     transforms_.clear();
+    kalman_filter_.reset();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
     return true;
@@ -367,7 +369,67 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
 }
 
 cv::Mat StabilizerCore::smooth_transforms() {
+    if (params_.smoothing_mode == SmoothingMode::Kalman) {
+        return smooth_transforms_kalman();
+    }
     return smooth_transforms_optimized();
+}
+
+namespace {
+
+// Convert a partial-affine 2x3 transform to [dx, dy, angle, scale].
+cv::Vec4f transform_to_components(const cv::Mat& transform) {
+    const double* ptr = transform.ptr<double>(0);
+    constexpr int TX_00 = 0;
+    constexpr int TX_02 = 2;
+    constexpr int TX_10 = 3;
+    constexpr int TX_12 = 5;
+    const double scale = std::sqrt(ptr[TX_00] * ptr[TX_00] + ptr[TX_10] * ptr[TX_10]);
+    const double angle = std::atan2(ptr[TX_10], ptr[TX_00]);
+    return {
+        static_cast<float>(ptr[TX_02]),
+        static_cast<float>(ptr[TX_12]),
+        static_cast<float>(angle),
+        static_cast<float>(scale),
+    };
+}
+
+// Rebuild a partial-affine 2x3 transform from [dx, dy, angle, scale].
+cv::Mat components_to_transform(const cv::Vec4f& components) {
+    const float dx = components[0];
+    const float dy = components[1];
+    const float angle = components[2];
+    const float scale = components[3];
+    const double cos_a = std::cos(angle);
+    const double sin_a = std::sin(angle);
+    cv::Mat transform = cv::Mat::eye(2, 3, CV_64F);
+    double* ptr = transform.ptr<double>(0);
+    ptr[0] = scale * cos_a;
+    ptr[1] = -scale * sin_a;
+    ptr[2] = dx;
+    ptr[3] = scale * sin_a;
+    ptr[4] = scale * cos_a;
+    ptr[5] = dy;
+    return transform;
+}
+
+} // namespace
+
+cv::Mat StabilizerCore::smooth_transforms_kalman() {
+    if (transforms_.empty()) {
+        return cv::Mat::eye(2, 3, CV_64F);
+    }
+
+    if (!kalman_filter_) {
+        kalman_filter_ = std::make_unique<KalmanTransformFilter>();
+    }
+
+    // The Kalman filter keeps a constant-velocity estimate of the correction
+    // components. Feeding it the raw per-frame transform smooths jitter while
+    // still following sustained camera motion.
+    const cv::Vec4f measurement = transform_to_components(transforms_.back());
+    const cv::Vec4f corrected = kalman_filter_->update(measurement, 1.0f);
+    return components_to_transform(corrected);
 }
 
 cv::Mat StabilizerCore::smooth_transforms_optimized() {
@@ -433,32 +495,13 @@ cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& tra
 }
 
 cv::Rect StabilizerCore::detect_content_bounds(const cv::Mat& frame) {
-    // Convert to grayscale using unified FRAME_UTILS to eliminate code duplication (DRY principle)
-    // This function is called for both process_frame() and detect_content_bounds(), so centralizing it
-    // avoids maintaining duplicate color conversion logic
-    cv::Mat gray = FRAME_UTILS::ColorConversion::convert_to_grayscale(frame);
-    if (gray.empty()) {
+    // Delegate content-bound detection to the reusable FrameAnalyzer
+    // (Issue #313). Keep the legacy contract: an empty result from the
+    // analyzer means no detectable content, so fall back to the full frame.
+    const cv::Rect bounds = FrameAnalyzer::detect_content_bounds(frame);
+    if (bounds.width == 0 || bounds.height == 0) {
         return cv::Rect(0, 0, frame.cols, frame.rows);
     }
-
-    // Use OpenCV's findNonZero() for efficient content detection
-    // This is O(n) where n is the number of pixels, but heavily optimized in OpenCV
-    // Previous implementation was O(width * height * 4) with 4 separate scan loops
-    // The new approach uses vectorized operations and is much faster for typical video frames
-    cv::Mat binary;
-    cv::threshold(gray, binary, ContentDetection::CONTENT_THRESHOLD, 255, cv::THRESH_BINARY);
-
-    std::vector<cv::Point> non_zero;
-    cv::findNonZero(binary, non_zero);
-
-    // If no content detected (e.g., all-black frame), return full frame
-    if (non_zero.empty()) {
-        return cv::Rect(0, 0, frame.cols, frame.rows);
-    }
-
-    // boundingRect() efficiently computes the minimal rectangle containing all non-zero pixels
-    // This is a single O(n) pass through the non-zero pixel list
-    cv::Rect bounds = cv::boundingRect(non_zero);
     return bounds;
 }
 
@@ -485,6 +528,12 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
                 int roi_y = std::max(0, bounds.y);
                 int roi_width = std::min(bounds.width, frame.cols - roi_x);
                 int roi_height = std::min(bounds.height, frame.rows - roi_y);
+
+                // OBS async frames use NV12/I420 output, whose chroma planes
+                // require even dimensions. Round the crop down to an even size
+                // so downstream color conversion never asserts on odd frames.
+                roi_width &= ~1;
+                roi_height &= ~1;
 
                 // Only crop if we have a valid ROI (positive dimensions)
                 if (roi_width > 0 && roi_height > 0) {
