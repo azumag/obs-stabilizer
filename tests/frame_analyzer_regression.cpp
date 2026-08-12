@@ -67,5 +67,23 @@ int main() {
     passed &= expect(core.validate_frame(too_small) == FrameAnalyzer::is_valid_frame(too_small),
                      "core minimum-size validation must come from FrameAnalyzer");
 
+    cv::Mat sixteen_bit(64, 96, CV_16UC4, cv::Scalar(0, 0, 0, 0));
+    passed &= expect(!FrameAnalyzer::is_valid_frame(sixteen_bit),
+                     "16-bit frames must be rejected before OpenCV processing");
+    passed &= expect(core.validate_frame(sixteen_bit) == FrameAnalyzer::is_valid_frame(sixteen_bit),
+                     "core depth validation must match FrameAnalyzer for CV_16U");
+
+    cv::Mat float_frame(64, 96, CV_32FC4, cv::Scalar(0, 0, 0, 0));
+    passed &= expect(!FrameAnalyzer::is_valid_frame(float_frame),
+                     "32-bit floating-point frames must be rejected");
+    passed &= expect(core.validate_frame(float_frame) == FrameAnalyzer::is_valid_frame(float_frame),
+                     "core depth validation must match FrameAnalyzer for CV_32F");
+
+    cv::Mat double_frame(64, 96, CV_64FC4, cv::Scalar(0, 0, 0, 0));
+    passed &= expect(!FrameAnalyzer::is_valid_frame(double_frame),
+                     "64-bit floating-point frames must be rejected");
+    passed &= expect(core.validate_frame(double_frame) == FrameAnalyzer::is_valid_frame(double_frame),
+                     "core depth validation must match FrameAnalyzer for CV_64F");
+
     return passed ? EXIT_SUCCESS : EXIT_FAILURE;
 }
