@@ -17,6 +17,11 @@ OBS_MODULE_AUTHOR("azumag")
 #include "core/stabilizer_core.hpp"
 #include "core/stabilizer_wrapper.hpp"
 #include "core/parameter_validation.hpp"
+#include "core/resolution_profile.hpp"
+#include "core/preset_manager.hpp"
+#include "core/rolling_average.hpp"
+#include "ui/stabilizer_filter_context.hpp"
+#include "ui/stabilizer_properties.hpp"
 #include <memory>
 #include <cstring>
 #include <chrono>
@@ -24,35 +29,15 @@ OBS_MODULE_AUTHOR("azumag")
 // OBS module declarations - using existing macros from stub headers
 
 #ifdef HAVE_OBS_HEADERS
-// Plugin filter data structure using the new modular architecture with RAII wrapper
-struct stabilizer_filter {
-    obs_source_t *source;
-    StabilizerWrapper stabilizer;  // Using RAII wrapper for memory safety
-    bool initialized;
-    StabilizerCore::StabilizerParams params;
-
-    // Performance monitoring
-    uint64_t frame_count;
-    double avg_processing_time;
-};
-
 // Forward declarations
 static const char *stabilizer_filter_name(void *unused);
 static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source);
 static void stabilizer_filter_destroy(void *data);
 static void stabilizer_filter_update(void *data, obs_data_t *settings);
 static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *frame);
+static void apply_resolution_profile(const obs_source_frame *frame,
+                                     StabilizerCore::StabilizerParams *params);
 static obs_properties_t *stabilizer_filter_properties(void *data);
-static void stabilizer_filter_get_defaults(obs_data_t *settings);
-
-// Preset callback function
-static bool preset_changed_callback(obs_properties_t *props, obs_property_t *property,
-                                    obs_data_t *settings);
-static void apply_preset(obs_data_t *settings, const char *preset_name);
-
-// Parameter conversion functions
-static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *settings);
-static void params_to_settings(const StabilizerCore::StabilizerParams& params, obs_data_t *settings);
 
 // Frame conversion functions
 static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame);
@@ -62,11 +47,14 @@ static obs_source_frame *cv_mat_to_obs_frame(const cv::Mat& mat, const obs_sourc
 static struct obs_source_info stabilizer_filter_info = {
     .id = "stabilizer_filter",
     .type = OBS_SOURCE_TYPE_FILTER,
-    .output_flags = OBS_SOURCE_VIDEO,
+    // filter_video receives raw frames only when the filter is marked async.
+    // Without OBS_SOURCE_ASYNC OBS lists this as an effect filter but never
+    // invokes the OpenCV processing callback for async media sources.
+    .output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC,
     .get_name = stabilizer_filter_name,
     .create = stabilizer_filter_create,
     .destroy = stabilizer_filter_destroy,
-    .get_defaults = stabilizer_filter_get_defaults,
+    .get_defaults = set_stabilizer_defaults,
     .get_properties = stabilizer_filter_properties,
     .update = stabilizer_filter_update,
     .video_render = NULL,
@@ -98,6 +86,7 @@ static void *stabilizer_filter_create(obs_data_t *settings, obs_source_t *source
         context->initialized = false;
         context->frame_count = 0;
         context->avg_processing_time = 0.0;
+        context->processing_time_average.reset();
 
         // Get initial parameters
         // Note: Parameters are already validated via VALIDATION::validate_parameters in settings_to_params()
@@ -160,12 +149,15 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
 {
     try {
         struct stabilizer_filter *context = (struct stabilizer_filter *)data;
-        if (!context || !context->stabilizer.is_initialized() || !frame) {
+        if (!context || !frame) {
             return frame;
         }
 
         // Initialize stabilizer on first frame
         if (!context->initialized) {
+            // Apply a resolution-aware parameter profile on first frame so the
+            // feature count and smoothing window stay sane at 4K and above.
+            apply_resolution_profile(frame, &context->params);
             if (!context->stabilizer.initialize(frame->width, frame->height, context->params)) {
                 blog(LOG_ERROR, "[obs-stabilizer] Failed to initialize stabilizer: %s",
                          context->stabilizer.get_last_error().c_str());
@@ -194,7 +186,8 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
         double processing_time = duration.count() / 1000.0;
         context->frame_count++;
-        context->avg_processing_time = (context->avg_processing_time * (context->frame_count - 1) + processing_time) / context->frame_count;
+        context->processing_time_average.add(processing_time);
+        context->avg_processing_time = context->processing_time_average.value();
 
         // Convert back to OBS frame
         obs_source_frame* result = cv_mat_to_obs_frame(stabilized_frame, frame);
@@ -207,224 +200,30 @@ static obs_source_frame *stabilizer_filter_video(void *data, obs_source_frame *f
     }
 }
 
-static obs_properties_t *stabilizer_filter_properties(void *data)
+
+static void apply_resolution_profile(const obs_source_frame *frame,
+                                     StabilizerCore::StabilizerParams *params)
 {
-    try {
-        obs_properties_t *props = obs_properties_create();
-
-        // Basic properties
-        obs_properties_add_bool(props, "enabled", "Enable Stabilization");
-
-        // Preset selector
-        obs_property_t* preset_list = obs_properties_add_list(props, "preset", "Preset",
-                                                            OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-        obs_property_list_add_string(preset_list, "Gaming", "gaming");
-        obs_property_list_add_string(preset_list, "Streaming", "streaming");
-        obs_property_list_add_string(preset_list, "Recording", "recording");
-        obs_property_list_add_string(preset_list, "Custom", "custom");
-
-        obs_property_set_modified_callback(preset_list, preset_changed_callback);
-
-        // Basic parameters
-        obs_properties_add_int_slider(props, "smoothing_radius", "Smoothing Radius", 5, 200, 1);
-        obs_properties_add_float_slider(props, "max_correction", "Max Correction (%)", 1.0, 100.0, 0.5);
-        obs_properties_add_int_slider(props, "feature_count", "Feature Count", 50, 2000, 10);
-
-         // Advanced parameters
-        obs_properties_add_float_slider(props, "quality_level", "Quality Level", 0.001, 0.1, 0.001);
-        obs_properties_add_float_slider(props, "min_distance", "Min Distance", 1.0, 200.0, 1.0);
-        obs_properties_add_int_slider(props, "block_size", "Block Size", 3, 31, 2);
-
-        // Edge handling (Issue #226)
-        obs_property_t* edge_mode = obs_properties_add_list(props, "edge_handling",
-                        "Edge Handling",
-                        OBS_COMBO_TYPE_LIST,
-                        OBS_COMBO_FORMAT_STRING);
-        obs_property_list_add_string(edge_mode, "Black Padding", "padding");
-        obs_property_list_add_string(edge_mode, "Crop Borders", "crop");
-        obs_property_list_add_string(edge_mode, "Scale to Fit", "scale");
-
-        obs_properties_add_bool(props, "use_harris", "Use Harris Detector");
-        obs_properties_add_float_slider(props, "k", "Harris K Parameter", 0.01, 0.1, 0.001);
-
-        // Debug options
-        obs_properties_add_bool(props, "debug_mode", "Debug Mode");
-
-        return props;
-
-    } catch (const std::exception& e) {
-        blog(LOG_ERROR, "[obs-stabilizer] Exception in get properties: %s", e.what());
-        return obs_properties_create();
-    }
-}
-
-static void stabilizer_filter_get_defaults(obs_data_t *settings)
-{
-    try {
-        // Use streaming preset as default
-        StabilizerCore::StabilizerParams default_params = StabilizerCore::get_preset_streaming();
-        params_to_settings(default_params, settings);
-
-        obs_data_set_default_string(settings, "preset", "streaming");
-
-        // Edge handling default (Issue #226)
-        obs_data_set_default_string(settings, "edge_handling", "padding");
-
-    } catch (const std::exception& e) {
-        blog(LOG_ERROR, "[obs-stabilizer] Exception in get defaults: %s", e.what());
-    }
-}
-
-// Preset callback function
-static bool preset_changed_callback(obs_properties_t *props, obs_property_t *property,
-                                    obs_data_t *settings)
-{
-    UNUSED_PARAMETER(props);
-    UNUSED_PARAMETER(property);
-
-    // EXCEPTION HANDLING NOTE:
-    // obs_data_get_string is an OBS API C function that does not throw exceptions.
-    // It returns NULL if the key doesn't exist, which is handled by the null check below.
-    //
-    const char* preset = obs_data_get_string(settings, "preset");
-    if (!preset || strlen(preset) == 0) {
-        return true;
-    }
-    
-    if (strcmp(preset, "custom") != 0) {
-        apply_preset(settings, preset);
-    }
-    
-    return true;
-}
-
-static void apply_preset(obs_data_t *settings, const char *preset_name)
-{
-    StabilizerCore::StabilizerParams params;
-    
-    if (strcmp(preset_name, "gaming") == 0) {
-        params = StabilizerCore::get_preset_gaming();
-    } else if (strcmp(preset_name, "streaming") == 0) {
-        params = StabilizerCore::get_preset_streaming();
-    } else if (strcmp(preset_name, "recording") == 0) {
-        params = StabilizerCore::get_preset_recording();
-    } else {
-        // Custom preset - don't change values
+    if (!frame || !params) {
         return;
     }
-    
-    params_to_settings(params, settings);
+
+    const stabilizer::ResolutionProfile profile =
+        stabilizer::make_resolution_profile(frame->width, frame->height);
+    if (!profile.valid) {
+        return;
+    }
+
+    params->feature_count = static_cast<int>(profile.feature_count);
+    params->smoothing_radius = static_cast<int>(profile.smoothing_radius);
+    blog(LOG_INFO, "[obs-stabilizer] Applied resolution profile for %ux%u "
+                   "(features: %u, smoothing: %u)",
+         frame->width, frame->height, profile.feature_count, profile.smoothing_radius);
 }
 
-// Parameter conversion functions
-// OBS wrapper namespace to hide const_cast usage (code style improvement)
-// NOTE: const_cast is required because OBS API functions expect non-const obs_data_t* parameters.
-// This is safe because we are only reading values from the settings object, not modifying it.
-// The OBS API is designed to work with const pointers that can be cast to non-const for reading.
-// This is a known pattern in OBS plugin development.
-namespace OBS_WRAPPER {
-    inline bool get_bool(const obs_data_t* settings, const char* name) {
-        return obs_data_get_bool(const_cast<obs_data_t*>(settings), name);
-    }
-
-    inline int64_t get_int(const obs_data_t* settings, const char* name) {
-        return obs_data_get_int(const_cast<obs_data_t*>(settings), name);
-    }
-
-    inline double get_double(const obs_data_t* settings, const char* name) {
-        return obs_data_get_double(const_cast<obs_data_t*>(settings), name);
-    }
-
-    inline const char* get_string(const obs_data_t* settings, const char* name) {
-        return obs_data_get_string(const_cast<obs_data_t*>(settings), name);
-    }
-}
-
-static StabilizerCore::StabilizerParams settings_to_params(const obs_data_t *settings)
+static obs_properties_t *stabilizer_filter_properties(void *data)
 {
-    StabilizerCore::StabilizerParams params;
-
-    // Direct parameter access with defaults
-    //
-    // EXCEPTION HANDLING NOTE:
-    // OBS API functions (obs_data_get_bool, obs_data_get_int, etc.) are C functions
-    // that do not throw exceptions. They are designed to be safe and handle errors
-    // gracefully by returning default values (e.g., 0, false, NULL) when keys
-    // don't exist or when input is invalid.
-    //
-    // This is consistent with OBS plugin development best practices:
-    // - OBS core functions are exception-free (C API)
-    // - All error handling is done through return codes and logging
-    // - Plugin code should not wrap OBS API calls in try-catch for exception safety
-    //
-    // Therefore, no explicit try-catch is added here. If an exception does occur
-    // (e.g., from std::string operations in OBS_WRAPPER), it will be caught by
-    // the calling function (stabilizer_filter_update at line 150).
-    //
-    params.enabled = OBS_WRAPPER::get_bool(settings, "enabled");
-    params.smoothing_radius = static_cast<int>(OBS_WRAPPER::get_int(settings, "smoothing_radius"));
-    params.max_correction = static_cast<float>(OBS_WRAPPER::get_double(settings, "max_correction"));
-    params.feature_count = static_cast<int>(OBS_WRAPPER::get_int(settings, "feature_count"));
-    params.quality_level = static_cast<float>(OBS_WRAPPER::get_double(settings, "quality_level"));
-    params.min_distance = static_cast<float>(OBS_WRAPPER::get_double(settings, "min_distance"));
-    params.block_size = static_cast<int>(OBS_WRAPPER::get_int(settings, "block_size"));
-    params.use_harris = OBS_WRAPPER::get_bool(settings, "use_harris");
-    params.k = static_cast<float>(OBS_WRAPPER::get_double(settings, "k"));
-    params.debug_mode = OBS_WRAPPER::get_bool(settings, "debug_mode");
-
-    // Edge handling (Issue #226)
-    const char* edge_str = OBS_WRAPPER::get_string(settings, "edge_handling");
-    if (strcmp(edge_str, "crop") == 0) {
-        params.edge_mode = StabilizerCore::EdgeMode::Crop;
-    } else if (strcmp(edge_str, "scale") == 0) {
-        params.edge_mode = StabilizerCore::EdgeMode::Scale;
-    } else {
-        params.edge_mode = StabilizerCore::EdgeMode::Padding; // Default
-    }
-
-    // Use centralized parameter validation for consistency
-    params = VALIDATION::validate_parameters(params);
-
-    return params;
-}
-
-static void params_to_settings(const StabilizerCore::StabilizerParams& params, obs_data_t *settings)
-{
-    // EXCEPTION HANDLING NOTE:
-    // OBS API functions (obs_data_set_bool, obs_data_set_int, etc.) are C functions
-    // that do not throw exceptions. They handle errors gracefully internally.
-    //
-    // Therefore, no explicit try-catch is added here. If an exception does occur
-    // (e.g., from std::string operations), it will be caught by the calling
-    // function (e.g., stabilizer_filter_get_defaults at line 269).
-    //
-
-    obs_data_set_bool(settings, "enabled", params.enabled);
-    obs_data_set_int(settings, "smoothing_radius", params.smoothing_radius);
-    obs_data_set_double(settings, "max_correction", params.max_correction);
-    obs_data_set_int(settings, "feature_count", params.feature_count);
-    obs_data_set_double(settings, "quality_level", params.quality_level);
-    obs_data_set_double(settings, "min_distance", params.min_distance);
-    obs_data_set_int(settings, "block_size", params.block_size);
-    obs_data_set_bool(settings, "use_harris", params.use_harris);
-    obs_data_set_double(settings, "k", params.k);
-    obs_data_set_bool(settings, "debug_mode", params.debug_mode);
-
-    // Edge handling (Issue #226)
-    const char* edge_str = "padding"; // Default
-    switch (params.edge_mode) {
-        case StabilizerCore::EdgeMode::Crop:
-            edge_str = "crop";
-            break;
-        case StabilizerCore::EdgeMode::Scale:
-            edge_str = "scale";
-            break;
-        case StabilizerCore::EdgeMode::Padding:
-        default:
-            edge_str = "padding";
-            break;
-    }
-    obs_data_set_string(settings, "edge_handling", edge_str);
+    return build_stabilizer_properties(static_cast<struct stabilizer_filter *>(data));
 }
 
 // Frame conversion functions using centralized utilities

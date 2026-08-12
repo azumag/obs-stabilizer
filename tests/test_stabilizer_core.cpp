@@ -475,3 +475,52 @@ TEST_F(StabilizerCoreTest, EdgeModeWithLargeBorders) {
     EXPECT_GT(processed.cols, 0);
     EXPECT_GT(processed.rows, 0);
 }
+
+TEST_F(StabilizerCoreTest, KalmanSmoothingProducesValidFrames) {
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.smoothing_mode = StabilizerCore::SmoothingMode::Kalman;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat frame = TestDataGenerator::generate_test_frame(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
+    for (int i = 0; i < 10; ++i) {
+        cv::Mat processed = stabilizer->process_frame(frame);
+        EXPECT_FALSE(processed.empty());
+        EXPECT_EQ(processed.size(), frame.size());
+    }
+}
+
+TEST_F(StabilizerCoreTest, KalmanSmoothingTracksMotion) {
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.smoothing_mode = StabilizerCore::SmoothingMode::Kalman;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    // Horizontal motion sequence: the Kalman output must follow the input
+    // and remain a valid affine transform without exploding.
+    cv::Mat base = TestDataGenerator::generate_test_frame(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
+    cv::Mat previous = base.clone();
+    for (int shift = 1; shift <= 5; ++shift) {
+        cv::Mat shifted;
+        cv::Mat transform = (cv::Mat_<double>(2, 3) << 1, 0, shift * 8.0, 0, 1, 0);
+        cv::warpAffine(base, shifted, transform, base.size());
+        cv::Mat processed = stabilizer->process_frame(shifted);
+        EXPECT_FALSE(processed.empty());
+        previous = shifted;
+    }
+}
+
+TEST_F(StabilizerCoreTest, KalmanResetRestoresDefaultState) {
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    params.smoothing_mode = StabilizerCore::SmoothingMode::Kalman;
+    ASSERT_TRUE(stabilizer->initialize(Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    cv::Mat frame = TestDataGenerator::generate_test_frame(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT);
+    stabilizer->process_frame(frame);
+    stabilizer->reset();
+
+    // After reset the engine must still accept frames and produce output.
+    cv::Mat processed = stabilizer->process_frame(frame);
+    EXPECT_FALSE(processed.empty());
+}

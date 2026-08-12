@@ -196,8 +196,11 @@ namespace FRAME_UTILS {
                 case VIDEO_FORMAT_NV12:
                     // NV12: Y plane + interleaved UV plane
                     {
-                        int width = mat.cols;
-                        int height = mat.rows;
+                        // convert_mat_format may round odd input down to an
+                        // even frame, so derive plane sizes from that rounded
+                        // geometry rather than the packed Y+UV mat height.
+                        int width = mat.cols & ~1;
+                        int height = mat.rows & ~1;
                         int y_size = width * height;
                         int uv_size = (width * height) / 4;
                         required_size = y_size + uv_size * 2;
@@ -208,8 +211,8 @@ namespace FRAME_UTILS {
                 case VIDEO_FORMAT_I420:
                     // I420: Y + U + V planes
                     {
-                        int width = mat.cols;
-                        int height = mat.rows;
+                        int width = mat.cols & ~1;
+                        int height = mat.rows & ~1;
                         int y_size = width * height;
                         int uv_size = (width / 2) * (height / 2);
                         required_size = y_size + uv_size * 2;
@@ -249,8 +252,10 @@ namespace FRAME_UTILS {
                 // Copy frame data
                 if (reference_frame->format == VIDEO_FORMAT_I420) {
                     // I420: Copy Y, U, V planes separately
-                    int y_size = mat.cols * mat.rows;
-                    int uv_size = (mat.cols / 2) * (mat.rows / 2);
+                    int width = mat.cols & ~1;
+                    int height = mat.rows & ~1;
+                    int y_size = width * height;
+                    int uv_size = (width / 2) * (height / 2);
                     const uint8_t* src_y = converted.data;
                     const uint8_t* src_u = converted.data + y_size;
                     const uint8_t* src_v = src_u + uv_size;
@@ -323,26 +328,35 @@ namespace FRAME_UTILS {
 
     cv::Mat FrameBuffer::convert_mat_format(const cv::Mat& mat, uint32_t target_format) {
         cv::Mat converted;
+        cv::Mat input = mat;
+
+        // Planar YUV targets require even dimensions for chroma subsampling.
+        // Downscale odd frames by one pixel instead of failing conversion.
+        if ((target_format == VIDEO_FORMAT_NV12 || target_format == VIDEO_FORMAT_I420) &&
+            (mat.cols % 2 != 0 || mat.rows % 2 != 0)) {
+            cv::resize(mat, input, cv::Size(mat.cols & ~1, mat.rows & ~1),
+                       0.0, 0.0, cv::INTER_LINEAR);
+        }
 
         // Convert to BGR3 first if needed (common intermediate format)
         cv::Mat bgr_mat;
-        if (mat.channels() == 4) {
-            cv::cvtColor(mat, bgr_mat, cv::COLOR_BGRA2BGR);
-        } else if (mat.channels() == 3) {
-            bgr_mat = mat;
-        } else if (mat.channels() == 1) {
-            cv::cvtColor(mat, bgr_mat, cv::COLOR_GRAY2BGR);
+        if (input.channels() == 4) {
+            cv::cvtColor(input, bgr_mat, cv::COLOR_BGRA2BGR);
+        } else if (input.channels() == 3) {
+            bgr_mat = input;
+        } else if (input.channels() == 1) {
+            cv::cvtColor(input, bgr_mat, cv::COLOR_GRAY2BGR);
         } else {
-            blog(LOG_ERROR, "[obs-stabilizer] Unsupported input channels: %d", mat.channels());
+            blog(LOG_ERROR, "[obs-stabilizer] Unsupported input channels: %d", input.channels());
             return cv::Mat();
         }
 
         switch (target_format) {
             case VIDEO_FORMAT_BGRA:
-                if (mat.channels() == 4) {
-                    converted = mat;
+                if (input.channels() == 4) {
+                    converted = input;
                 } else {
-                    cv::cvtColor(mat, converted, cv::COLOR_BGR2BGRA);
+                    cv::cvtColor(input, converted, cv::COLOR_BGR2BGRA);
                 }
                 break;
             case VIDEO_FORMAT_BGR3:
@@ -355,8 +369,8 @@ namespace FRAME_UTILS {
                     cv::cvtColor(bgr_mat, yuv420, cv::COLOR_BGR2YUV_I420);
 
                     // Rearrange I420 to NV12 (interleave UV)
-                    int height = mat.rows;
-                    int width = mat.cols;
+                    int height = input.rows;
+                    int width = input.cols;
                     int y_size = width * height;
                     int uv_size = (width * height) / 4;
                     converted.create(height + height / 2, width, CV_8UC1);

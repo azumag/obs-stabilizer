@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'src/core/frame_analyzer.hpp'
+      - 'src/core/frame_utils.cpp'
       - 'src/core/frame_utils.hpp'
+      - 'src/core/kalman_transform_filter.cpp'
       - 'src/core/stabilizer_core.cpp'
       - 'src/core/stabilizer_core.hpp'
       - 'src/core/stabilizer_constants.hpp'
@@ -40,6 +42,8 @@ jobs:
             -Isrc -Iinclude \
             tests/frame_analyzer_regression.cpp \
             src/core/stabilizer_core.cpp \
+            src/core/frame_utils.cpp \
+            src/core/kalman_transform_filter.cpp \
             $(pkg-config --cflags --libs opencv4) \
             -o tmp/builds/frame-analyzer/frame_analyzer_regression
 

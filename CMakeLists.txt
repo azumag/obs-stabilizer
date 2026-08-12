@@ -140,6 +140,8 @@ set(SOURCES
     src/core/stabilizer_core.cpp
     src/core/stabilizer_wrapper.cpp
     src/core/preset_manager.cpp
+    src/core/kalman_transform_filter.cpp
+    src/ui/stabilizer_properties.cpp
 )
 
 # Frame utils is only needed when OBS headers are available
@@ -319,6 +321,7 @@ endif()
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_wrapper.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/preset_manager.cpp
                 ${CMAKE_CURRENT_SOURCE_DIR}/src/core/frame_utils.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/core/kalman_transform_filter.cpp
             )
 
         add_executable(stabilizer_tests ${TEST_SOURCES} ${TEST_CORE_SOURCES})
@@ -371,6 +374,7 @@ endif()
           set(PERF_SOURCES
               ${CMAKE_CURRENT_SOURCE_DIR}/src/core/benchmark.cpp
               ${CMAKE_CURRENT_SOURCE_DIR}/src/core/stabilizer_core.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/core/kalman_transform_filter.cpp
               ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_data_generator.cpp
               ${CMAKE_CURRENT_SOURCE_DIR}/tools/performance_benchmark.cpp
           )
@@ -382,6 +386,7 @@ endif()
               tools/singlerun.cpp
               src/core/benchmark.cpp
               src/core/stabilizer_core.cpp
+              src/core/kalman_transform_filter.cpp
               tests/test_data_generator.cpp
           )
 

@@ -6,9 +6,9 @@
 
 #include "core/logging.hpp"
 #include "core/stabilizer_core.hpp"
-#include "core/frame_analyzer.hpp"
 #include "core/stabilizer_constants.hpp"
 #include "core/parameter_validation.hpp"
+#include "core/frame_analyzer.hpp"
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
@@ -64,6 +64,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     prev_gray_ = cv::Mat();
     prev_pts_.clear();
     transforms_.clear();
+    kalman_filter_.reset();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
     return true;
@@ -82,9 +83,8 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
             return frame;
         }
 
-        // Keep frame utility policy in FrameAnalyzer rather than duplicating it
-        // inside the stabilization engine.
-        if (!FrameAnalyzer::is_valid_frame(frame)) {
+        // Frame validation with branch prediction hints
+        if (!validate_frame(frame)) {
             last_error_ = "Invalid frame dimensions: " + std::to_string(frame.rows) + "x" + std::to_string(frame.cols) + " in StabilizerCore::process_frame";
             CORE_LOG_ERROR("Invalid frame dimensions: %dx%d (expected: 32x32 to %dx%d)",
                           frame.rows, frame.cols, MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
@@ -98,7 +98,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         }
 
     // Convert to grayscale using unified FRAME_UTILS to eliminate code duplication (DRY principle)
-    // Color conversion policy stays centralized in the frame utility layer.
+    // This consolidates color conversion logic that was duplicated in detect_content_bounds()
     cv::Mat gray = FRAME_UTILS::ColorConversion::convert_to_grayscale(frame);
     if (gray.empty()) {
         last_error_ = "Unsupported frame format in StabilizerCore::process_frame";
@@ -369,7 +369,67 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
 }
 
 cv::Mat StabilizerCore::smooth_transforms() {
+    if (params_.smoothing_mode == SmoothingMode::Kalman) {
+        return smooth_transforms_kalman();
+    }
     return smooth_transforms_optimized();
+}
+
+namespace {
+
+// Convert a partial-affine 2x3 transform to [dx, dy, angle, scale].
+cv::Vec4f transform_to_components(const cv::Mat& transform) {
+    const double* ptr = transform.ptr<double>(0);
+    constexpr int TX_00 = 0;
+    constexpr int TX_02 = 2;
+    constexpr int TX_10 = 3;
+    constexpr int TX_12 = 5;
+    const double scale = std::sqrt(ptr[TX_00] * ptr[TX_00] + ptr[TX_10] * ptr[TX_10]);
+    const double angle = std::atan2(ptr[TX_10], ptr[TX_00]);
+    return {
+        static_cast<float>(ptr[TX_02]),
+        static_cast<float>(ptr[TX_12]),
+        static_cast<float>(angle),
+        static_cast<float>(scale),
+    };
+}
+
+// Rebuild a partial-affine 2x3 transform from [dx, dy, angle, scale].
+cv::Mat components_to_transform(const cv::Vec4f& components) {
+    const float dx = components[0];
+    const float dy = components[1];
+    const float angle = components[2];
+    const float scale = components[3];
+    const double cos_a = std::cos(angle);
+    const double sin_a = std::sin(angle);
+    cv::Mat transform = cv::Mat::eye(2, 3, CV_64F);
+    double* ptr = transform.ptr<double>(0);
+    ptr[0] = scale * cos_a;
+    ptr[1] = -scale * sin_a;
+    ptr[2] = dx;
+    ptr[3] = scale * sin_a;
+    ptr[4] = scale * cos_a;
+    ptr[5] = dy;
+    return transform;
+}
+
+} // namespace
+
+cv::Mat StabilizerCore::smooth_transforms_kalman() {
+    if (transforms_.empty()) {
+        return cv::Mat::eye(2, 3, CV_64F);
+    }
+
+    if (!kalman_filter_) {
+        kalman_filter_ = std::make_unique<KalmanTransformFilter>();
+    }
+
+    // The Kalman filter keeps a constant-velocity estimate of the correction
+    // components. Feeding it the raw per-frame transform smooths jitter while
+    // still following sustained camera motion.
+    const cv::Vec4f measurement = transform_to_components(transforms_.back());
+    const cv::Vec4f corrected = kalman_filter_->update(measurement, 1.0f);
+    return components_to_transform(corrected);
 }
 
 cv::Mat StabilizerCore::smooth_transforms_optimized() {
@@ -435,8 +495,14 @@ cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& tra
 }
 
 cv::Rect StabilizerCore::detect_content_bounds(const cv::Mat& frame) {
-    // Compatibility entry point: FrameAnalyzer owns the utility implementation.
-    return FrameAnalyzer::detect_content_bounds(frame);
+    // Delegate content-bound detection to the reusable FrameAnalyzer
+    // (Issue #313). Keep the legacy contract: an empty result from the
+    // analyzer means no detectable content, so fall back to the full frame.
+    const cv::Rect bounds = FrameAnalyzer::detect_content_bounds(frame);
+    if (bounds.width == 0 || bounds.height == 0) {
+        return cv::Rect(0, 0, frame.cols, frame.rows);
+    }
+    return bounds;
 }
 
 cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode) {
@@ -448,7 +514,7 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
 
             case EdgeMode::Crop: {
                 // Crop mode: Remove black borders from edges
-                cv::Rect bounds = FrameAnalyzer::detect_content_bounds(frame);
+                cv::Rect bounds = detect_content_bounds(frame);
 
                 // Ensure crop region is valid
                 if (bounds.width <= 0 || bounds.height <= 0) {
@@ -463,6 +529,12 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
                 int roi_width = std::min(bounds.width, frame.cols - roi_x);
                 int roi_height = std::min(bounds.height, frame.rows - roi_y);
 
+                // OBS async frames use NV12/I420 output, whose chroma planes
+                // require even dimensions. Round the crop down to an even size
+                // so downstream color conversion never asserts on odd frames.
+                roi_width &= ~1;
+                roi_height &= ~1;
+
                 // Only crop if we have a valid ROI (positive dimensions)
                 if (roi_width > 0 && roi_height > 0) {
                     cv::Rect clamped_bounds(roi_x, roi_y, roi_width, roi_height);
@@ -473,7 +545,7 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
 
             case EdgeMode::Scale: {
                 // Scale mode: Scale frame to fill original dimensions
-                cv::Rect bounds = FrameAnalyzer::detect_content_bounds(frame);
+                cv::Rect bounds = detect_content_bounds(frame);
 
                 // Ensure crop region is valid
                 if (bounds.width <= 0 || bounds.height <= 0) {
@@ -647,6 +719,20 @@ StabilizerCore::StabilizerParams StabilizerCore::create_preset(
 }
 
 bool StabilizerCore::validate_frame(const cv::Mat& frame) {
-    // Compatibility entry point: FrameAnalyzer owns all frame validation rules.
-    return FrameAnalyzer::is_valid_frame(frame);
+    // Use common validation from FRAME_UTILS to eliminate code duplication (DRY principle)
+    // The common validation checks: empty, dimensions (rows/cols > 0), depth (CV_8U), channels (1, 3, 4)
+    if (!FRAME_UTILS::Validation::validate_cv_mat(frame)) {
+        return false;
+    }
+
+    // Add MIN/MAX size checks specific to StabilizerCore
+    // These checks are specific to the stabilization algorithm's requirements
+    if (frame.rows < MIN_IMAGE_SIZE || frame.cols < MIN_IMAGE_SIZE) {
+        return false;
+    }
+    if (frame.rows > MAX_IMAGE_HEIGHT || frame.cols > MAX_IMAGE_WIDTH) {
+        return false;
+    }
+
+    return true;
 }
