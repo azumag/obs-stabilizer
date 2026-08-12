@@ -65,6 +65,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     prev_pts_.clear();
     transforms_.clear();
     trajectory_ = cv::Mat::eye(3, 3, CV_64F);
+    correction_smooth_ = cv::Mat();
     kalman_filter_.reset();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
@@ -165,11 +166,12 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         return frame;
     }
 
-    // Accumulate the estimated previous-to-current camera motion. Smoothing
-    // incremental transforms does not stabilize a sequence because their
-    // average is still applied in the observed motion direction. Instead,
-    // smooth the camera trajectory and correct the current trajectory toward
-    // that causal moving average.
+    // Camera-trajectory correction. Accumulate the estimated motion and
+    // correct the current trajectory toward its smoothed position. After the
+    // correction we reset the trajectory to the smoothed position so
+    // estimation bias cannot accumulate into a runaway drift; the correction
+    // then targets the shake (deviation from the smoothed position) instead
+    // of an ever-growing accumulated offset.
     cv::Mat incremental = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat transform_64;
     transform.convertTo(transform_64, CV_64F);
@@ -193,14 +195,28 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     cv::Mat smoothed_homogeneous = cv::Mat::eye(3, 3, CV_64F);
     smoothed_trajectory.copyTo(smoothed_homogeneous(cv::Rect(0, 0, 3, 2)));
 
-    trajectory_ = candidate_trajectory;
-
     cv::Mat correction_homogeneous = smoothed_homogeneous * inverse_trajectory;
     cv::Mat correction = correction_homogeneous(cv::Rect(0, 0, 3, 2)).clone();
 
-    // Bound the accumulated correction using the same public percentage limit
-    // as individual motion estimates. This preserves protection against a bad
-    // track or an extended intentional camera move.
+    // Reset the trajectory to the smoothed position so estimation bias does
+    // not accumulate into a runaway drift over time.
+    trajectory_ = smoothed_homogeneous;
+
+    // The correction is estimated from the previous frame, so applying it
+    // directly leaves a one-frame-lag residual that is nearly as large as the
+    // shake itself at high frequencies. Smooth the correction over time so
+    // the per-frame warp does not oscillate; alpha = 0.6 keeps the 9-12 Hz
+    // micro-jitter band while suppressing the one-frame lag residual.
+    if (correction_smooth_.empty()) {
+        correction_smooth_ = correction.clone();
+    } else {
+        const double alpha = 0.6;
+        correction_smooth_ = alpha * correction +
+                             (1.0 - alpha) * correction_smooth_;
+    }
+    correction = correction_smooth_.clone();
+
+    // Limit the correction so a bad motion estimate cannot jerk the frame.
     const double max_correction_ratio = params_.max_correction / 100.0;
     const double max_translation_x = max_correction_ratio * width_;
     const double max_translation_y = max_correction_ratio * height_;
@@ -530,7 +546,10 @@ inline void StabilizerCore::update_metrics(const std::chrono::high_resolution_cl
 cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& transform) {
     try {
         cv::Mat warped_frame;
-        cv::warpAffine(frame, warped_frame, transform, frame.size());
+        // Cubic interpolation keeps edges sharp under the per-frame warp;
+        // linear interpolation visibly softens the stabilized output.
+        cv::warpAffine(frame, warped_frame, transform, frame.size(),
+                       cv::INTER_CUBIC);
         return warped_frame;
     } catch (const cv::Exception& e) {
         last_error_ = std::string("OpenCV exception in apply_transform: ") + e.what();
@@ -682,6 +701,7 @@ void StabilizerCore::reset() {
     prev_pts_.clear();
     transforms_.clear();
     trajectory_ = cv::Mat::eye(3, 3, CV_64F);
+    correction_smooth_ = cv::Mat();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
 }
