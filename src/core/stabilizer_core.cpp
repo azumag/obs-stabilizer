@@ -6,6 +6,7 @@
 
 #include "core/logging.hpp"
 #include "core/stabilizer_core.hpp"
+#include "core/frame_analyzer.hpp"
 #include "core/stabilizer_constants.hpp"
 #include "core/parameter_validation.hpp"
 #include <vector>
@@ -81,8 +82,9 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
             return frame;
         }
 
-        // Frame validation with branch prediction hints
-        if (!validate_frame(frame)) {
+        // Keep frame utility policy in FrameAnalyzer rather than duplicating it
+        // inside the stabilization engine.
+        if (!FrameAnalyzer::is_valid_frame(frame)) {
             last_error_ = "Invalid frame dimensions: " + std::to_string(frame.rows) + "x" + std::to_string(frame.cols) + " in StabilizerCore::process_frame";
             CORE_LOG_ERROR("Invalid frame dimensions: %dx%d (expected: 32x32 to %dx%d)",
                           frame.rows, frame.cols, MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT);
@@ -96,7 +98,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         }
 
     // Convert to grayscale using unified FRAME_UTILS to eliminate code duplication (DRY principle)
-    // This consolidates color conversion logic that was duplicated in detect_content_bounds()
+    // Color conversion policy stays centralized in the frame utility layer.
     cv::Mat gray = FRAME_UTILS::ColorConversion::convert_to_grayscale(frame);
     if (gray.empty()) {
         last_error_ = "Unsupported frame format in StabilizerCore::process_frame";
@@ -433,33 +435,8 @@ cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& tra
 }
 
 cv::Rect StabilizerCore::detect_content_bounds(const cv::Mat& frame) {
-    // Convert to grayscale using unified FRAME_UTILS to eliminate code duplication (DRY principle)
-    // This function is called for both process_frame() and detect_content_bounds(), so centralizing it
-    // avoids maintaining duplicate color conversion logic
-    cv::Mat gray = FRAME_UTILS::ColorConversion::convert_to_grayscale(frame);
-    if (gray.empty()) {
-        return cv::Rect(0, 0, frame.cols, frame.rows);
-    }
-
-    // Use OpenCV's findNonZero() for efficient content detection
-    // This is O(n) where n is the number of pixels, but heavily optimized in OpenCV
-    // Previous implementation was O(width * height * 4) with 4 separate scan loops
-    // The new approach uses vectorized operations and is much faster for typical video frames
-    cv::Mat binary;
-    cv::threshold(gray, binary, ContentDetection::CONTENT_THRESHOLD, 255, cv::THRESH_BINARY);
-
-    std::vector<cv::Point> non_zero;
-    cv::findNonZero(binary, non_zero);
-
-    // If no content detected (e.g., all-black frame), return full frame
-    if (non_zero.empty()) {
-        return cv::Rect(0, 0, frame.cols, frame.rows);
-    }
-
-    // boundingRect() efficiently computes the minimal rectangle containing all non-zero pixels
-    // This is a single O(n) pass through the non-zero pixel list
-    cv::Rect bounds = cv::boundingRect(non_zero);
-    return bounds;
+    // Compatibility entry point: FrameAnalyzer owns the utility implementation.
+    return FrameAnalyzer::detect_content_bounds(frame);
 }
 
 cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode) {
@@ -471,7 +448,7 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
 
             case EdgeMode::Crop: {
                 // Crop mode: Remove black borders from edges
-                cv::Rect bounds = detect_content_bounds(frame);
+                cv::Rect bounds = FrameAnalyzer::detect_content_bounds(frame);
 
                 // Ensure crop region is valid
                 if (bounds.width <= 0 || bounds.height <= 0) {
@@ -496,7 +473,7 @@ cv::Mat StabilizerCore::apply_edge_handling(const cv::Mat& frame, EdgeMode mode)
 
             case EdgeMode::Scale: {
                 // Scale mode: Scale frame to fill original dimensions
-                cv::Rect bounds = detect_content_bounds(frame);
+                cv::Rect bounds = FrameAnalyzer::detect_content_bounds(frame);
 
                 // Ensure crop region is valid
                 if (bounds.width <= 0 || bounds.height <= 0) {
@@ -670,20 +647,6 @@ StabilizerCore::StabilizerParams StabilizerCore::create_preset(
 }
 
 bool StabilizerCore::validate_frame(const cv::Mat& frame) {
-    // Use common validation from FRAME_UTILS to eliminate code duplication (DRY principle)
-    // The common validation checks: empty, dimensions (rows/cols > 0), depth (CV_8U), channels (1, 3, 4)
-    if (!FRAME_UTILS::Validation::validate_cv_mat(frame)) {
-        return false;
-    }
-
-    // Add MIN/MAX size checks specific to StabilizerCore
-    // These checks are specific to the stabilization algorithm's requirements
-    if (frame.rows < MIN_IMAGE_SIZE || frame.cols < MIN_IMAGE_SIZE) {
-        return false;
-    }
-    if (frame.rows > MAX_IMAGE_HEIGHT || frame.cols > MAX_IMAGE_WIDTH) {
-        return false;
-    }
-
-    return true;
+    // Compatibility entry point: FrameAnalyzer owns all frame validation rules.
+    return FrameAnalyzer::is_valid_frame(frame);
 }
