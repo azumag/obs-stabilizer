@@ -6,20 +6,28 @@
 
 namespace STABILIZER_PERFORMANCE {
 
+/** Qualitative real-time processing health classification. */
 enum class Status {
     Good,
     Warning,
     Poor,
 };
 
+/** Immutable-style snapshot of accumulated performance observations. */
 struct Snapshot {
+    /** Number of frames represented by this snapshot. */
     uint64_t frame_count = 0;
+    /** Mean frame processing latency in milliseconds. */
     double average_processing_ms = 0.0;
+    /** Estimated throughput derived from average latency. */
     double estimated_fps = 0.0;
+    /** Percentage of frames with successful feature tracking. */
     double feature_success_rate = 0.0;
+    /** Qualitative classification derived from processing latency. */
     Status status = Status::Good;
 };
 
+/** Classify a processing latency against the real-time thresholds. */
 inline Status classify_processing_time(double processing_ms)
 {
     if (processing_ms < 10.0) {
@@ -31,6 +39,7 @@ inline Status classify_processing_time(double processing_ms)
     return Status::Poor;
 }
 
+/** Return a human-readable label for a performance status. */
 inline const char *status_label(Status status)
 {
     switch (status) {
@@ -44,6 +53,7 @@ inline const char *status_label(Status status)
     return "Unknown";
 }
 
+/** Return operator guidance appropriate for a performance status. */
 inline std::string recommendation_for(Status status)
 {
     switch (status) {
@@ -57,8 +67,10 @@ inline std::string recommendation_for(Status status)
     return "No recommendation available.";
 }
 
+/** Accumulates lightweight per-frame timing and tracking-success metrics. */
 class Accumulator {
 public:
+    /** Record one frame observation. Negative latency is clamped to zero. */
     void record_frame(double processing_ms, bool feature_tracking_succeeded)
     {
         processing_ms = std::max(0.0, processing_ms);
@@ -69,6 +81,7 @@ public:
         }
     }
 
+    /** Clear all accumulated observations. */
     void reset()
     {
         frame_count_ = 0;
@@ -76,6 +89,7 @@ public:
         total_processing_ms_ = 0.0;
     }
 
+    /** Return a derived snapshot of the current accumulated observations. */
     Snapshot snapshot() const
     {
         Snapshot result;
