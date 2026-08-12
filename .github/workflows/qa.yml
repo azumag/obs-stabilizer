@@ -35,7 +35,7 @@ jobs:
         run: cd tmp/builds/coverage && cmake ../../.. -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TEST_COVERAGE=ON && ninja
 
       - name: Run tests with coverage
-        run: cd tmp/builds/coverage && ./stabilizer_tests || echo "Coverage instrumentation caused test failures; strict test suites run in the regular build workflows"
+        run: cd tmp/builds/coverage && ./stabilizer_tests
 
       - name: Run deterministic fuzz regression
         run: |
