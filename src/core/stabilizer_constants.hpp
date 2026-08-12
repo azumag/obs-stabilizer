@@ -77,6 +77,10 @@ namespace OpticalFlow {
     // Bounding the tracking image keeps optical flow real-time at HD and 4K;
     // the final correction is still applied to the full-resolution frame.
     constexpr int MAX_TRACKING_DIMENSION = 640;
+    // Below this RANSAC inlier ratio the consensus motion no longer explains
+    // the tracked points, so the estimate is rejected rather than folded into
+    // the camera trajectory.
+    constexpr float MIN_INLIER_RATIO = 0.5f;
 }
 
 // Content Detection Parameters

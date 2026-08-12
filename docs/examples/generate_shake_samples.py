@@ -44,6 +44,47 @@ def make_offsets(seed, amp_px, low_hz, high_hz, rot_deg=0.0):
     return offsets
 
 
+def _smoothstep(u):
+    u = min(1.0, max(0.0, u))
+    return 3.0 * u * u - 2.0 * u * u * u
+
+
+def make_pan_offsets(seed, jitter_px, pan_px, jitter_hz=9.0, rot_deg=0.1):
+    """Return per-frame (dx, dy, angle) offsets for a deliberate pan-and-hold.
+
+    Timeline (seconds): 0-6 static+jitter, 6-10 smoothstep pan in, 10-17
+    hold at +pan_px, 17-21 smoothstep pan back out, 21-24 static+jitter.
+    Micro-jitter (9 Hz sine + seed-fixed uniform noise) rides on top of the
+    pan throughout so the sample still exercises high-frequency filtering.
+    """
+    rng = random.Random(seed)
+    offsets = []
+    t0, t1, t2, t3 = 6.0, 10.0, 17.0, 21.0
+    for i in range(TOTAL_FRAMES):
+        t = i / FPS
+        jitter_dx = jitter_px * math.sin(2.0 * math.pi * jitter_hz * t)
+        jitter_dx += rng.uniform(-0.3, 0.3) * jitter_px
+        jitter_dy = jitter_px * math.sin(2.0 * math.pi * jitter_hz * t + math.pi / 2.0)
+        jitter_dy += rng.uniform(-0.3, 0.3) * jitter_px
+
+        if t < t0:
+            pan = 0.0
+        elif t < t1:
+            pan = pan_px * _smoothstep((t - t0) / (t1 - t0))
+        elif t < t2:
+            pan = pan_px
+        elif t < t3:
+            pan = pan_px * (1.0 - _smoothstep((t - t2) / (t3 - t2)))
+        else:
+            pan = 0.0
+
+        dx = pan + jitter_dx
+        dy = jitter_dy
+        angle = rot_deg * math.sin(2.0 * math.pi * 1.0 * t)
+        offsets.append((dx, dy, angle))
+    return offsets
+
+
 def render(base, offsets, out_path):
     writer = cv2.VideoWriter(
         str(out_path),
@@ -71,6 +112,11 @@ def render(base, offsets, out_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--pattern", default=str(PATTERN))
+    parser.add_argument(
+        "--only",
+        default=None,
+        help="generate only this sample name instead of all samples",
+    )
     args = parser.parse_args()
 
     pattern = cv2.imread(args.pattern)
@@ -80,15 +126,24 @@ def main():
 
     samples = {
         # Fine high-frequency shake: small amplitude, fast micro-jitter.
-        "fine-shake": dict(seed=11, amp_px=2.0, low_hz=1.5, high_hz=9.0, rot_deg=0.15),
+        "fine-shake": (make_offsets, dict(seed=11, amp_px=2.0, low_hz=1.5, high_hz=9.0, rot_deg=0.15)),
         # Large low-frequency shake: strong sway, camera-like drift.
-        "large-shake": dict(seed=22, amp_px=22.0, low_hz=0.7, high_hz=3.0, rot_deg=0.8),
+        "large-shake": (make_offsets, dict(seed=22, amp_px=22.0, low_hz=0.7, high_hz=3.0, rot_deg=0.8)),
         # Mixed: both fine jitter and large low-frequency sway.
-        "mixed-shake": dict(seed=33, amp_px=10.0, low_hz=0.5, high_hz=7.0, rot_deg=0.4),
+        "mixed-shake": (make_offsets, dict(seed=33, amp_px=10.0, low_hz=0.5, high_hz=7.0, rot_deg=0.4)),
+        # Deliberate pan-and-hold with micro-jitter riding on top.
+        "pan-shake": (make_pan_offsets, dict(seed=44, jitter_px=2.0, pan_px=80.0)),
     }
 
-    for name, params in samples.items():
-        offsets = make_offsets(**params)
+    if args.only is not None:
+        if args.only not in samples:
+            raise SystemExit(
+                f"Unknown sample {args.only!r}; choose from {sorted(samples)}"
+            )
+        samples = {args.only: samples[args.only]}
+
+    for name, (generator, params) in samples.items():
+        offsets = generator(**params)
         out_path = OUTPUT_DIR / f"{name}.mp4"
         render(base, offsets, out_path)
         print(f"wrote {out_path} ({out_path.stat().st_size} bytes)")

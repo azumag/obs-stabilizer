@@ -411,6 +411,28 @@ endif()
        target_compile_definitions(performance_benchmark PRIVATE BUILD_STANDALONE STANDALONE_TEST)
 
        target_link_libraries(performance_benchmark ${OpenCV_LIBS})
-      
+
+          # Offline video runner for stabilization quality comparison
+          set(STABVIDEO_SOURCES
+              tools/stabvideo.cpp
+              src/core/stabilizer_core.cpp
+              src/core/kalman_transform_filter.cpp
+          )
+
+        add_executable(stabvideo ${STABVIDEO_SOURCES})
+
+        target_include_directories(stabvideo PRIVATE
+           ${CMAKE_CURRENT_SOURCE_DIR}
+           ${CMAKE_CURRENT_SOURCE_DIR}/src
+           ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+       )
+
+       target_compile_definitions(stabvideo PRIVATE BUILD_STANDALONE STANDALONE_TEST)
+
+       # Video decode/encode is needed only by this offline tool. Linking the
+       # extra OpenCV modules here keeps them out of ${OpenCV_LIBS} and hence
+       # out of the distributable plugin's dependency closure.
+       target_link_libraries(stabvideo ${OpenCV_LIBS} opencv_videoio opencv_imgcodecs)
+
       message(STATUS "Performance testing infrastructure enabled")
  endif()

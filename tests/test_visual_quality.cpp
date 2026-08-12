@@ -326,9 +326,146 @@ TEST_F(VisualStabilizationTest, MixedFrequencyShakeIsVisiblyReduced) {
         input_motion.begin(), input_motion.end(), 0.0) / input_motion.size();
     const double output_mean = std::accumulate(
         output_motion.begin(), output_motion.end(), 0.0) / output_motion.size();
-    EXPECT_LT(output_mean, input_mean * 0.55)
-        << "Mixed-frequency shake should be reduced by at least 45%, got input "
+    EXPECT_LT(output_mean, input_mean * 0.40)
+        << "Mixed-frequency shake should be reduced by at least 60%, got input "
         << input_mean << " px and output " << output_mean << " px";
+}
+
+/**
+ * Regression: while estimates are rejected, the output must keep the last
+ * applied correction instead of snapping to the raw frame, and the held
+ * correction must decay to identity so a permanent scene change cannot pin
+ * a stale warp. A constant-velocity pan builds a large lag correction, then
+ * per-frame random-noise images force persistent estimate rejections.
+ */
+TEST_F(VisualStabilizationTest, RejectedEstimatesHoldThenDecayCorrection) {
+    constexpr int kPanFrames = 90;
+    constexpr float kPanSpeed = 2.0f;
+    cv::Mat base = TestDataGenerator::generate_frame_with_corners(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 3);
+
+    StabilizerCore::StabilizerParams params =
+        StabilizerCore::get_preset_streaming();
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    ASSERT_TRUE(stabilizer->initialize(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    // With a trailing window of 30 the smoothed trajectory lags a constant
+    // 2 px/frame pan by (30 - 1) / 2 frames, so the active correction when
+    // the pan is interrupted is roughly -29 px.
+    for (int i = 0; i < kPanFrames; ++i) {
+        const cv::Mat frame = TestDataGenerator::create_motion_frame(
+            base, kPanSpeed * static_cast<float>(i), 0.0f, 0.0f);
+        ASSERT_FALSE(stabilizer->process_frame(frame).empty());
+    }
+
+    // Independent noise images track as garbage against any previous frame,
+    // so every estimate is rejected and the failure path stays active.
+    cv::RNG rng(42);
+    auto measure_applied_shift = [&](const cv::Mat& input) {
+        cv::Mat output = stabilizer->process_frame(input);
+        EXPECT_FALSE(output.empty());
+        cv::Mat input_gray;
+        cv::Mat output_gray;
+        cv::cvtColor(input, input_gray, cv::COLOR_BGRA2GRAY);
+        cv::cvtColor(output, output_gray, cv::COLOR_BGRA2GRAY);
+        const std::vector<cv::Point2f> motion =
+            calculate_motion_vectors(input_gray, output_gray);
+        if (motion.empty()) {
+            return 0.0;
+        }
+        std::vector<float> shifts;
+        shifts.reserve(motion.size());
+        for (const auto& vector : motion) {
+            shifts.push_back(vector.x);
+        }
+        std::nth_element(shifts.begin(), shifts.begin() + shifts.size() / 2,
+                         shifts.end());
+        return static_cast<double>(shifts[shifts.size() / 2]);
+    };
+    auto make_noise_frame = [&]() {
+        cv::Mat noise(base.size(), base.type());
+        rng.fill(noise, cv::RNG::UNIFORM, 0, 256);
+        return noise;
+    };
+
+    const double held_shift = measure_applied_shift(make_noise_frame());
+    EXPECT_LT(held_shift, -10.0)
+        << "The first failed frame should still carry the pan-lag "
+        << "correction, got " << held_shift << " px";
+
+    // 40 further rejected frames exceed the 30-frame decay horizon.
+    double decayed_shift = 0.0;
+    for (int i = 0; i < 40; ++i) {
+        decayed_shift = measure_applied_shift(make_noise_frame());
+    }
+    EXPECT_NEAR(decayed_shift, 0.0, 2.0)
+        << "A persistent failure must decay the held correction to identity";
+
+    const StabilizerCore::PerformanceMetrics metrics =
+        stabilizer->get_performance_metrics();
+    EXPECT_GT(metrics.tracking_failures, 30u)
+        << "Noise frames should keep the failure path active";
+}
+
+/**
+ * Regression: feature-free frames in mid-stream must not poison the camera
+ * trajectory. On such frames Lucas-Kanade can "succeed" with garbage tracks
+ * and RANSAC then produces a bogus consensus from a small inlier fraction;
+ * without the inlier-ratio gate that motion enters the trajectory and the
+ * output jumps by tens of pixels several frames after recovery (measured
+ * 117 px on the dropout sample). The gate must reject those estimates and
+ * the output must resume cleanly once texture returns.
+ */
+TEST_F(VisualStabilizationTest, FeaturelessFramesDoNotPoisonTrajectory) {
+    constexpr int kFrameCount = 120;
+    constexpr double kPi = 3.14159265358979323846;
+    cv::Mat base = TestDataGenerator::generate_frame_with_corners(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 3);
+    cv::Mat featureless(base.size(), base.type(), cv::Scalar(96, 96, 96, 255));
+
+    StabilizerCore::StabilizerParams params =
+        StabilizerCore::get_preset_streaming();
+    params.edge_mode = StabilizerCore::EdgeMode::Padding;
+    ASSERT_TRUE(stabilizer->initialize(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    std::vector<cv::Mat> outputs;
+    outputs.reserve(kFrameCount);
+    for (int i = 0; i < kFrameCount; ++i) {
+        const double t = static_cast<double>(i) / 30.0;
+        const float dx = static_cast<float>(
+            9.0 * std::sin(2.0 * kPi * 0.6 * t) +
+            3.0 * std::sin(2.0 * kPi * 7.0 * t));
+        const float dy = static_cast<float>(
+            8.0 * std::sin(2.0 * kPi * 0.6 * t + 0.8));
+        cv::Mat frame = (i >= 60 && i < 63)
+                            ? featureless.clone()
+                            : TestDataGenerator::create_motion_frame(
+                                  base, dx, dy, 0.0f);
+        cv::Mat output = stabilizer->process_frame(frame);
+        ASSERT_FALSE(output.empty());
+        outputs.push_back(output);
+    }
+
+    const StabilizerCore::PerformanceMetrics metrics =
+        stabilizer->get_performance_metrics();
+    EXPECT_GT(metrics.tracking_failures, 0u)
+        << "Featureless frames should be rejected as tracking failures";
+
+    // The featureless frames carry no texture, so compare the two textured
+    // frames bracketing the burst: if a bogus estimate polluted the
+    // trajectory, the output after recovery sits far from where it was
+    // before the burst.
+    cv::Mat before_gray;
+    cv::Mat after_gray;
+    cv::cvtColor(outputs[59], before_gray, cv::COLOR_BGRA2GRAY);
+    cv::cvtColor(outputs[63], after_gray, cv::COLOR_BGRA2GRAY);
+    const double bracket_motion = calculate_shake_magnitude(
+        calculate_motion_vectors(before_gray, after_gray));
+    EXPECT_LT(bracket_motion, 8.0)
+        << "Output must not snap to the uncorrected position across a "
+        << "tracking failure, got " << bracket_motion << " px";
 }
 
 /**
@@ -867,8 +1004,9 @@ TEST_F(VisualStabilizationTest, StreamingScenarioShakeReduction) {
 
 /**
  * Test: A single bad motion estimate must not jerk the frame.
- * The trajectory correction is bounded per frame (jump guard), so one
- * tracking failure during a pan should not translate into a visible jump.
+ * The windowed trajectory average admits a one-frame displacement only at
+ * 1/window weight, so the correction cancels almost all of it and the
+ * output stays visually still.
  */
 TEST_F(VisualStabilizationTest, SingleFrameEstimateErrorDoesNotJumpTheFrame) {
     cv::Mat base = TestDataGenerator::generate_frame_with_corners(

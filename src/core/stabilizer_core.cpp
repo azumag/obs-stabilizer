@@ -74,11 +74,37 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     prev_pts_.clear();
     transforms_.clear();
     trajectory_ = cv::Mat::eye(3, 3, CV_64F);
-    correction_smooth_ = cv::Mat();
+    last_correction_ = cv::Mat();
+    held_frames_ = 0;
     kalman_filter_.reset();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
     return true;
+}
+
+// A tracking failure used to emit the raw frame, which visibly snaps the
+// image back to its uncorrected position whenever the active correction is
+// large. Holding the last applied correction keeps the output continuous;
+// the hold decays toward identity so a permanent scene change cannot pin a
+// stale correction forever.
+cv::Mat StabilizerCore::make_failure_output(const cv::Mat& frame) {
+    if (last_correction_.empty()) {
+        return frame;
+    }
+    constexpr int kHoldDecayFrames = 30;
+    held_frames_ = std::min(held_frames_ + 1, kHoldDecayFrames);
+    const double decay = static_cast<double>(held_frames_) / kHoldDecayFrames;
+    if (decay >= 1.0) {
+        // Fully decayed: the held correction is identity, so skip the warp.
+        return frame;
+    }
+    cv::Vec4f components = transform_to_components(last_correction_);
+    components[0] = static_cast<float>(components[0] * (1.0 - decay));
+    components[1] = static_cast<float>(components[1] * (1.0 - decay));
+    components[2] = static_cast<float>(components[2] * (1.0 - decay));
+    components[3] = static_cast<float>(components[3] * (1.0 - decay) + decay);
+    cv::Mat held = components_to_transform(components);
+    return apply_edge_handling(apply_transform(frame, held), params_.edge_mode);
 }
 
 cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
@@ -185,7 +211,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
             consecutive_tracking_failures_ = 0;
         }
         update_metrics(start_time);
-        return frame;
+        return make_failure_output(frame);
     }
 
     consecutive_tracking_failures_ = 0;
@@ -205,12 +231,33 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         }
     }
 
+    float inlier_ratio = 1.0f;
     cv::Mat transform = estimate_transform(transform_prev_pts,
-                                           transform_curr_pts);
+                                           transform_curr_pts, inlier_ratio);
     if (transform.empty()) {
         CORE_LOG_WARNING("Transform estimation failed, returning original frame");
         update_metrics(start_time);
-        return frame;
+        return make_failure_output(frame);
+    }
+
+    // A low RANSAC inlier ratio means the consensus motion no longer explains
+    // most tracked points (features drifted onto moving content or the track
+    // degraded), so the estimate cannot be trusted for trajectory updates.
+    // Repeated rejections fall back to feature re-detection like any other
+    // tracking failure so the gate cannot stall the stabilizer permanently.
+    if (inlier_ratio < OpticalFlow::MIN_INLIER_RATIO) {
+        consecutive_tracking_failures_++;
+        metrics_.tracking_failures++;
+        CORE_LOG_WARNING("Motion estimate rejected: inlier ratio %.2f below %.2f",
+                        inlier_ratio, OpticalFlow::MIN_INLIER_RATIO);
+        if (consecutive_tracking_failures_ >= 5) {
+            CORE_LOG_INFO("Estimates rejected 5 times consecutively, re-detecting features");
+            detect_features(tracking_gray, prev_pts_);
+            prev_gray_ = tracking_gray.clone();
+            consecutive_tracking_failures_ = 0;
+        }
+        update_metrics(start_time);
+        return make_failure_output(frame);
     }
 
     // Camera-trajectory correction. Accumulate the estimated motion, smooth
@@ -229,7 +276,7 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     if (!cv::invert(candidate_trajectory, inverse_trajectory, cv::DECOMP_SVD)) {
         CORE_LOG_WARNING("Camera trajectory inversion failed, returning original frame");
         update_metrics(start_time);
-        return frame;
+        return make_failure_output(frame);
     }
 
     cv::Mat current_trajectory = candidate_trajectory(cv::Rect(0, 0, 3, 2)).clone();
@@ -250,43 +297,14 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     // prevents a bad track from producing an unbounded visible warp.
     trajectory_ = candidate_trajectory;
 
-    // The correction is estimated from the previous frame, so applying it
-    // directly leaves a one-frame-lag residual that is nearly as large as the
-    // shake itself at high frequencies. Smooth the correction over time so
-    // the per-frame warp does not oscillate; alpha = 0.6 attenuates the
-    // high-frequency micro-jitter (a 30 fps EMA cutoff around 4.7 Hz) while
-    // also suppressing the one-frame lag residual.
-    if (correction_smooth_.empty()) {
-        correction_smooth_ = correction.clone();
-    } else {
-        // Jump guard: a large per-frame correction change means the motion
-        // estimate is unreliable (tracking failure during a fast pan or a
-        // scene change). Limit how fast the correction may move so one bad
-        // estimate cannot jerk the frame, then EMA the bounded correction.
-        constexpr double kMaxCorrectionDeltaRatio = 0.02;
-        constexpr double kMaxCorrectionDeltaAngleDeg = 0.75;
-        constexpr double kMaxCorrectionDeltaScale = 0.02;
-        cv::Vec4f bounded = transform_to_components(correction);
-        const cv::Vec4f previous = transform_to_components(correction_smooth_);
-        const double max_dx = kMaxCorrectionDeltaRatio * width_;
-        const double max_dy = kMaxCorrectionDeltaRatio * height_;
-        constexpr double max_angle = kMaxCorrectionDeltaAngleDeg * CV_PI / 180.0;
-        constexpr double max_scale = kMaxCorrectionDeltaScale;
-        bounded[0] = static_cast<float>(std::clamp(static_cast<double>(bounded[0]),
-                                    previous[0] - max_dx, previous[0] + max_dx));
-        bounded[1] = static_cast<float>(std::clamp(static_cast<double>(bounded[1]),
-                                    previous[1] - max_dy, previous[1] + max_dy));
-        bounded[2] = static_cast<float>(std::clamp(static_cast<double>(bounded[2]),
-                                    previous[2] - max_angle, previous[2] + max_angle));
-        bounded[3] = static_cast<float>(std::clamp(static_cast<double>(bounded[3]),
-                                    previous[3] / (1.0 + max_scale),
-                                    previous[3] * (1.0 + max_scale)));
-        correction = components_to_transform(bounded);
-        const double alpha = 0.6;
-        correction_smooth_ = alpha * correction +
-                             (1.0 - alpha) * correction_smooth_;
-    }
-    correction = correction_smooth_.clone();
+    // The correction is applied unfiltered. An EMA or per-frame slew limit on
+    // the correction (eb49a11) attenuates exactly the high-frequency counter
+    // motion the stabilizer exists to produce — an EMA with alpha 0.6 passes
+    // only ~43% of the correction at Nyquist, which measurably halved the
+    // shake reduction on the example clips. Bad estimates are handled where
+    // they arise instead: the inlier-ratio gate above rejects unreliable
+    // motion, and make_failure_output() keeps the last correction applied so
+    // a failed frame cannot snap back to its uncorrected position.
 
     // Limit the correction so a bad motion estimate cannot jerk the frame.
     const double max_correction_ratio = params_.max_correction / 100.0;
@@ -314,6 +332,12 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
 
     tracking_gray.copyTo(prev_gray_);
     prev_pts_ = curr_pts;
+
+    // Remember the correction that actually reached the warp so a later
+    // tracking failure can keep applying it instead of snapping to the raw
+    // frame.
+    last_correction_ = correction.clone();
+    held_frames_ = 0;
 
     cv::Mat result = apply_transform(frame, correction);
 
@@ -465,17 +489,28 @@ bool StabilizerCore::track_features(const cv::Mat& prev_gray, const cv::Mat& cur
 }
 
 cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_pts,
-                                              std::vector<cv::Point2f>& curr_pts) {
+                                              std::vector<cv::Point2f>& curr_pts,
+                                              float& inlier_ratio) {
+    inlier_ratio = 1.0f;
     try {
         // Use RANSAC for robust estimation with optimized parameters
+        cv::Mat inlier_mask;
         cv::Mat transform = cv::estimateAffinePartial2D(prev_pts, curr_pts,
-                                                      cv::noArray(),
+                                                      inlier_mask,
                                                       cv::RANSAC,
                                                       params_.ransac_threshold_min);
 
         if (transform.empty()) {
-            // Fallback to identity matrix if estimation fails
+            // RANSAC found no consensus model at all; report zero inliers so
+            // the caller treats the identity fallback as an unreliable
+            // estimate instead of folding it into the trajectory.
+            inlier_ratio = 0.0f;
             return cv::Mat::eye(2, 3, CV_64F);
+        }
+
+        if (!inlier_mask.empty() && !prev_pts.empty()) {
+            inlier_ratio = static_cast<float>(cv::countNonZero(inlier_mask)) /
+                           static_cast<float>(prev_pts.size());
         }
 
         // Apply maximum correction limit to prevent over-correction
@@ -505,14 +540,17 @@ cv::Mat StabilizerCore::estimate_transform(const std::vector<cv::Point2f>& prev_
     } catch (const cv::Exception& e) {
         last_error_ = std::string("OpenCV exception in estimate_transform: ") + e.what();
         STAB_LOG_ERROR("OpenCV exception in estimate_transform: %s", e.what());
+        inlier_ratio = 0.0f;
         return cv::Mat::eye(2, 3, CV_64F);
     } catch (const std::exception& e) {
         last_error_ = std::string("Standard exception in estimate_transform: ") + e.what();
         STAB_LOG_ERROR("Standard exception in estimate_transform: %s", e.what());
+        inlier_ratio = 0.0f;
         return cv::Mat::eye(2, 3, CV_64F);
     } catch (...) {
         last_error_ = "Unknown exception in estimate_transform";
         STAB_LOG_ERROR("Unknown exception in estimate_transform");
+        inlier_ratio = 0.0f;
         return cv::Mat::eye(2, 3, CV_64F);
     }
 }
@@ -787,7 +825,8 @@ void StabilizerCore::reset() {
     prev_pts_.clear();
     transforms_.clear();
     trajectory_ = cv::Mat::eye(3, 3, CV_64F);
-    correction_smooth_ = cv::Mat();
+    last_correction_ = cv::Mat();
+    held_frames_ = 0;
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
 }

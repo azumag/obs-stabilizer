@@ -109,8 +109,9 @@ public:
      * @brief Process one BGRA video frame.
      * @param frame Non-empty CV_8UC4 frame matching the initialized dimensions.
      * @return Stabilized frame. Returns an empty matrix for invalid input or a
-     *         fatal processing error; during normal tracking warm-up or recovery
-     *         the implementation may return a copy of the input frame.
+     *         fatal processing error. During tracking warm-up the input frame is
+     *         returned unchanged; during tracking failures the last applied
+     *         correction (decaying toward identity) keeps the output continuous.
      *
      * The returned matrix owns its storage independently of transient internal
      * buffers. Call get_last_error() after an empty result for diagnostics.
@@ -200,7 +201,9 @@ private:
                        std::vector<cv::Point2f>& prev_pts, std::vector<cv::Point2f>& curr_pts,
                        float& success_rate);
     cv::Mat estimate_transform(const std::vector<cv::Point2f>& prev_pts,
-                              std::vector<cv::Point2f>& curr_pts);
+                              std::vector<cv::Point2f>& curr_pts,
+                              float& inlier_ratio);
+    cv::Mat make_failure_output(const cv::Mat& frame);
     cv::Mat smooth_transforms();
     cv::Mat smooth_transforms_kalman();
     cv::Mat apply_transform(const cv::Mat& frame, const cv::Mat& transform);
@@ -229,7 +232,8 @@ private:
     std::vector<cv::Point2f> prev_pts_;
     std::deque<cv::Mat> transforms_;
     cv::Mat trajectory_;
-    cv::Mat correction_smooth_;
+    cv::Mat last_correction_;
+    int held_frames_ = 0;
     // Created lazily only when Kalman smoothing is selected so the default
     // moving-average path never constructs a cv::KalmanFilter instance.
     std::unique_ptr<KalmanTransformFilter> kalman_filter_;
