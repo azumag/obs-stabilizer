@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 #include <opencv2/opencv.hpp>
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 #include "test_constants.hpp"
 #include "test_data_generator.hpp"
+#include "core/logging.hpp"
 
 #ifdef HAVE_OBS_HEADERS
 #include "obs_minimal.h"
@@ -161,6 +163,68 @@ TEST_F(BasicTest, TestProcessingConstants) {
     EXPECT_GT(Processing::LARGE_SMOOTHING_WINDOW, Processing::MEDIUM_SMOOTHING_WINDOW);
     EXPECT_GT(Processing::DEFAULT_QUALITY_LEVEL, 0.0f);
     EXPECT_GT(Processing::DEFAULT_MIN_DISTANCE, 0.0f);
+}
+
+TEST_F(BasicTest, TestExceptionTelemetryTracksStableCategories) {
+    using namespace StabilizerLogging;
+
+    reset_exception_telemetry();
+
+    std::runtime_error standard_error("standard failure");
+    log_exception("basic_test", standard_error);
+
+    cv::Exception opencv_error(
+        cv::Error::StsError,
+        "opencv failure",
+        "basic_test",
+        __FILE__,
+        __LINE__
+    );
+    log_opencv_exception("basic_test", opencv_error);
+    log_unknown_exception("basic_test");
+
+    const ExceptionTelemetrySnapshot snapshot = get_exception_telemetry();
+    EXPECT_EQ(snapshot.total, 3u);
+    EXPECT_EQ(snapshot.standard, 1u);
+    EXPECT_EQ(snapshot.opencv, 1u);
+    EXPECT_EQ(snapshot.unknown, 1u);
+}
+
+TEST_F(BasicTest, TestExceptionTelemetryResetClearsCounters) {
+    using namespace StabilizerLogging;
+
+    reset_exception_telemetry();
+    std::runtime_error error("reset test");
+    log_exception("reset_test", error);
+    ASSERT_EQ(get_exception_telemetry().total, 1u);
+
+    reset_exception_telemetry();
+    const ExceptionTelemetrySnapshot snapshot = get_exception_telemetry();
+    EXPECT_EQ(snapshot.total, 0u);
+    EXPECT_EQ(snapshot.standard, 0u);
+    EXPECT_EQ(snapshot.opencv, 0u);
+    EXPECT_EQ(snapshot.unknown, 0u);
+}
+
+TEST_F(BasicTest, TestSafeCallRecordsExceptionTelemetry) {
+    using namespace StabilizerLogging;
+
+    reset_exception_telemetry();
+
+    const int result = safe_call(
+        []() -> int {
+            throw std::logic_error("safe_call failure");
+        },
+        "safe_call_test",
+        -1
+    );
+
+    EXPECT_EQ(result, -1);
+    const ExceptionTelemetrySnapshot snapshot = get_exception_telemetry();
+    EXPECT_EQ(snapshot.total, 1u);
+    EXPECT_EQ(snapshot.standard, 1u);
+    EXPECT_EQ(snapshot.opencv, 0u);
+    EXPECT_EQ(snapshot.unknown, 0u);
 }
 
 #ifdef HAVE_OBS_HEADERS
