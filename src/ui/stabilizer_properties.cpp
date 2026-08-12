@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #include "core/preset_manager.hpp"
 #include "core/parameter_validation.hpp"
@@ -34,6 +35,27 @@ namespace OBS_WRAPPER {
     inline const char* get_string(const obs_data_t* settings, const char* name) {
         return obs_data_get_string(const_cast<obs_data_t*>(settings), name);
     }
+}
+
+bool get_custom_preset_name(const struct stabilizer_filter *context,
+                            std::string& name)
+{
+    name.clear();
+    if (!context || !context->source) {
+        return false;
+    }
+
+    obs_data_t *settings = obs_source_get_settings(context->source);
+    if (!settings) {
+        return false;
+    }
+
+    const char *raw_name = obs_data_get_string(settings, "custom_preset_name");
+    if (raw_name) {
+        name = raw_name;
+    }
+    obs_data_release(settings);
+    return !name.empty();
 }
 
 } // namespace
@@ -149,27 +171,19 @@ bool save_custom_preset(obs_properties_t *props, obs_property_t *property,
     UNUSED_PARAMETER(property);
     try {
         auto *context = static_cast<struct stabilizer_filter *>(data);
-        if (!context) {
-            return false;
-        }
-        obs_data_t *settings = obs_data_create();
-        params_to_settings(context->params, settings);
-
-        const char *name = obs_data_get_string(settings, "custom_preset_name");
-        if (!name || strlen(name) == 0) {
+        std::string name;
+        if (!get_custom_preset_name(context, name)) {
             blog(LOG_WARNING, "[obs-stabilizer] Custom preset name is empty");
-            obs_data_release(settings);
             return false;
         }
 
         const bool saved = STABILIZER_PRESETS::PresetManager::save_preset(
             name, context->params);
         if (saved) {
-            blog(LOG_INFO, "[obs-stabilizer] Saved custom preset '%s'", name);
+            blog(LOG_INFO, "[obs-stabilizer] Saved custom preset '%s'", name.c_str());
         } else {
-            blog(LOG_ERROR, "[obs-stabilizer] Failed to save custom preset '%s'", name);
+            blog(LOG_ERROR, "[obs-stabilizer] Failed to save custom preset '%s'", name.c_str());
         }
-        obs_data_release(settings);
         return saved;
     } catch (const std::exception& e) {
         blog(LOG_ERROR, "[obs-stabilizer] Exception in save custom preset: %s", e.what());
@@ -183,16 +197,9 @@ bool load_custom_preset(obs_properties_t *props, obs_property_t *property,
     UNUSED_PARAMETER(property);
     try {
         auto *context = static_cast<struct stabilizer_filter *>(data);
-        if (!context) {
-            return false;
-        }
-        obs_data_t *settings = obs_data_create();
-        params_to_settings(context->params, settings);
-
-        const char *name = obs_data_get_string(settings, "custom_preset_name");
-        if (!name || strlen(name) == 0) {
+        std::string name;
+        if (!get_custom_preset_name(context, name)) {
             blog(LOG_WARNING, "[obs-stabilizer] Custom preset name is empty");
-            obs_data_release(settings);
             return false;
         }
 
@@ -203,13 +210,13 @@ bool load_custom_preset(obs_properties_t *props, obs_property_t *property,
             obs_data_t *updated = obs_data_create();
             params_to_settings(loaded, updated);
             obs_data_set_string(updated, "preset", "custom");
+            obs_data_set_string(updated, "custom_preset_name", name.c_str());
             obs_properties_apply_settings(props, updated);
             obs_data_release(updated);
-            blog(LOG_INFO, "[obs-stabilizer] Loaded custom preset '%s'", name);
+            blog(LOG_INFO, "[obs-stabilizer] Loaded custom preset '%s'", name.c_str());
         } else {
-            blog(LOG_ERROR, "[obs-stabilizer] Failed to load custom preset '%s'", name);
+            blog(LOG_ERROR, "[obs-stabilizer] Failed to load custom preset '%s'", name.c_str());
         }
-        obs_data_release(settings);
         return loaded_ok;
     } catch (const std::exception& e) {
         blog(LOG_ERROR, "[obs-stabilizer] Exception in load custom preset: %s", e.what());
