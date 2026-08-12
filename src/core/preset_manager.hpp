@@ -21,12 +21,13 @@
 
 namespace STABILIZER_PRESETS {
 
-/**
- * Preset information structure
- */
+/** Persisted metadata and stabilization parameters for one custom preset. */
 struct PresetInfo {
+    /** Stable user-visible preset name. */
     std::string name;
+    /** Optional human-readable explanation of the preset. */
     std::string description;
+    /** Stabilization parameters restored when the preset is loaded. */
     StabilizerCore::StabilizerParams params;
 };
 
