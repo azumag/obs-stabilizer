@@ -228,6 +228,7 @@ private:
     cv::Mat prev_gray_;
     std::vector<cv::Point2f> prev_pts_;
     std::deque<cv::Mat> transforms_;
+    cv::Mat trajectory_;
     // Created lazily only when Kalman smoothing is selected so the default
     // moving-average path never constructs a cv::KalmanFilter instance.
     std::unique_ptr<KalmanTransformFilter> kalman_filter_;
