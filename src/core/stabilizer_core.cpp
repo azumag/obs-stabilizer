@@ -18,6 +18,15 @@
 using namespace StabilizerConstants;
 using namespace StabilizerLogging;
 
+namespace {
+
+// Partial-affine 2x3 transform component helpers shared by the Kalman
+// smoothing path and the motion-smoothing correction path.
+cv::Vec4f transform_to_components(const cv::Mat& transform);
+cv::Mat components_to_transform(const cv::Vec4f& components);
+
+} // namespace
+
 #define STAB_LOG_ERROR(...) CORE_LOG_ERROR(__VA_ARGS__)
 #define STAB_LOG_WARNING(...) CORE_LOG_WARNING(__VA_ARGS__)
 #define STAB_LOG_INFO(...) CORE_LOG_INFO(__VA_ARGS__)
@@ -65,6 +74,7 @@ bool StabilizerCore::initialize(uint32_t width, uint32_t height, const Stabilize
     prev_pts_.clear();
     transforms_.clear();
     trajectory_ = cv::Mat::eye(3, 3, CV_64F);
+    correction_smooth_ = cv::Mat();
     kalman_filter_.reset();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
@@ -165,11 +175,12 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
         return frame;
     }
 
-    // Accumulate the estimated previous-to-current camera motion. Smoothing
-    // incremental transforms does not stabilize a sequence because their
-    // average is still applied in the observed motion direction. Instead,
-    // smooth the camera trajectory and correct the current trajectory toward
-    // that causal moving average.
+    // Camera-trajectory correction. Accumulate the estimated motion and
+    // correct the current trajectory toward its smoothed position. After the
+    // correction we reset the trajectory to the smoothed position so
+    // estimation bias cannot accumulate into a runaway drift; the correction
+    // then targets the shake (deviation from the smoothed position) instead
+    // of an ever-growing accumulated offset.
     cv::Mat incremental = cv::Mat::eye(3, 3, CV_64F);
     cv::Mat transform_64;
     transform.convertTo(transform_64, CV_64F);
@@ -193,14 +204,52 @@ cv::Mat StabilizerCore::process_frame(const cv::Mat& frame) {
     cv::Mat smoothed_homogeneous = cv::Mat::eye(3, 3, CV_64F);
     smoothed_trajectory.copyTo(smoothed_homogeneous(cv::Rect(0, 0, 3, 2)));
 
-    trajectory_ = candidate_trajectory;
-
     cv::Mat correction_homogeneous = smoothed_homogeneous * inverse_trajectory;
     cv::Mat correction = correction_homogeneous(cv::Rect(0, 0, 3, 2)).clone();
 
-    // Bound the accumulated correction using the same public percentage limit
-    // as individual motion estimates. This preserves protection against a bad
-    // track or an extended intentional camera move.
+    // Reset the trajectory to the smoothed position so estimation bias does
+    // not accumulate into a runaway drift over time.
+    trajectory_ = smoothed_homogeneous;
+
+    // The correction is estimated from the previous frame, so applying it
+    // directly leaves a one-frame-lag residual that is nearly as large as the
+    // shake itself at high frequencies. Smooth the correction over time so
+    // the per-frame warp does not oscillate; alpha = 0.6 attenuates the
+    // high-frequency micro-jitter (a 30 fps EMA cutoff around 4.7 Hz) while
+    // also suppressing the one-frame lag residual.
+    if (correction_smooth_.empty()) {
+        correction_smooth_ = correction.clone();
+    } else {
+        // Jump guard: a large per-frame correction change means the motion
+        // estimate is unreliable (tracking failure during a fast pan or a
+        // scene change). Limit how fast the correction may move so one bad
+        // estimate cannot jerk the frame, then EMA the bounded correction.
+        constexpr double kMaxCorrectionDeltaRatio = 0.02;
+        constexpr double kMaxCorrectionDeltaAngleDeg = 0.75;
+        constexpr double kMaxCorrectionDeltaScale = 0.02;
+        cv::Vec4f bounded = transform_to_components(correction);
+        const cv::Vec4f previous = transform_to_components(correction_smooth_);
+        const double max_dx = kMaxCorrectionDeltaRatio * width_;
+        const double max_dy = kMaxCorrectionDeltaRatio * height_;
+        constexpr double max_angle = kMaxCorrectionDeltaAngleDeg * CV_PI / 180.0;
+        constexpr double max_scale = kMaxCorrectionDeltaScale;
+        bounded[0] = static_cast<float>(std::clamp(static_cast<double>(bounded[0]),
+                                    previous[0] - max_dx, previous[0] + max_dx));
+        bounded[1] = static_cast<float>(std::clamp(static_cast<double>(bounded[1]),
+                                    previous[1] - max_dy, previous[1] + max_dy));
+        bounded[2] = static_cast<float>(std::clamp(static_cast<double>(bounded[2]),
+                                    previous[2] - max_angle, previous[2] + max_angle));
+        bounded[3] = static_cast<float>(std::clamp(static_cast<double>(bounded[3]),
+                                    previous[3] / (1.0 + max_scale),
+                                    previous[3] * (1.0 + max_scale)));
+        correction = components_to_transform(bounded);
+        const double alpha = 0.6;
+        correction_smooth_ = alpha * correction +
+                             (1.0 - alpha) * correction_smooth_;
+    }
+    correction = correction_smooth_.clone();
+
+    // Limit the correction so a bad motion estimate cannot jerk the frame.
     const double max_correction_ratio = params_.max_correction / 100.0;
     const double max_translation_x = max_correction_ratio * width_;
     const double max_translation_y = max_correction_ratio * height_;
@@ -530,7 +579,10 @@ inline void StabilizerCore::update_metrics(const std::chrono::high_resolution_cl
 cv::Mat StabilizerCore::apply_transform(const cv::Mat& frame, const cv::Mat& transform) {
     try {
         cv::Mat warped_frame;
-        cv::warpAffine(frame, warped_frame, transform, frame.size());
+        // Cubic interpolation keeps edges sharp under the per-frame warp;
+        // linear interpolation visibly softens the stabilized output.
+        cv::warpAffine(frame, warped_frame, transform, frame.size(),
+                       cv::INTER_CUBIC);
         return warped_frame;
     } catch (const cv::Exception& e) {
         last_error_ = std::string("OpenCV exception in apply_transform: ") + e.what();
@@ -682,6 +734,7 @@ void StabilizerCore::reset() {
     prev_pts_.clear();
     transforms_.clear();
     trajectory_ = cv::Mat::eye(3, 3, CV_64F);
+    correction_smooth_ = cv::Mat();
     metrics_ = {};
     consecutive_tracking_failures_ = 0;
 }

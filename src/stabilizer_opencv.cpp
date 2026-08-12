@@ -217,10 +217,11 @@ static void apply_resolution_profile(const obs_source_frame *frame,
     }
 
     params->feature_count = static_cast<int>(profile.feature_count);
-    params->smoothing_radius = static_cast<int>(profile.smoothing_radius);
+    // Keep the user's smoothing setting; the profile only auto-tunes the
+    // feature budget so higher resolutions do not stall the pipeline.
     blog(LOG_INFO, "[obs-stabilizer] Applied resolution profile for %ux%u "
-                   "(features: %u, smoothing: %u)",
-         frame->width, frame->height, profile.feature_count, profile.smoothing_radius);
+                   "(features: %u)",
+         frame->width, frame->height, profile.feature_count);
 }
 
 static obs_properties_t *stabilizer_filter_properties(void *data)

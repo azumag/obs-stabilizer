@@ -506,6 +506,10 @@ disabled on the left and `Video Stabilizer` enabled on the right. The shaking
 edges of the grid and the outlined rectangles are visibly steadier on the
 right.
 
+The GIFs are regenerated from fresh OBS recordings with
+`docs/examples/make_comparison_gifs.sh` (pass the six recordings as
+baseline/filtered pairs for fine, large, and mixed in that order).
+
 ![fine-shake: no filter vs stabilizer](docs/examples/fine-comparison.gif)
 
 ![large-shake: no filter vs stabilizer](docs/examples/large-comparison.gif)
@@ -516,16 +520,16 @@ right.
 
 | Sample | Frame-to-frame motion (median) | Reduction | Pixel diff (mean) | Reduction |
 |---|---|---:|---:|---:|
-| `fine-shake` | 1.27 px -> 0.32 px | 75% | 9.0 -> 4.9 | 46% |
-| `large-shake` | 7.89 px -> 3.14 px | 60% | 23.3 -> 19.8 | 15% |
-| `mixed-shake` | 4.99 px -> 1.48 px | 70% | 20.0 -> 16.6 | 17% |
+| `fine-shake` | 1.27 px -> 0.62 px | 51% | 9.0 -> 5.5 | 39% |
+| `large-shake` | 7.81 px -> 5.45 px | 30% | 23.2 -> 21.1 | 9% |
+| `mixed-shake` | 5.04 px -> 2.99 px | 41% | 20.0 -> 16.3 | 18% |
 
 Notes on reading these numbers:
 
-- The stabilizer removes high-frequency jitter almost completely. Low-frequency
-  sway and intentional pans are preserved, which is the desired behavior for a
-  moving camera, so the remaining frame-to-frame motion and pixel difference
-  are not zero.
+- The stabilizer removes a substantial share of the high-frequency jitter while
+  preserving low-frequency sway and intentional pans, which is the desired
+  behavior for a moving camera, so the remaining frame-to-frame motion and
+  pixel difference are not zero.
 - `large-shake` has a strong low-frequency component, so a larger share of its
   motion is intentionally kept; its high-frequency content is still reduced.
 - Use the same measurement script on your own footage: record the same source

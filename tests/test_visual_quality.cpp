@@ -656,3 +656,63 @@ TEST_F(VisualStabilizationTest, StreamingScenarioShakeReduction) {
         << "Streaming preset should not increase shake by more than 100%, got: "
         << (reduction * 100.0) << "%";
 }
+
+/**
+ * Test: A single bad motion estimate must not jerk the frame.
+ * The trajectory correction is bounded per frame (jump guard), so one
+ * tracking failure during a pan should not translate into a visible jump.
+ */
+TEST_F(VisualStabilizationTest, SingleFrameEstimateErrorDoesNotJumpTheFrame) {
+    cv::Mat base = TestDataGenerator::generate_frame_with_corners(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, 3);
+
+    std::vector<cv::Mat> frames;
+    frames.reserve(60);
+    for (int i = 0; i < 60; ++i) {
+        cv::Mat shifted = base.clone();
+        if (i == 30) {
+            // Simulate a bad motion estimate: one frame displaced far to the
+            // right while the scene is otherwise static.
+            cv::Mat transform = (cv::Mat_<double>(2, 3) << 1.0, 0.0, 24.0,
+                                 0.0, 1.0, 0.0);
+            cv::warpAffine(base, shifted, transform, base.size(),
+                           cv::INTER_LINEAR, cv::BORDER_REPLICATE);
+        }
+        frames.push_back(shifted);
+    }
+
+    StabilizerCore::StabilizerParams params = getDefaultParams();
+    ASSERT_TRUE(stabilizer->initialize(
+        Resolution::VGA_WIDTH, Resolution::VGA_HEIGHT, params));
+
+    std::vector<cv::Mat> outputs;
+    for (const auto& frame : frames) {
+        cv::Mat result = stabilizer->process_frame(frame);
+        ASSERT_FALSE(result.empty());
+        outputs.push_back(result);
+    }
+
+    double input_jump = 0.0;
+    double output_jump = 0.0;
+    for (size_t i = 1; i < outputs.size(); ++i) {
+        cv::Mat gray_prev, gray_curr;
+        cv::cvtColor(frames[i - 1], gray_prev, cv::COLOR_BGRA2GRAY);
+        cv::cvtColor(frames[i], gray_curr, cv::COLOR_BGRA2GRAY);
+        double before = calculate_shake_magnitude(
+            calculate_motion_vectors(gray_prev, gray_curr));
+        cv::cvtColor(outputs[i - 1], gray_prev, cv::COLOR_BGRA2GRAY);
+        cv::cvtColor(outputs[i], gray_curr, cv::COLOR_BGRA2GRAY);
+        double after = calculate_shake_magnitude(
+            calculate_motion_vectors(gray_prev, gray_curr));
+        if (i == 30) {
+            input_jump = before;
+            output_jump = after;
+        }
+    }
+
+    EXPECT_GT(input_jump, 12.0)
+        << "Test data should contain a large jump, got: " << input_jump;
+    EXPECT_LT(output_jump, input_jump * 0.75)
+        << "A single bad estimate should not jerk the frame, got: "
+        << output_jump << " px (input jump: " << input_jump << " px)";
+}
