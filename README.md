@@ -480,6 +480,45 @@ otool -L build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer | grep opencv
 # Should resolve from: @loader_path/../Frameworks/
 ```
 
+## 📊 Example Results
+
+Measured on macOS 26.6.1, OBS Studio 31.1.2 (arm64), source at 640x360, 30 fps.
+Three synthetic hand-held camera samples are generated from the bundled test
+pattern with `docs/examples/generate_shake_samples.py`:
+
+| Sample | Motion model | Filter settings |
+|---|---|---|
+| `fine-shake` | 2 px, 9 Hz micro-jitter | Streaming preset, smoothing 30, max correction 30%, edge padding |
+| `large-shake` | 22 px, 3 Hz camera sway | Streaming preset, smoothing 30, max correction 30%, edge padding |
+| `mixed-shake` | 10 px, 7 Hz jitter + slow pan | Streaming preset, smoothing 30, max correction 30%, edge padding |
+
+Each sample is recorded twice in OBS: once with the filter disabled and once
+with `Video Stabilizer` enabled. `docs/examples/measure_motion_v2.py` then
+measures frame-to-frame camera motion with optical flow. The median is used
+instead of the RMS because a small number of bad optical-flow tracks can
+dominate the RMS; the median is stable and still drops sharply when jitter is
+removed.
+
+![Frame-to-frame motion with and without the stabilizer](docs/examples/motion-comparison.png)
+
+| Sample | Frame-to-frame motion (median) | Reduction | Pixel diff (mean) | Reduction |
+|---|---|---:|---:|---:|
+| `fine-shake` | 1.27 px -> 0.32 px | 75% | 9.0 -> 4.9 | 46% |
+| `large-shake` | 7.89 px -> 3.14 px | 60% | 23.3 -> 19.8 | 15% |
+| `mixed-shake` | 4.99 px -> 1.48 px | 70% | 20.0 -> 16.6 | 17% |
+
+Notes on reading these numbers:
+
+- The stabilizer removes high-frequency jitter almost completely. Low-frequency
+  sway and intentional pans are preserved, which is the desired behavior for a
+  moving camera, so the remaining frame-to-frame motion and pixel difference
+  are not zero.
+- `large-shake` has a strong low-frequency component, so a larger share of its
+  motion is intentionally kept; its high-frequency content is still reduced.
+- Use the same measurement script on your own footage: record the same source
+  with the filter disabled and enabled, then run
+  `python3 docs/examples/measure_motion_v2.py baseline.mov filtered.mov`.
+
 ## 📚 User Guide
 
 ### 1. Installation Guide

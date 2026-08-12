@@ -562,28 +562,28 @@ TEST_F(FrameUtilsTest, ConvertValidBGR3OBSFrameToCV) {
  */
 TEST_F(FrameUtilsTest, ConvertValidNV12OBSFrameToCV) {
     // Create test NV12 frame data
-    // NV12 format: Y plane followed by interleaved UV plane
+    // NV12 in OBS is two planes: Y and interleaved UV.
     // Y plane: width * height bytes
     // UV plane: (width * height) / 2 bytes
     const int width = 640;
     const int height = 480;
     const int y_size = width * height;
     const int uv_size = (width * height) / 2;
-    const int total_size = y_size + uv_size;
 
-    std::vector<uint8_t> nv12_data(total_size);
+    std::vector<uint8_t> y_data(y_size);
+    std::vector<uint8_t> uv_data(uv_size);
 
     // Fill Y plane with gradient (0-255)
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            nv12_data[y * width + x] = static_cast<uint8_t>((x + y) % 256);
+            y_data[y * width + x] = static_cast<uint8_t>((x + y) % 256);
         }
     }
 
     // Fill UV plane with gray (128, 128) for neutral colors
-    for (int i = y_size; i < total_size; i += 2) {
-        nv12_data[i] = 128;      // U
-        nv12_data[i + 1] = 128;  // V
+    for (int i = 0; i < uv_size; i += 2) {
+        uv_data[i] = 128;      // U
+        uv_data[i + 1] = 128;  // V
     }
 
     obs_source_frame frame;
@@ -591,7 +591,10 @@ TEST_F(FrameUtilsTest, ConvertValidNV12OBSFrameToCV) {
     frame.width = width;
     frame.height = height;
     frame.format = VIDEO_FORMAT_NV12;
-    frame.data[0] = nv12_data.data();
+    frame.linesize[0] = width;
+    frame.linesize[1] = width;
+    frame.data[0] = y_data.data();
+    frame.data[1] = uv_data.data();
 
     // Convert OBS frame to OpenCV Mat
     cv::Mat result = FRAME_UTILS::Conversion::obs_to_cv(&frame);
@@ -897,10 +900,11 @@ TEST_F(FrameUtilsTest, FullRoundTripConversionNV12) {
     const int height = 480;
     const int y_size = width * height;
     const int uv_size = (width * height) / 2;
-    const int total_size = y_size + uv_size;
 
-    std::vector<uint8_t> nv12_data(total_size);
-    cv::randu(nv12_data, 0, 255);
+    std::vector<uint8_t> y_data(y_size);
+    std::vector<uint8_t> uv_data(uv_size);
+    cv::randu(y_data, 0, 255);
+    cv::randu(uv_data, 0, 255);
 
     obs_source_frame original_frame;
     memset(&original_frame, 0, sizeof(original_frame));
@@ -908,7 +912,10 @@ TEST_F(FrameUtilsTest, FullRoundTripConversionNV12) {
     original_frame.height = height;
     original_frame.format = VIDEO_FORMAT_NV12;
     original_frame.timestamp = 22222;
-    original_frame.data[0] = nv12_data.data();
+    original_frame.linesize[0] = width;
+    original_frame.linesize[1] = width;
+    original_frame.data[0] = y_data.data();
+    original_frame.data[1] = uv_data.data();
 
     // Convert OBS (NV12) -> CV (BGRA)
     cv::Mat cv_frame = FRAME_UTILS::Conversion::obs_to_cv(&original_frame);
