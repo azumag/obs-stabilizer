@@ -483,7 +483,7 @@ otool -L build/obs-stabilizer.plugin/Contents/MacOS/obs-stabilizer | grep opencv
 ## 📊 Example Results
 
 Measured on macOS 26.6.1, OBS Studio 31.1.2 (arm64), source at 640x360, 30 fps.
-Three synthetic hand-held camera samples are generated from the bundled test
+Four synthetic hand-held camera samples are generated from the bundled test
 pattern with `docs/examples/generate_shake_samples.py`:
 
 | Sample | Motion model | Filter settings |
@@ -491,6 +491,7 @@ pattern with `docs/examples/generate_shake_samples.py`:
 | `fine-shake` | 2 px, 9 Hz micro-jitter | Streaming preset, smoothing 30, max correction 30%, edge padding |
 | `large-shake` | 22 px, 3 Hz camera sway | Streaming preset, smoothing 30, max correction 30%, edge padding |
 | `mixed-shake` | 10 px, 7 Hz jitter + 0.5 Hz sway | Streaming preset, smoothing 30, max correction 30%, edge padding |
+| `pan-shake` | 80 px intentional pan and return + 2 px jitter | Streaming preset, smoothing 30, max correction 30%, edge padding |
 
 Each sample is recorded twice in OBS: once with the filter disabled and once
 with `Video Stabilizer` enabled. `docs/examples/measure_motion_v2.py` then
@@ -522,9 +523,17 @@ The motion chart uses the same six arguments with
 
 | Sample | Frame-to-frame motion (median) | Reduction | Pixel diff (mean) | Reduction |
 |---|---|---:|---:|---:|
-| `fine-shake` | 1.29 px -> 0.62 px | 52% | 9.1 -> 5.1 | 44% |
-| `large-shake` | 7.88 px -> 4.72 px | 40% | 23.3 -> 18.7 | 20% |
-| `mixed-shake` | 5.02 px -> 2.77 px | 45% | 20.0 -> 15.1 | 25% |
+| `fine-shake` | 1.26 px -> 0.11 px | 91% | 8.9 -> 2.0 | 78% |
+| `large-shake` | 7.96 px -> 0.77 px | 90% | 23.1 -> 8.1 | 65% |
+| `mixed-shake` | 5.02 px -> 0.46 px | 91% | 20.3 -> 5.4 | 73% |
+| `pan-shake` | 3.24 px -> 0.08 px | 98% | 18.4 -> 3.6 | 81% |
+
+The same mixed sample rendered at 1920x1080 measures 5.06 px -> 0.47 px (91%)
+with per-frame processing between 10 and 16 ms, inside the 33 ms budget of
+30 fps. On the pan sample the filter follows the intentional 80 px camera move
+(low-frequency trajectory correlation 0.98, amplitude ratio 0.99), settles on
+the pan target within 0.4 px, and returns to the origin without drift or
+pull-back.
 
 Notes on reading these numbers:
 
