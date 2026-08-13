@@ -24,8 +24,14 @@ runs:
       if: inputs.platform == 'ubuntu'
       shell: bash
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
+        # apt-get has no built-in timeout: a stalled mirror (observed with
+        # packages.microsoft.com's azure-cli repo on GitHub-hosted runners)
+        # hangs "apt-get update" indefinitely, which previously ran until
+        # GitHub's 6-hour hard job timeout force-cancelled the whole run.
+        # Bound each network operation and retry instead of hanging forever.
+        APT_OPTS="-o Acquire::Retries=3 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15"
+        sudo apt-get update $APT_OPTS
+        sudo apt-get install -y $APT_OPTS \
           cmake \
           ninja-build \
           build-essential \
