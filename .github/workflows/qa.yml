@@ -14,6 +14,12 @@ jobs:
   test-coverage:
     name: Test Coverage Analysis
     runs-on: ubuntu-latest
+    # Safety net: without this, a hung step (e.g. a stalled apt mirror) is
+    # only stopped by GitHub's 6-hour default job timeout, as happened on
+    # 2026-08-12 (run 31630268765) when apt-get stalled fetching from
+    # packages.microsoft.com and the run sat "in progress" for 6 hours
+    # before being force-cancelled.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +56,7 @@ jobs:
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
