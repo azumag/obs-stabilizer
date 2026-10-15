@@ -1,5 +1,46 @@
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
+Import-Module "$repo/scripts/ObsModuleExports.psm1" -Force
+$normalExportRows = @('ordinal hint RVA name') + @(
+    '    1    0 00001000 obs_module_load',
+    '    2    1 00001100 obs_module_set_pointer',
+    '    3    2 00001200 obs_module_ver',
+    '    4    3 00001300 obs_module_name',
+    '    5    4 00001400 obs_module_description',
+    '    6    5 00001500 obs_module_unload'
+)
+$iltExportRows = @('ordinal hint RVA name') + @(
+    '    1    0 00001000 obs_module_load = @ILT+1485(obs_module_load)',
+    '    2    1 00001100 obs_module_set_pointer = @ILT+1720(obs_module_set_pointer)',
+    '    3    2 00001200 obs_module_ver = @ILT+930(obs_module_ver)',
+    '    4    3 00001300 obs_module_name = @ILT+985(obs_module_name)',
+    '    5    4 00001400 obs_module_description = @ILT+1020(obs_module_description)',
+    '    6    5 00001500 obs_module_unload = @ILT+1120(obs_module_unload)'
+)
+if (@(Get-MissingObsModuleExports -ExportTable $normalExportRows).Count -ne 0) {
+    throw 'The export parser rejected ordinary dumpbin rows'
+}
+if (@(Get-MissingObsModuleExports -ExportTable $iltExportRows).Count -ne 0) {
+    throw 'The export parser rejected dumpbin ILT annotations'
+}
+$similarNameRows = @('ordinal hint RVA name') + @(
+    '    1    0 00001000 obs_module_load_helper = @ILT+1485(obs_module_load_helper)'
+) + $normalExportRows[2..6]
+$similarNameMissing = @(Get-MissingObsModuleExports -ExportTable $similarNameRows)
+if ($similarNameMissing.Count -ne 1 -or $similarNameMissing[0] -cne 'obs_module_load') {
+    throw 'A similar export name incorrectly satisfied obs_module_load'
+}
+$trulyMissingRows = @('ordinal hint RVA name') + @(
+    '    1    0 00001000 obs_module_load',
+    '    2    1 00001200 obs_module_ver',
+    '    3    2 00001300 obs_module_name',
+    '    4    3 00001400 obs_module_description',
+    '    5    4 00001500 obs_module_unload'
+)
+$missingExports = @(Get-MissingObsModuleExports -ExportTable $trulyMissingRows)
+if ($missingExports.Count -ne 1 -or $missingExports[0] -cne 'obs_module_set_pointer') {
+    throw 'The export parser did not report a genuinely missing module export'
+}
 $fixture = Join-Path $repo 'tmp/windows-plugin-gate'
 New-Item -ItemType Directory -Force "$fixture/source" | Out-Null
 @'

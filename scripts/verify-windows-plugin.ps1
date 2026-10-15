@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory = $true)][string]$ReportPath
 )
 $ErrorActionPreference = 'Stop'
+Import-Module "$PSScriptRoot/ObsModuleExports.psm1" -Force
 # The caller supplies the exact target/package path. Never search by DLL name:
 # dependency DLLs, stale builds, or another configuration must not satisfy this gate.
 $plugin = (Resolve-Path -LiteralPath $PluginPath).Path
@@ -23,14 +24,10 @@ if ($LASTEXITCODE -ne 0) { throw 'dumpbin /dependents failed' }
 $hash = (Get-FileHash -LiteralPath $plugin -Algorithm SHA256).Hash
 @("Plugin: $plugin", "SHA256: $hash", $exports, $headers, $imports) | Set-Content $ReportPath
 if (-not ($headers -match '8664 machine \(x64\)')) { throw 'Expected an x64 plugin' }
-foreach ($symbol in @('obs_module_load', 'obs_module_set_pointer', 'obs_module_ver',
-                      'obs_module_name', 'obs_module_description', 'obs_module_unload')) {
-    $escapedSymbol = [regex]::Escape($symbol)
-    $exportRowPattern = "^\s+\d+\s+\d+\s+[0-9a-fA-F]+\s+$escapedSymbol(?:\s*=\s+.*)?\s*$"
-    if (-not ($exports -cmatch $exportRowPattern)) {
-        $moduleExportRows = @($exports | Where-Object { $_ -match 'obs_module_' })
-        throw "Missing required OBS export: $symbol ($plugin)`nOBS module exports reported by dumpbin:`n$($moduleExportRows -join [Environment]::NewLine)"
-    }
+$missingExports = @(Get-MissingObsModuleExports -ExportTable $exports)
+if ($missingExports.Count -gt 0) {
+    $moduleExportRows = @($exports | Where-Object { $_ -match 'obs_module_' })
+    throw "Missing required OBS export: $($missingExports[0]) ($plugin)`nOBS module exports reported by dumpbin:`n$($moduleExportRows -join [Environment]::NewLine)"
 }
 if (-not ($imports -match '^\s+obs\.dll\s*$')) { throw 'Plugin must import the real obs.dll' }
 Write-Host "Verified x64 OBS module: $plugin (SHA256 $hash)"
