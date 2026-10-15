@@ -37,7 +37,9 @@ This guide provides comprehensive procedures for end-to-end (E2E) integration te
    The ZIP contains exactly one stabilizer plugin, at
    `obs-stabilizer/obs-plugins/64bit/obs-stabilizer-opencv.dll`, alongside its
    vcpkg runtime DLLs. The gate checks six OBS exports including
-   `obs_module_load`, `obs_module_set_pointer`, and `obs_module_ver`.
+   `obs_module_load`, `obs_module_set_pointer`, and `obs_module_ver`. The DLL
+   filename identifies the packaged module; `obs_module_name()` supplies the
+   OBS display name `Video Stabilizer`, also used as the filter's visible name.
 
 2. **Install in an authorized test environment**:
    Extract the ZIP and copy the contents of `obs-stabilizer/obs-plugins/64bit`

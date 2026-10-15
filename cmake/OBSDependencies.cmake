@@ -21,8 +21,9 @@ elseif(APPLE OR (WIN32 AND OBS_SOURCE_DIR))
         set(OBS_SOURCE_URL https://github.com/obsproject/obs-studio/archive/refs/tags/30.0.0.tar.gz)
         set(OBS_SOURCE_HASH SHA256=c23dd463862b1a8f40365d84fd52105d7eafc3614fb3d470b695ba28a6e4da06)
 
-        # Build against the documented minimum so the module ABI remains
-        # loadable by OBS 30.x as well as newer OBS releases.
+        # Build against the documented minimum to catch uses of APIs that are
+        # unavailable in OBS 30.0. Runtime compatibility on newer releases is
+        # verified separately by loading the packaged plugin in OBS.
         if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
             FetchContent_Declare(
                 obs_source_headers
