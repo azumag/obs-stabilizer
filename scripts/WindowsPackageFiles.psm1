@@ -23,6 +23,14 @@ function Get-WindowsPackageDllManifest {
     return $names
 }
 
+function ConvertTo-WindowsPackageZipPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$EntryPath
+    )
+
+    return $EntryPath.Replace('\', '/')
+}
+
 function Assert-ExactWindowsPackageFileSet {
     param(
         [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$ExpectedNames,
@@ -42,4 +50,5 @@ function Assert-ExactWindowsPackageFileSet {
     }
 }
 
-Export-ModuleMember -Function Get-WindowsPackageDllManifest, Assert-ExactWindowsPackageFileSet
+Export-ModuleMember -Function Get-WindowsPackageDllManifest, ConvertTo-WindowsPackageZipPath, `
+    Assert-ExactWindowsPackageFileSet

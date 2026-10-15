@@ -40,6 +40,55 @@ try {
 }
 if (-not $rejectedCaseChange) { throw 'The package allowlist accepted a changed DLL filename' }
 
+$expectedZipEntries = @(
+    'obs-stabilizer/obs-plugins/64bit/obs-stabilizer-opencv.dll',
+    'obs-stabilizer/obs-plugins/64bit/opencv_core4.dll'
+)
+Assert-ExactWindowsPackageFileSet -ExpectedNames $expectedZipEntries `
+    -ActualNames $expectedZipEntries -Context 'forward-slash ZIP path fixture'
+
+$backslashZipEntries = @($expectedZipEntries | ForEach-Object { $_.Replace('/', '\') })
+$normalizedBackslashEntries = @($backslashZipEntries | ForEach-Object {
+    ConvertTo-WindowsPackageZipPath -EntryPath $_
+})
+Assert-ExactWindowsPackageFileSet -ExpectedNames $expectedZipEntries `
+    -ActualNames $normalizedBackslashEntries -Context 'backslash ZIP path fixture'
+
+$mixedZipEntries = @($expectedZipEntries[0], $backslashZipEntries[1])
+$normalizedMixedEntries = @($mixedZipEntries | ForEach-Object {
+    ConvertTo-WindowsPackageZipPath -EntryPath $_
+})
+Assert-ExactWindowsPackageFileSet -ExpectedNames $expectedZipEntries `
+    -ActualNames $normalizedMixedEntries -Context 'mixed-separator ZIP path fixture'
+
+$rejectedUnexpectedZipPath = $false
+try {
+    Assert-ExactWindowsPackageFileSet -ExpectedNames $expectedZipEntries `
+        -ActualNames (@($expectedZipEntries) + @('other/obs-stabilizer/obs-plugins/64bit/extra.dll')) `
+        -Context 'unexpected ZIP path fixture'
+} catch {
+    if ($_.Exception.Message -notmatch 'unexpected: \[other/obs-stabilizer/obs-plugins/64bit/extra\.dll\]') {
+        throw
+    }
+    $rejectedUnexpectedZipPath = $true
+}
+if (-not $rejectedUnexpectedZipPath) { throw 'The package gate accepted an unexpected ZIP path' }
+
+$rejectedDuplicateZipPath = $false
+$duplicateZipEntries = @($expectedZipEntries) + @($expectedZipEntries[0].Replace('/', '\'))
+$normalizedDuplicateZipEntries = @($duplicateZipEntries | ForEach-Object {
+    ConvertTo-WindowsPackageZipPath -EntryPath $_
+})
+try {
+    Assert-ExactWindowsPackageFileSet -ExpectedNames $expectedZipEntries `
+        -ActualNames $normalizedDuplicateZipEntries `
+        -Context 'duplicate separator-normalized ZIP path fixture'
+} catch {
+    if ($_.Exception.Message -notmatch 'duplicate names') { throw }
+    $rejectedDuplicateZipPath = $true
+}
+if (-not $rejectedDuplicateZipPath) { throw 'The package gate accepted duplicate separator-normalized ZIP paths' }
+
 $temporaryManifest = Join-Path ([System.IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString() + '.txt')
 try {
     @('example.dll', 'EXAMPLE.dll') | Set-Content -LiteralPath $temporaryManifest

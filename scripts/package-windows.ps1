@@ -45,7 +45,9 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zipFile = [System.IO.Compression.ZipFile]::OpenRead($archive)
 try {
     $expectedZipDllPaths = @($expectedDllNames | ForEach-Object { "obs-stabilizer/obs-plugins/64bit/$_" })
-    $actualZipDllPaths = @($zipFile.Entries | Where-Object { $_.FullName -match '\.dll$' } | ForEach-Object FullName)
+    $actualZipDllPaths = @($zipFile.Entries |
+        Where-Object { $_.FullName -match '\.dll$' } |
+        ForEach-Object { ConvertTo-WindowsPackageZipPath -EntryPath $_.FullName })
     Assert-ExactWindowsPackageFileSet -ExpectedNames $expectedZipDllPaths -ActualNames $actualZipDllPaths `
         -Context 'Windows ZIP'
 } finally {
