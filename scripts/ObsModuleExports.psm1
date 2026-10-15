@@ -9,7 +9,11 @@ $script:RequiredObsModuleExports = @(
 
 function Get-ObsModuleExportNames {
     [CmdletBinding()]
-    param([Parameter(Mandatory = $true)][string[]]$ExportTable)
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string[]]$ExportTable
+    )
 
     foreach ($line in $ExportTable) {
         # Parse the name column, not a substring of the full line. Dumpbin may
@@ -23,7 +27,11 @@ function Get-ObsModuleExportNames {
 
 function Get-MissingObsModuleExports {
     [CmdletBinding()]
-    param([Parameter(Mandatory = $true)][string[]]$ExportTable)
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string[]]$ExportTable
+    )
 
     $names = @(Get-ObsModuleExportNames -ExportTable $ExportTable)
     foreach ($required in $script:RequiredObsModuleExports) {
