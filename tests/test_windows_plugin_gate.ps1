@@ -64,16 +64,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Fixture configure failed' }
     cmake --build "$fixture/build" --config Release
     if ($LASTEXITCODE -ne 0) { throw 'Fixture build failed' }
+    $fixtureReport = "$fixture/fixture-report.txt"
+    'Status: PASS (stale report fixture)' | Set-Content -LiteralPath $fixtureReport
     $rejected = $false
     try {
         & "$repo/scripts/verify-windows-plugin.ps1" `
             -PluginPath "$fixture/build/Release/obs-stabilizer-opencv.dll" `
-            -ReportPath "$fixture/fixture-report.txt"
+            -ReportPath $fixtureReport
     } catch {
         if ($_.Exception.Message -notmatch 'Missing required OBS export: obs_module_set_pointer') { throw }
         $rejected = $true
     }
     if (-not $rejected) { throw 'Incomplete OBS DLL was accepted' }
+    if (Test-Path -LiteralPath $fixtureReport) {
+        throw 'Failed plugin verification left a stale PASS report'
+    }
     Write-Host 'Windows gate regression passed: a load-only DLL is rejected at its exact path'
 } finally {
     Remove-Item -LiteralPath $fixture -Recurse -Force

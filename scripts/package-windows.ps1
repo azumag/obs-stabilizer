@@ -13,9 +13,11 @@ $destination = Join-Path $stage 'obs-stabilizer/obs-plugins/64bit'
 New-Item -ItemType Directory -Force $destination | Out-Null
 # Keep the existing vcpkg app-local runtime DLLs, excluding the unit test and
 # host OBS libraries. OBS supplies its own obs.dll; never replace that runtime.
-Get-ChildItem -LiteralPath "$build/$Configuration" -Filter '*.dll' |
+$runtimeDlls = @(Get-ChildItem -LiteralPath "$build/$Configuration" -Filter '*.dll' |
     Where-Object { $_.Name -notmatch '^(gtest.*|obs|w32-pthreads)\.dll$' } |
-    Copy-Item -Destination $destination
+    Sort-Object Name)
+Write-Host "Windows package DLL candidates: $($runtimeDlls.Name -join ', ')"
+$runtimeDlls | Copy-Item -Destination $destination
 Copy-Item -LiteralPath "$repo/README.md", "$repo/LICENSE" -Destination "$stage/obs-stabilizer"
 $archive = Join-Path $build 'obs-stabilizer-windows.zip'
 Compress-Archive -Path "$stage/obs-stabilizer" -DestinationPath $archive -Force

@@ -4,6 +4,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Import-Module "$PSScriptRoot/ObsModuleExports.psm1" -Force
+if (Test-Path -LiteralPath $ReportPath -PathType Leaf) {
+    Remove-Item -LiteralPath $ReportPath -Force
+}
 # The caller supplies the exact target/package path. Never search by DLL name:
 # dependency DLLs, stale builds, or another configuration must not satisfy this gate.
 $plugin = (Resolve-Path -LiteralPath $PluginPath).Path
@@ -22,7 +25,6 @@ if ($LASTEXITCODE -ne 0) { throw 'dumpbin /headers failed' }
 $imports = & $dumpbin /nologo /dependents $plugin
 if ($LASTEXITCODE -ne 0) { throw 'dumpbin /dependents failed' }
 $hash = (Get-FileHash -LiteralPath $plugin -Algorithm SHA256).Hash
-@("Plugin: $plugin", "SHA256: $hash", $exports, $headers, $imports) | Set-Content $ReportPath
 if (-not ($headers -match '8664 machine \(x64\)')) { throw 'Expected an x64 plugin' }
 $missingExports = @(Get-MissingObsModuleExports -ExportTable $exports)
 if ($missingExports.Count -gt 0) {
@@ -30,4 +32,6 @@ if ($missingExports.Count -gt 0) {
     throw "Missing required OBS export: $($missingExports[0]) ($plugin)`nOBS module exports reported by dumpbin:`n$($moduleExportRows -join [Environment]::NewLine)"
 }
 if (-not ($imports -match '^\s+obs\.dll\s*$')) { throw 'Plugin must import the real obs.dll' }
+@("Status: PASS", "Plugin: $plugin", "SHA256: $hash", $exports, $headers, $imports) |
+    Set-Content -LiteralPath $ReportPath
 Write-Host "Verified x64 OBS module: $plugin (SHA256 $hash)"
