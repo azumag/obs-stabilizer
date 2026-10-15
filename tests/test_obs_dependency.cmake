@@ -27,6 +27,28 @@ endforeach()
 # Exercise the pinned OBS 30.0 source correction used by the Windows SDK
 # bootstrap, using the exact source anchor and upstream fix without downloads.
 include("${repo}/cmake/PatchOBSWindowsSDK.cmake")
+set(cache_root "${root}/obs-sdk-cache")
+set(cache_source "${cache_root}/obs-studio")
+set(cache_build "${cache_root}/build")
+set(cache_stamp "${cache_root}/fingerprint")
+file(MAKE_DIRECTORY "${cache_source}" "${cache_build}")
+file(WRITE "${cache_source}/CMakeLists.txt" "old source")
+file(WRITE "${cache_build}/state.txt" "old build")
+file(WRITE "${cache_stamp}" "old-fingerprint\n")
+invalidate_obs_windows_sdk_cache(
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint" needs_extract)
+if(NOT needs_extract OR EXISTS "${cache_source}/CMakeLists.txt" OR EXISTS "${cache_build}")
+    message(FATAL_ERROR "A stale OBS SDK patch fingerprint did not invalidate the cached source and build")
+endif()
+file(MAKE_DIRECTORY "${cache_source}" "${cache_build}")
+file(WRITE "${cache_source}/CMakeLists.txt" "current source")
+file(WRITE "${cache_build}/state.txt" "current build")
+file(WRITE "${cache_stamp}" "current-fingerprint\n")
+invalidate_obs_windows_sdk_cache(
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint" needs_extract)
+if(needs_extract OR NOT EXISTS "${cache_source}/CMakeLists.txt" OR NOT EXISTS "${cache_build}/state.txt")
+    message(FATAL_ERROR "A current OBS SDK patch fingerprint did not preserve its cache")
+endif()
 set(obs_source "${root}/obs-source")
 file(MAKE_DIRECTORY "${obs_source}/libobs/cmake")
 file(WRITE "${obs_source}/libobs/cmake/os-windows.cmake"

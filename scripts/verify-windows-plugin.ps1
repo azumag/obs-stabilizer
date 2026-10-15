@@ -26,7 +26,8 @@ if (-not ($headers -match '8664 machine \(x64\)')) { throw 'Expected an x64 plug
 foreach ($symbol in @('obs_module_load', 'obs_module_set_pointer', 'obs_module_ver',
                       'obs_module_name', 'obs_module_description', 'obs_module_unload')) {
     $escapedSymbol = [regex]::Escape($symbol)
-    if (-not ($exports -cmatch "\s+$escapedSymbol\s*$")) {
+    $exportRowPattern = "^\s+\d+\s+\d+\s+[0-9a-fA-F]+\s+$escapedSymbol(?:\s*=\s+.*)?\s*$"
+    if (-not ($exports -cmatch $exportRowPattern)) {
         $moduleExportRows = @($exports | Where-Object { $_ -match 'obs_module_' })
         throw "Missing required OBS export: $symbol ($plugin)`nOBS module exports reported by dumpbin:`n$($moduleExportRows -join [Environment]::NewLine)"
     }

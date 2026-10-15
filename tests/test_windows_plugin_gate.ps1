@@ -5,12 +5,17 @@ New-Item -ItemType Directory -Force "$fixture/source" | Out-Null
 @'
 cmake_minimum_required(VERSION 3.16)
 project(incomplete_plugin C)
-add_library(obs-stabilizer-opencv MODULE incomplete.c)
+add_library(obs-stabilizer-opencv MODULE incomplete.c incomplete.def)
 '@ | Set-Content "$fixture/source/CMakeLists.txt"
 # A DLL exporting only load must fail even if a complete plugin is present in
-# build/RelWithDebInfo. The verifier must inspect only the supplied fixture.
-'__declspec(dllexport) int obs_module_load(void) { return 1; }' |
+# build/RelWithDebInfo. The .def alias also matches dumpbin's `= @ILT` suffix.
+# The verifier must inspect only the supplied fixture.
+'int obs_module_load_impl(void) { return 1; }' |
     Set-Content "$fixture/source/incomplete.c"
+@'
+EXPORTS
+    obs_module_load=obs_module_load_impl
+'@ | Set-Content "$fixture/source/incomplete.def"
 try {
     cmake -S "$fixture/source" -B "$fixture/build" -A x64
     if ($LASTEXITCODE -ne 0) { throw 'Fixture configure failed' }

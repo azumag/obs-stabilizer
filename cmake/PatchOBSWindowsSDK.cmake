@@ -1,5 +1,23 @@
 # Carry the upstream OBS 30.1 fix for building the 32-bit SDK slice while
 # preserving the OBS 30.0 API level required by this plugin.
+function(invalidate_obs_windows_sdk_cache obs_source_dir obs_build_dir stamp_path fingerprint out_needs_extract)
+    set(needs_extract FALSE)
+    if(NOT EXISTS "${obs_source_dir}/CMakeLists.txt" OR NOT EXISTS "${stamp_path}")
+        set(needs_extract TRUE)
+    else()
+        file(READ "${stamp_path}" cached_fingerprint)
+        string(STRIP "${cached_fingerprint}" cached_fingerprint)
+        if(NOT "${cached_fingerprint}" STREQUAL "${fingerprint}")
+            set(needs_extract TRUE)
+        endif()
+    endif()
+
+    if(needs_extract)
+        file(REMOVE_RECURSE "${obs_source_dir}" "${obs_build_dir}" "${stamp_path}")
+    endif()
+    set(${out_needs_extract} "${needs_extract}" PARENT_SCOPE)
+endfunction()
+
 function(patch_obs_windows_sdk obs_source_dir)
     set(libobs_windows_cmake "${obs_source_dir}/libobs/cmake/os-windows.cmake")
     if(NOT EXISTS "${libobs_windows_cmake}")
