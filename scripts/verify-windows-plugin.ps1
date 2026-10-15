@@ -25,8 +25,10 @@ $hash = (Get-FileHash -LiteralPath $plugin -Algorithm SHA256).Hash
 if (-not ($headers -match '8664 machine \(x64\)')) { throw 'Expected an x64 plugin' }
 foreach ($symbol in @('obs_module_load', 'obs_module_set_pointer', 'obs_module_ver',
                       'obs_module_name', 'obs_module_description', 'obs_module_unload')) {
-    if (-not ($exports -cmatch "^\s+\d+\s+[0-9A-F]+\s+[0-9A-F]+\s+$symbol\s*$")) {
-        throw "Missing required OBS export: $symbol ($plugin)"
+    $escapedSymbol = [regex]::Escape($symbol)
+    if (-not ($exports -cmatch "\s+$escapedSymbol\s*$")) {
+        $moduleExportRows = @($exports | Where-Object { $_ -match 'obs_module_' })
+        throw "Missing required OBS export: $symbol ($plugin)`nOBS module exports reported by dumpbin:`n$($moduleExportRows -join [Environment]::NewLine)"
     }
 }
 if (-not ($imports -match '^\s+obs\.dll\s*$')) { throw 'Plugin must import the real obs.dll' }
