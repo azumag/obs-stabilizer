@@ -7,18 +7,22 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Test missing OBS SDK contract
+      shell: bash
+      run: cmake -P tests/test_obs_dependency.cmake
+
     - name: Configure CMake (Unix)
       if: inputs.platform != 'windows'
       shell: bash
       run: |
         mkdir -p build
         cd build
-        cmake_args=(-G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo)
+        cmake_args=(-G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_STANDALONE=OFF)
         if [ -n "${OpenCV_DIR:-}" ]; then
           cmake_args+=("-DOpenCV_DIR=${OpenCV_DIR}")
         fi
         cmake .. "${cmake_args[@]}"
-        echo "CMake configuration completed for standalone build"
+        echo "CMake configuration completed for OBS plugin build"
 
     - name: Configure CMake (Windows)
       if: inputs.platform == 'windows'
@@ -28,5 +32,8 @@ runs:
         cd build
         $vcpkgRoot = "$env:VCPKG_ROOT"
         $toolchainFile = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
-        cmake .. -A x64 -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DVCPKG_TARGET_TRIPLET=x64-windows
-        Write-Host "CMake configuration completed for standalone build"
+        $obsSource = Join-Path $env:GITHUB_WORKSPACE "tmp/obs-sdk/obs-studio-30.0.0"
+        $obsLibrary = Join-Path $env:GITHUB_WORKSPACE "tmp/obs-sdk/build/libobs/RelWithDebInfo"
+        cmake .. -A x64 -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DVCPKG_TARGET_TRIPLET=x64-windows -DBUILD_STANDALONE=OFF -DOBS_SOURCE_DIR="$obsSource" -DOBS_LIBRARY_PATH="$obsLibrary"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Write-Host "CMake configuration completed for OBS plugin build"

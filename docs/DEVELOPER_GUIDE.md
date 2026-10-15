@@ -50,7 +50,7 @@ flowchart LR
 - Ninja or another supported CMake generator
 - OBS headers and libraries for plugin builds
 
-The repository can build portions of the project in standalone mode when OBS development files are unavailable.
+Plugin builds require OBS development files. For test/development builds without OBS, explicitly pass `-DBUILD_STANDALONE=ON`; that output is not an installable OBS plugin.
 
 ## Configure and build
 
@@ -72,13 +72,21 @@ Platform setup details are also encoded in `.github/actions/setup-build-env` and
 
 **`CMAKE_C_COMPILER not set`**: install a toolchain — `xcode-select --install` on macOS, `sudo apt install build-essential` on Ubuntu/Linux, or the Visual Studio Build Tools on Windows.
 
-**OBS headers**: on macOS, configure always fetches OBS's own headers (a pinned 30.0.0 source tarball) over the network via `FetchContent` and links against them; there is no standalone fallback there. To build against a local OBS checkout instead, pass `-DOBS_SOURCE_DIR=/path/to/obs-studio`. On Linux and Windows, CMake searches standard OBS install locations and, if it finds none, falls back to a standalone build (`BUILD_STANDALONE`) with a warning instead of failing. For a full plugin build, install OBS development headers (Ubuntu/Linux: `sudo apt install libobs-dev`) or point CMake at them directly:
+**OBS SDK**: plugin builds fail at configure time if OBS headers or the required library are missing. CI and release builds explicitly use `-DBUILD_STANDALONE=OFF`. Linux needs `sudo apt install libobs-dev`. macOS fetches the official, hash-pinned OBS 30.0.0 headers automatically, or accepts `-DOBS_SOURCE_DIR=/path/to/obs-studio`.
 
-```bash
-cmake -DOBS_INCLUDE_PATH=/path/to/obs/include \
-      -DOBS_LIBRARY_PATH=/path/to/obs/lib \
-      -B build
+Windows CI builds libobs from the official OBS 30.0.0 source archive, pinned by SHA-256 `c23dd463862b1a8f40365d84fd52105d7eafc3614fb3d470b695ba28a6e4da06`, with `cmake -P cmake/FetchWindowsOBS.cmake`; OBS's own build obtains its pinned official dependencies. The bootstrap applies the upstream OBS 30.1 fix that defines the missing `OBS::w32-pthreads` target before linking libobs. The patch is maintained in `cmake/PatchOBSWindowsSDK.cmake` and changes only the OBS 30.0 source tree in the build directory; it does not change the downloaded archive. The regression test compares the inserted hunk byte-for-byte with the upstream addition and calls the patch twice to check idempotence. This builds an SDK under `tmp/obs-sdk`; it does not install or launch OBS. Configure the plugin with the vcpkg toolchain and:
+
+The SDK deliberately stays at OBS API 30.0.0, the project's documented minimum. Compiling against the oldest supported headers and import library makes the build fail if this plugin starts using an API added after 30.0. OBS 32.2.2 still uses an upper-bound module-version check that accepts an older module version ([loader source](https://github.com/obsproject/obs-studio/blob/32.2.2/libobs/obs-module.c#L170-L176)); that check does not establish runtime compatibility or prove that a newer libobs retains every imported symbol. Validate actual loading on each supported OBS release separately. See the official [30.0.0 API version](https://github.com/obsproject/obs-studio/blob/30.0.0/libobs/obs-config.h#L19-L51), [32.2.2 API version](https://github.com/obsproject/obs-studio/blob/32.2.2/libobs/obs-config.h#L19-L48), and [32.2.2 module-version macro](https://github.com/obsproject/obs-studio/blob/32.2.2/libobs/obs-module.h#L75-L91).
+
+```powershell
+cmake -S . -B build -A x64 -DBUILD_STANDALONE=OFF `
+  -DOBS_SOURCE_DIR="$PWD/tmp/obs-sdk/obs-studio-30.0.0" `
+  -DOBS_LIBRARY_PATH="$PWD/tmp/obs-sdk/build/libobs/RelWithDebInfo"
 ```
+
+Alternatively supply installed SDK paths with `-DOBS_INCLUDE_PATH=/path/to/include/obs -DOBS_LIBRARY_PATH=/path/to/lib`. Windows source builds include the official w32-pthreads headers as required by libobs.
+
+After building on Windows, `./scripts/package-windows.ps1` checks the exact `build/RelWithDebInfo/obs-stabilizer-opencv.dll` with MSVC dumpbin, then verifies the same DLL extracted from `build/obs-stabilizer-windows.zip`. Both must be x64, import `obs.dll`, and export `obs_module_load`, `obs_module_set_pointer`, `obs_module_ver`, `obs_module_name`, `obs_module_description`, and `obs_module_unload`. The sorted DLL payload is pinned in `scripts/windows-package-dlls.txt`; packaging fails if the build output or ZIP has a missing or unexpected DLL, and compares SHA-256 for every shipped DLL against its exact build output. CI uploads the ZIP, path/hash/export reports, and the DLL filename/hash report. The packaged filename `obs-stabilizer-opencv.dll` is the loader/package identifier; `obs_module_name()` supplies the OBS module display name `Video Stabilizer`, which matches the filter name returned by `stabilizer_filter_name()`. This is a static ABI gate; it does not prove that OBS can load or run the plugin.
 
 **OpenCV not found**: on macOS, `brew install opencv` and, if CMake still can't locate it, pass `-DOpenCV_DIR=/opt/homebrew/lib/cmake/opencv4` (Intel Homebrew: `/usr/local/lib/cmake/opencv4`). On Ubuntu/Linux, `sudo apt install libopencv-dev pkg-config`. On Windows, `vcpkg install opencv[core,imgproc,video,calib3d,features2d,flann]`.
 

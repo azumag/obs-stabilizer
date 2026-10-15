@@ -40,6 +40,7 @@ jobs:
         run: |
           cmake -S . -B build-preset-tests \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_STANDALONE=ON \
             -DENABLE_PERFORMANCE_TESTS=OFF
 
       - name: Build preset tests

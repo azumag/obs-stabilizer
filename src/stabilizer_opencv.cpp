@@ -42,23 +42,9 @@ static obs_properties_t *stabilizer_filter_properties(void *data);
 // Frame conversion functions
 static cv::Mat obs_frame_to_cv_mat(const obs_source_frame *frame);
 
-// Plugin structure definition
-static struct obs_source_info stabilizer_filter_info = {
-    .id = "stabilizer_filter",
-    .type = OBS_SOURCE_TYPE_FILTER,
-    // filter_video receives raw frames only when the filter is marked async.
-    // Without OBS_SOURCE_ASYNC OBS lists this as an effect filter but never
-    // invokes the OpenCV processing callback for async media sources.
-    .output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC,
-    .get_name = stabilizer_filter_name,
-    .create = stabilizer_filter_create,
-    .destroy = stabilizer_filter_destroy,
-    .get_defaults = set_stabilizer_defaults,
-    .get_properties = stabilizer_filter_properties,
-    .update = stabilizer_filter_update,
-    .video_render = NULL,
-    .filter_video = stabilizer_filter_video,
-};
+// The project targets C++17, so initialize OBS's versioned C struct with
+// ordinary assignments instead of C++20 designated initializers.
+static struct obs_source_info stabilizer_filter_info{};
 #endif
 
 // Plugin implementation functions
@@ -264,6 +250,21 @@ MODULE_EXPORT const char *obs_module_description(void)
 
 MODULE_EXPORT bool obs_module_load(void)
 {
+    stabilizer_filter_info.id = "stabilizer_filter";
+    stabilizer_filter_info.type = OBS_SOURCE_TYPE_FILTER;
+    // filter_video receives raw frames only when the filter is marked async.
+    // Without OBS_SOURCE_ASYNC OBS lists this as an effect filter but never
+    // invokes the OpenCV processing callback for async media sources.
+    stabilizer_filter_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_ASYNC;
+    stabilizer_filter_info.get_name = stabilizer_filter_name;
+    stabilizer_filter_info.create = stabilizer_filter_create;
+    stabilizer_filter_info.destroy = stabilizer_filter_destroy;
+    stabilizer_filter_info.get_defaults = set_stabilizer_defaults;
+    stabilizer_filter_info.get_properties = stabilizer_filter_properties;
+    stabilizer_filter_info.update = stabilizer_filter_update;
+    stabilizer_filter_info.video_render = NULL;
+    stabilizer_filter_info.filter_video = stabilizer_filter_video;
+
     blog(LOG_INFO, "[obs-stabilizer] Loading OBS Stabilizer Plugin (Modular Architecture)");
     obs_register_source(&stabilizer_filter_info);
     blog(LOG_INFO, "[obs-stabilizer] OBS Stabilizer Plugin loaded successfully");

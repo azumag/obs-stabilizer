@@ -88,13 +88,20 @@ jobs:
 
     - name: Package (Windows)
       if: matrix.os == 'windows-latest'
+      shell: powershell
       run: |
-        mkdir package\obs-stabilizer
-        copy build\RelWithDebInfo\*.dll package\obs-stabilizer\
-        copy README.md package\obs-stabilizer\
-        copy LICENSE package\obs-stabilizer\
-        cd package
-        powershell Compress-Archive -Path obs-stabilizer -DestinationPath ..\obs-stabilizer-windows.zip
+        ./scripts/package-windows.ps1
+        Copy-Item -LiteralPath build/obs-stabilizer-windows.zip -Destination obs-stabilizer-windows.zip
+
+    - name: Upload Windows ABI evidence
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-plugin-abi-${{ github.run_id }}
+        if-no-files-found: error
+        path: |
+          build/windows-plugin-build.txt
+          build/windows-plugin-package.txt
 
     - name: Package (macOS)
       if: matrix.os == 'macos-latest'

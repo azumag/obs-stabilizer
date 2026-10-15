@@ -71,13 +71,29 @@ jobs:
         with:
           platform: windows
 
+      - name: Test Windows ABI gate
+        shell: powershell
+        run: ./tests/test_windows_plugin_gate.ps1
+
+      - name: Test Windows package DLL allowlist
+        shell: powershell
+        run: ./tests/test_windows_package_dll_set.ps1
+
+      - name: Verify and package Windows plugin
+        shell: powershell
+        run: ./scripts/package-windows.ps1
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: obs-stabilizer-windows-${{ github.run_number }}
           retention-days: 30
+          if-no-files-found: error
           path: |
-            build/RelWithDebInfo/obs-stabilizer-opencv.dll
+            build/obs-stabilizer-windows.zip
+            build/windows-plugin-build.txt
+            build/windows-plugin-package.txt
+            build/windows-package-dlls-report.txt
 
   build-macos:
     name: Build on macOS

@@ -110,11 +110,13 @@ Apple Silicon build, code-signing, and system-vs-bundled OpenCV flow.
 cp build/obs-stabilizer-opencv.so ~/.config/obs-studio/plugins/
 ```
 
-**Windows**:
-
-```bash
-copy build\Release\obs-stabilizer-opencv.dll %APPDATA%\obs-studio\plugins\
-```
+**Windows**: extract `obs-stabilizer-windows.zip`, then copy the contents of
+`obs-stabilizer/obs-plugins/64bit` into your OBS installation's
+`obs-plugins/64bit` directory (typically
+`C:\Program Files\obs-studio\obs-plugins\64bit`). Keep the runtime DLLs
+beside `obs-stabilizer-opencv.dll`. For source builds, run
+`./scripts/package-windows.ps1` after building; see the Windows SDK setup in
+[docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
 
 Restart OBS Studio; **Video Stabilizer** should then appear in the source
 filter list.
