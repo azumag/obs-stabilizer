@@ -106,5 +106,3 @@ else()
             "-DBUILD_STANDALONE=ON for non-distributable test/development builds.")
     endif()
 endif()
-
-
