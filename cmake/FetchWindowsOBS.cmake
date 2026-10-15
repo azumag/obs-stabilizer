@@ -1,6 +1,7 @@
 # Build the official minimum-supported libobs SDK, following the OBS plugin
 # template's source-build approach. This does not install or run OBS Studio.
 cmake_minimum_required(VERSION 3.22)
+include("${CMAKE_CURRENT_LIST_DIR}/PatchOBSWindowsSDK.cmake")
 if(NOT WIN32)
     message(FATAL_ERROR "This SDK bootstrap requires Windows/MSVC")
 endif()
@@ -17,6 +18,7 @@ if(NOT EXISTS "${root}/obs-studio-30.0.0/CMakeLists.txt")
     file(ARCHIVE_EXTRACT INPUT "${archive}" DESTINATION "${root}")
 endif()
 set(source "${root}/obs-studio-30.0.0")
+patch_obs_windows_sdk("${source}")
 execute_process(
     COMMAND "${CMAKE_COMMAND}" -S "${source}" -B "${root}/build" -A x64
         -DOBS_CMAKE_VERSION=3.0.0 -DOBS_VERSION_OVERRIDE=30.0.0

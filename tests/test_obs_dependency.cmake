@@ -24,5 +24,21 @@ foreach(mode IN ITEMS plugin standalone)
         message(FATAL_ERROR "Explicit standalone failed: ${output}${error}")
     endif()
 endforeach()
+# Exercise the pinned OBS 30.0 source correction used by the Windows SDK
+# bootstrap, using the exact source anchor and upstream fix without downloads.
+include("${repo}/cmake/PatchOBSWindowsSDK.cmake")
+set(obs_source "${root}/obs-source")
+file(MAKE_DIRECTORY "${obs_source}/libobs/cmake")
+file(WRITE "${obs_source}/libobs/cmake/os-windows.cmake"
+    "configure_file(cmake/windows/obs-module.rc.in libobs.rc)\n")
+patch_obs_windows_sdk("${obs_source}")
+patch_obs_windows_sdk("${obs_source}")
+file(READ "${obs_source}/libobs/cmake/os-windows.cmake" obs_windows_cmake)
+string(REGEX MATCHALL "OBS::w32-pthreads" target_matches "${obs_windows_cmake}")
+list(LENGTH target_matches target_count)
+if(NOT target_count EQUAL 1 OR NOT obs_windows_cmake MATCHES
+    "add_subdirectory.*deps/w32-pthreads")
+    message(FATAL_ERROR "OBS Windows SDK patch did not add exactly one w32-pthreads target")
+endif()
 file(REMOVE_RECURSE "${root}")
 message(STATUS "OBS dependency regression passed: plugin fails without SDK; explicit standalone succeeds")

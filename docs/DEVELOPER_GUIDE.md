@@ -74,7 +74,7 @@ Platform setup details are also encoded in `.github/actions/setup-build-env` and
 
 **OBS SDK**: plugin builds fail at configure time if OBS headers or the required library are missing. CI and release builds explicitly use `-DBUILD_STANDALONE=OFF`. Linux needs `sudo apt install libobs-dev`. macOS fetches the official, hash-pinned OBS 30.0.0 headers automatically, or accepts `-DOBS_SOURCE_DIR=/path/to/obs-studio`.
 
-Windows CI builds libobs from the same official OBS 30.0.0 source archive (the documented minimum) with `cmake -P cmake/FetchWindowsOBS.cmake`. OBS's own build obtains its pinned official dependencies. This builds an SDK under `tmp/obs-sdk`; it does not install or launch OBS. Configure the plugin with the vcpkg toolchain and:
+Windows CI builds libobs from the official, hash-pinned OBS 30.0.0 source (the documented minimum) with `cmake -P cmake/FetchWindowsOBS.cmake`; OBS's own build obtains its pinned official dependencies. The bootstrap applies the upstream OBS 30.1 fix that defines the missing `OBS::w32-pthreads` target before linking libobs, while retaining the 30.0 API level. This builds an SDK under `tmp/obs-sdk`; it does not install or launch OBS. Configure the plugin with the vcpkg toolchain and:
 
 ```powershell
 cmake -S . -B build -A x64 -DBUILD_STANDALONE=OFF `
