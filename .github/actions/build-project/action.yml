@@ -13,7 +13,7 @@ runs:
       run: |
         cd build
         ninja
-        echo "Standalone build completed successfully"
+        echo "OBS plugin build completed successfully"
 
     - name: Build (Windows)
       if: inputs.platform == 'windows'
@@ -21,4 +21,5 @@ runs:
       run: |
         cd build
         cmake --build . --config RelWithDebInfo
-        Write-Host "Standalone build completed successfully"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Write-Host "OBS plugin build completed successfully"

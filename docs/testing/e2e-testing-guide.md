@@ -29,21 +29,22 @@ This guide provides comprehensive procedures for end-to-end (E2E) integration te
 
 #### Windows
 
-1. **Clean Install**:
-   ```bash
-   # Remove old versions
-   del "%APPDATA%\obs-studio\plugins\obs-stabilizer.dll"
-   del "%APPDATA%\obs-studio\plugins\obs-stabilizer-opencv.dll"
+1. **Verify the package before installation**:
+   ```powershell
+   ./scripts/package-windows.ps1
+   # Inspect build/windows-plugin-build.txt and build/windows-plugin-package.txt.
    ```
+   The ZIP contains exactly one stabilizer plugin, at
+   `obs-stabilizer/obs-plugins/64bit/obs-stabilizer-opencv.dll`, alongside its
+   vcpkg runtime DLLs. The gate checks six OBS exports including
+   `obs_module_load`, `obs_module_set_pointer`, and `obs_module_ver`.
 
-2. **Copy New Binary**:
-   ```bash
-   # Using Release build
-   copy build\Release\obs-stabilizer.dll "%APPDATA%\obs-studio\plugins\"
-   
-   # Or using OpenCV bundle
-   copy build\obs-stabilizer-opencv.dll "%APPDATA%\obs-studio\plugins\"
-   ```
+2. **Install in an authorized test environment**:
+   Extract the ZIP and copy the contents of `obs-stabilizer/obs-plugins/64bit`
+   into the OBS installation's `obs-plugins/64bit` directory (for example
+   `C:\Program Files\obs-studio\obs-plugins\64bit`). Keep the runtime DLLs
+   beside `obs-stabilizer-opencv.dll`. Remove an older stabilizer DLL first.
+   Do not replace OBS's own `obs.dll`.
 
 3. **Launch OBS Studio**:
    - Check for startup errors in OBS Log (Help → Log Files)
@@ -52,11 +53,12 @@ This guide provides comprehensive procedures for end-to-end (E2E) integration te
    - Verify plugin appears in Filters list
 
 4. **Verification Checklist**:
-   - [ ] Plugin loads without startup errors
+   - [ ] Record Windows/OBS version, CI run/attempt, commit, ZIP and DLL SHA-256
+   - [ ] Plugin loads without startup errors (including OBS 32.2.x for #378)
    - [ ] "Video Stabilizer" appears in Filters list
    - [ ] OBS Settings → Plugins shows plugin without warnings
    - [ ] System Report shows no plugin errors
-   - [ ] Version matches expected (check obs_module_version)
+   - [ ] Version matches expected (check the build commit and package SHA-256)
 
 #### macOS
 
