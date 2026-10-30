@@ -20,14 +20,18 @@ set(build "${root}/build")
 set(patch_stamp "${root}/obs-studio-30.0.0-patch-fingerprint")
 file(SHA256 "${CMAKE_CURRENT_LIST_DIR}/PatchOBSWindowsSDK.cmake" patch_sha256)
 string(SHA256 source_fingerprint "${archive_hash};${patch_sha256}")
+# Verification runs against the *patched* file before any re-patching, so a
+# tampered or partially patched tree is caught by the recorded hash instead of
+# being silently repaired by the idempotent patch step (#380 F-1).
 invalidate_obs_windows_sdk_cache(
-    "${source}" "${build}" "${patch_stamp}" "${source_fingerprint}" needs_extract)
+    "${source}" "${build}" "${patch_stamp}" "${source_fingerprint}"
+    "${source}/libobs/cmake/os-windows.cmake" needs_extract)
 if(needs_extract)
     file(ARCHIVE_EXTRACT INPUT "${archive}" DESTINATION "${root}")
 endif()
 patch_obs_windows_sdk("${source}")
-file(WRITE "${patch_stamp}" "${source_fingerprint}\n")
 file(SHA256 "${source}/libobs/cmake/os-windows.cmake" patched_cmake_sha256)
+file(WRITE "${patch_stamp}" "${source_fingerprint}\n${patched_cmake_sha256}\n")
 message(STATUS
     "OBS Windows SDK hashes: archive=${archive_hash}, patch=${patch_sha256}, patched os-windows.cmake=${patched_cmake_sha256}")
 execute_process(
