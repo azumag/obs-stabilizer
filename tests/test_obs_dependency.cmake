@@ -31,24 +31,73 @@ set(cache_root "${root}/obs-sdk-cache")
 set(cache_source "${cache_root}/obs-studio")
 set(cache_build "${cache_root}/build")
 set(cache_stamp "${cache_root}/fingerprint")
-file(MAKE_DIRECTORY "${cache_source}" "${cache_build}")
-file(WRITE "${cache_source}/CMakeLists.txt" "old source")
-file(WRITE "${cache_build}/state.txt" "old build")
-file(WRITE "${cache_stamp}" "old-fingerprint\n")
+set(cache_patched "${cache_source}/libobs/cmake/os-windows.cmake")
+# Helper for the case matrix: rebuild a fresh cached tree with a patched file
+# and a two-line stamp (fingerprint + patched sha256), mirroring what
+# FetchWindowsOBS.cmake writes after a successful patch (#380 F-1).
+function(write_cache fingerprint patched_content)
+    file(REMOVE_RECURSE "${cache_root}")
+    file(MAKE_DIRECTORY "${cache_source}/libobs/cmake" "${cache_build}")
+    file(WRITE "${cache_source}/CMakeLists.txt" "source")
+    file(WRITE "${cache_patched}" "${patched_content}")
+    file(WRITE "${cache_build}/state.txt" "build")
+    if(NOT "${fingerprint}" STREQUAL "")
+        file(SHA256 "${cache_patched}" patched_sha)
+        file(WRITE "${cache_stamp}" "${fingerprint}\n${patched_sha}\n")
+    endif()
+endfunction()
+function(expect_cache_removed label)
+    if(NOT needs_extract OR EXISTS "${cache_source}/CMakeLists.txt" OR EXISTS "${cache_build}")
+        message(FATAL_ERROR "OBS SDK cache was not invalidated: ${label}")
+    endif()
+endfunction()
+
+# Stale fingerprint -> source, build and stamp all removed.
+write_cache("old-fingerprint" "patched")
 invalidate_obs_windows_sdk_cache(
-    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint" needs_extract)
-if(NOT needs_extract OR EXISTS "${cache_source}/CMakeLists.txt" OR EXISTS "${cache_build}")
-    message(FATAL_ERROR "A stale OBS SDK patch fingerprint did not invalidate the cached source and build")
-endif()
-file(MAKE_DIRECTORY "${cache_source}" "${cache_build}")
-file(WRITE "${cache_source}/CMakeLists.txt" "current source")
-file(WRITE "${cache_build}/state.txt" "current build")
-file(WRITE "${cache_stamp}" "current-fingerprint\n")
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint"
+    "${cache_patched}" needs_extract)
+expect_cache_removed("stale fingerprint")
+
+# Same fingerprint + intact patched file -> everything kept.
+write_cache("current-fingerprint" "patched")
 invalidate_obs_windows_sdk_cache(
-    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint" needs_extract)
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint"
+    "${cache_patched}" needs_extract)
 if(needs_extract OR NOT EXISTS "${cache_source}/CMakeLists.txt" OR NOT EXISTS "${cache_build}/state.txt")
     message(FATAL_ERROR "A current OBS SDK patch fingerprint did not preserve its cache")
 endif()
+
+# Same fingerprint + corrupted/hand-edited patched file -> fail closed.
+write_cache("current-fingerprint" "patched")
+file(WRITE "${cache_patched}" "tampered patched file")
+invalidate_obs_windows_sdk_cache(
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint"
+    "${cache_patched}" needs_extract)
+expect_cache_removed("patched file hash mismatch")
+
+# Missing stamp -> fail closed.
+write_cache("" "patched")
+invalidate_obs_windows_sdk_cache(
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint"
+    "${cache_patched}" needs_extract)
+expect_cache_removed("missing stamp")
+
+# Missing source root marker (CMakeLists.txt) -> fail closed.
+write_cache("current-fingerprint" "patched")
+file(REMOVE "${cache_source}/CMakeLists.txt")
+invalidate_obs_windows_sdk_cache(
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint"
+    "${cache_patched}" needs_extract)
+expect_cache_removed("missing source CMakeLists.txt")
+
+# Legacy single-line stamp (pre-F-1 format) -> self-heals by re-extracting.
+write_cache("current-fingerprint" "patched")
+file(WRITE "${cache_stamp}" "current-fingerprint\n")
+invalidate_obs_windows_sdk_cache(
+    "${cache_source}" "${cache_build}" "${cache_stamp}" "current-fingerprint"
+    "${cache_patched}" needs_extract)
+expect_cache_removed("legacy single-line stamp")
 set(obs_source "${root}/obs-source")
 file(MAKE_DIRECTORY "${obs_source}/libobs/cmake")
 file(WRITE "${obs_source}/libobs/cmake/os-windows.cmake"

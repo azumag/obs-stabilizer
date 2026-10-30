@@ -1,14 +1,36 @@
 # Carry the upstream OBS 30.1 fix for building the 32-bit SDK slice while
 # preserving the OBS 30.0 API level required by this plugin.
-function(invalidate_obs_windows_sdk_cache obs_source_dir obs_build_dir stamp_path fingerprint out_needs_extract)
+# Reuse requires the whole stamp contract to hold: the same
+# archive+patch fingerprint AND the patched file still byte-for-byte equal to
+# what the recorded patch produced. A matching fingerprint alone must never
+# trust the tree: a partially patched or hand-edited patched file is exactly
+# the silent damage this cache is meant to catch (#380 F-1). The stamp keeps
+# two lines: `<fingerprint>\n<patched file sha256>`; an older single-line stamp
+# is treated as invalid so the cache self-heals on the next run.
+function(invalidate_obs_windows_sdk_cache obs_source_dir obs_build_dir stamp_path fingerprint patched_file out_needs_extract)
     set(needs_extract FALSE)
     if(NOT EXISTS "${obs_source_dir}/CMakeLists.txt" OR NOT EXISTS "${stamp_path}")
         set(needs_extract TRUE)
     else()
-        file(READ "${stamp_path}" cached_fingerprint)
-        string(STRIP "${cached_fingerprint}" cached_fingerprint)
-        if(NOT "${cached_fingerprint}" STREQUAL "${fingerprint}")
+        file(STRINGS "${stamp_path}" stamp_lines LIMIT_COUNT 2)
+        list(LENGTH stamp_lines stamp_line_count)
+        if(stamp_line_count LESS 2)
             set(needs_extract TRUE)
+        else()
+            list(GET stamp_lines 0 cached_fingerprint)
+            list(GET stamp_lines 1 cached_patched_sha256)
+            string(STRIP "${cached_fingerprint}" cached_fingerprint)
+            string(STRIP "${cached_patched_sha256}" cached_patched_sha256)
+            if(NOT "${cached_fingerprint}" STREQUAL "${fingerprint}")
+                set(needs_extract TRUE)
+            elseif(NOT EXISTS "${patched_file}")
+                set(needs_extract TRUE)
+            else()
+                file(SHA256 "${patched_file}" patched_sha256)
+                if(NOT "${patched_sha256}" STREQUAL "${cached_patched_sha256}")
+                    set(needs_extract TRUE)
+                endif()
+            endif()
         endif()
     endif()
 
